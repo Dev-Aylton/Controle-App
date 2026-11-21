@@ -1,0 +1,421 @@
+window.RESULTADOS_DATA = {
+  "resumo": {
+    "aprovados": 22,
+    "falhas": 0,
+    "ignorados": 0,
+    "tempoMs": 22.009900000000044
+  },
+  "grupos": {
+    "vitest": [
+      {
+        "nome": "traduz permission denied",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 3.169700000000006
+      },
+      {
+        "nome": "traduz falha de rede",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 0.5135999999999967
+      },
+      {
+        "nome": "mantém mensagem desconhecida",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 0.46280000000001564
+      },
+      {
+        "nome": "mantém carregamento antes de decidir",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 2.1004999999999825
+      },
+      {
+        "nome": "direciona sessão ausente ao login",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 0.45709999999999695
+      },
+      {
+        "nome": "direciona usuário sem empresa para código",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 0.3567000000000178
+      },
+      {
+        "nome": "direciona admin sem empresa para empresas",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 0.30459999999999354
+      },
+      {
+        "nome": "mantém usuário com empresa",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 0.3726000000000056
+      },
+      {
+        "nome": "não repete carga da mesma sessão",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 3.616599999999977
+      },
+      {
+        "nome": "permite carregar novamente para sincronização",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 0.5625
+      },
+      {
+        "nome": "carrega outra sessão depois de troca de usuário",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 0.4338999999999942
+      },
+      {
+        "nome": "informa quando a configuração está ausente",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 2.8111999999999853
+      },
+      {
+        "nome": "verifica o serviço de autenticação com a chave pública",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 1.6475000000000364
+      },
+      {
+        "nome": "informa uma resposta de erro do serviço",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 0.4892000000000394
+      },
+      {
+        "nome": "reconhece cargos que podem gerenciar empresa",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 3.096100000000007
+      },
+      {
+        "nome": "limita convite e promoção",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 0.7564999999999884
+      },
+      {
+        "nome": "impede desativação de si mesmo e aplica regras por cargo",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 0.48210000000000264
+      },
+      {
+        "nome": "mostra código apenas para admin, proprietário e gerente",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "unitários Vitest",
+        "tempoMs": 0.3766999999999996
+      }
+    ],
+    "rls": [],
+    "playwright": [
+      {
+        "nome": "layout login",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "ponta a ponta Playwright",
+        "tempoMs": 0
+      },
+      {
+        "nome": "layout mobile",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "ponta a ponta Playwright",
+        "tempoMs": 0
+      },
+      {
+        "nome": "layout tablet",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "ponta a ponta Playwright",
+        "tempoMs": 0
+      },
+      {
+        "nome": "layout notebook",
+        "status": "aprovado",
+        "etapa": 1,
+        "tipo": "ponta a ponta Playwright",
+        "tempoMs": 0
+      }
+    ]
+  },
+  "historico": [
+    {
+      "dataHora": "2026-11-21T07:15:35.757Z",
+      "aprovados": 3,
+      "falhas": 0,
+      "ignorados": 0,
+      "tempoMs": 4.3577999999999975,
+      "vitest": {
+        "aprovados": 3,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 4.3577999999999975
+      },
+      "rls": {
+        "aprovados": 0,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      },
+      "playwright": {
+        "aprovados": 0,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      }
+    },
+    {
+      "dataHora": "2026-11-21T07:19:39.888Z",
+      "aprovados": 3,
+      "falhas": 0,
+      "ignorados": 0,
+      "tempoMs": 11.218300000000056,
+      "vitest": {
+        "aprovados": 3,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 11.218300000000056
+      },
+      "rls": {
+        "aprovados": 0,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      },
+      "playwright": {
+        "aprovados": 0,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      }
+    },
+    {
+      "dataHora": "2026-11-21T07:20:36.333Z",
+      "aprovados": 6,
+      "falhas": 0,
+      "ignorados": 0,
+      "tempoMs": 6.71599999999998,
+      "vitest": {
+        "aprovados": 3,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 6.71599999999998
+      },
+      "rls": {
+        "aprovados": 0,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      },
+      "playwright": {
+        "aprovados": 3,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      }
+    },
+    {
+      "dataHora": "2026-11-21T07:25:58.315Z",
+      "aprovados": 13,
+      "falhas": 0,
+      "ignorados": 0,
+      "tempoMs": 18.24839999999992,
+      "vitest": {
+        "aprovados": 10,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 18.24839999999992
+      },
+      "rls": {
+        "aprovados": 0,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      },
+      "playwright": {
+        "aprovados": 3,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      }
+    },
+    {
+      "dataHora": "2026-11-21T07:26:31.543Z",
+      "aprovados": 14,
+      "falhas": 0,
+      "ignorados": 0,
+      "tempoMs": 8.830700000000007,
+      "vitest": {
+        "aprovados": 10,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 8.830700000000007
+      },
+      "rls": {
+        "aprovados": 0,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      },
+      "playwright": {
+        "aprovados": 4,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      }
+    },
+    {
+      "dataHora": "2026-11-21T07:30:11.716Z",
+      "aprovados": 14,
+      "falhas": 0,
+      "ignorados": 0,
+      "tempoMs": 18.66509999999988,
+      "vitest": {
+        "aprovados": 10,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 18.66509999999988
+      },
+      "rls": {
+        "aprovados": 0,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      },
+      "playwright": {
+        "aprovados": 4,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      }
+    },
+    {
+      "dataHora": "2026-11-21T07:32:20.734Z",
+      "aprovados": 14,
+      "falhas": 0,
+      "ignorados": 0,
+      "tempoMs": 9.707500000000039,
+      "vitest": {
+        "aprovados": 10,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 9.707500000000039
+      },
+      "rls": {
+        "aprovados": 0,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      },
+      "playwright": {
+        "aprovados": 4,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      }
+    },
+    {
+      "dataHora": "2026-11-21T07:38:08.336Z",
+      "aprovados": 14,
+      "falhas": 0,
+      "ignorados": 0,
+      "tempoMs": 8.721699999999998,
+      "vitest": {
+        "aprovados": 10,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 8.721699999999998
+      },
+      "rls": {
+        "aprovados": 0,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      },
+      "playwright": {
+        "aprovados": 4,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      }
+    },
+    {
+      "dataHora": "2026-11-21T08:14:53.573Z",
+      "aprovados": 19,
+      "falhas": 0,
+      "ignorados": 0,
+      "tempoMs": 13.599800000000016,
+      "vitest": {
+        "aprovados": 15,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 13.599800000000016
+      },
+      "rls": {
+        "aprovados": 0,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      },
+      "playwright": {
+        "aprovados": 4,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      }
+    },
+    {
+      "dataHora": "2026-11-21T08:19:49.891Z",
+      "aprovados": 22,
+      "falhas": 0,
+      "ignorados": 0,
+      "tempoMs": 22.009900000000044,
+      "vitest": {
+        "aprovados": 18,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 22.009900000000044
+      },
+      "rls": {
+        "aprovados": 0,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      },
+      "playwright": {
+        "aprovados": 4,
+        "falhas": 0,
+        "ignorados": 0,
+        "tempoMs": 0
+      }
+    }
+  ]
+};

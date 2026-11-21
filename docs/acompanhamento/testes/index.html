@@ -1,0 +1,96 @@
+<!--
+Atualização:
+1. Edite docs/acompanhamento/testes/resultados.json ou execute npm run testes:relatorio.
+2. Execute npm run acompanhamento:dados para regenerar resultados.dados.js.
+3. Abra este arquivo diretamente no navegador (duplo clique).
+-->
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Controle-App — Testes</title>
+  <style>
+    :root { --green:#1F7A65; --mint:#43A88B; --cream:#F7FAF8; --ink:#173A35; --orange:#F2A65A; --red:#C95C5C; --line:#D7E2DD; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--ink); background:var(--cream); }
+    header { max-width:1180px; margin:auto; display:flex; align-items:center; gap:20px; padding:28px 24px 16px; }
+    header img { width:96px;height:96px; }
+    h1 { margin:0; }
+    main { max-width:1180px; margin:auto; padding:16px 24px 48px; }
+    .cards { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:18px; }
+    .card { background:white;border:1px solid var(--line);border-radius:14px;padding:16px; }
+    .card span { display:block;color:#66736F;font-size:13px; }
+    .card strong { display:block;margin-top:5px;font-size:28px; }
+    .approved strong { color:var(--green); }.failed strong { color:var(--red); }.ignored strong { color:#9A7A35; }
+    .panel { background:white;border:1px solid var(--line);border-radius:14px;margin-top:14px;overflow:hidden; }
+    .panel h2 { margin:0;padding:16px 18px;border-bottom:1px solid var(--line);font-size:18px; }
+    .table-wrap { overflow:auto; }
+    table { width:100%;border-collapse:collapse;font-size:14px; }
+    th,td { padding:11px 12px;text-align:left;border-bottom:1px solid #EDF1EF;white-space:nowrap; }
+    th { color:#66736F;font-weight:650;background:#FBFDFC; }
+    .badge { display:inline-block;border-radius:99px;padding:3px 8px;font-size:12px;font-weight:700; }
+    .badge.aprovado { background:#DCF2EB;color:#1F7A65; }.badge.falha { background:#F8DEDE;color:#A33E3E; }.badge.ignorado { background:#F3ECCF;color:#80621C; }
+    .empty { padding:20px;color:#66736F; }
+    @media(max-width:700px){header img{width:72px;height:72px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  </style>
+</head>
+<body>
+  <header><img src="../../logos/opcao-a/icon-light.svg" alt="Controle-App"><h1>Resultados de testes</h1></header>
+  <main>
+    <section class="cards">
+      <div class="card approved"><span>Aprovados</span><strong id="passed">0</strong></div>
+      <div class="card failed"><span>Falhas</span><strong id="failed">0</strong></div>
+      <div class="card ignored"><span>Ignorados</span><strong id="ignored">0</strong></div>
+      <div class="card"><span>Tempo total</span><strong id="time">0 ms</strong></div>
+    </section>
+    <section id="groups"></section>
+    <section class="panel">
+      <h2>Histórico por execução</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Data/hora</th><th>Aprovados</th><th>Falhas</th><th>Ignorados</th><th>Tempo</th></tr></thead>
+        <tbody id="history"></tbody>
+      </table></div>
+    </section>
+  </main>
+  <script src="resultados.dados.js"></script>
+  <script>
+    const data = window.RESULTADOS_DATA;
+    const resumo = data.resumo || {};
+    document.getElementById('passed').textContent = resumo.aprovados ?? 0;
+    document.getElementById('failed').textContent = resumo.falhas ?? 0;
+    document.getElementById('ignored').textContent = resumo.ignorados ?? 0;
+    document.getElementById('time').textContent = `${resumo.tempoMs ?? 0} ms`;
+
+    const labels = { vitest:'Unitários Vitest', rls:'RLS no Supabase de testes', playwright:'Ponta a ponta Playwright' };
+    const groups = document.getElementById('groups');
+    Object.entries(labels).forEach(([key,label]) => {
+      const rows = (data.grupos && data.grupos[key]) || [];
+      const panel = document.createElement('section');
+      panel.className = 'panel';
+      const grouped = rows.reduce((acc,row) => {
+        const etapa = row.etapa ?? 'Sem etapa';
+        if (!acc[etapa]) acc[etapa] = [];
+        acc[etapa].push(row);
+        return acc;
+      }, {});
+      let body = '';
+      Object.entries(grouped).forEach(([etapa,items]) => {
+        body += `<tr><td colspan="4"><strong>Etapa ${etapa}</strong></td></tr>`;
+        items.forEach(row => {
+          body += `<tr><td>${row.nome}</td><td><span class="badge ${row.status}">${row.status}</span></td><td>${row.tipo}</td><td>${row.tempoMs ?? 0} ms</td></tr>`;
+        });
+      });
+      panel.innerHTML = `<h2>${label}</h2><div class="table-wrap">${body ? `<table><thead><tr><th>Teste</th><th>Status</th><th>Tipo</th><th>Tempo</th></tr></thead><tbody>${body}</tbody></table>` : '<div class="empty">Nenhum resultado registrado.</div>'}</div>`;
+      groups.appendChild(panel);
+    });
+
+    const history = document.getElementById('history');
+    (data.historico || []).slice().reverse().forEach(run => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${new Date(run.dataHora).toLocaleString('pt-BR')}</td><td>${run.aprovados}</td><td>${run.falhas}</td><td>${run.ignorados}</td><td>${run.tempoMs} ms</td>`;
+      history.appendChild(tr);
+    });
+  </script>
+</body>
+</html>

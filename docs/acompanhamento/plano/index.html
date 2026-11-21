@@ -1,0 +1,91 @@
+<!--
+Atualização:
+1. Edite docs/acompanhamento/plano/plano.json.
+2. Execute npm run acompanhamento:dados.
+3. Abra este arquivo diretamente no navegador (duplo clique).
+-->
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Controle-App — Plano</title>
+  <style>
+    :root { --green:#1F7A65; --mint:#43A88B; --cream:#F7FAF8; --ink:#173A35; --orange:#F2A65A; --line:#D7E2DD; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--ink); background:var(--cream); }
+    header { display:flex; align-items:center; gap:20px; max-width:1180px; margin:auto; padding:28px 24px 16px; }
+    header img { width:96px; height:96px; }
+    header h1 { margin:0; font-size:clamp(24px,4vw,38px); }
+    header p { margin:6px 0 0; color:#587069; }
+    main { max-width:1180px; margin:auto; padding:16px 24px 48px; }
+    .overall { background:white; border:1px solid var(--line); border-radius:16px; padding:20px; margin-bottom:18px; }
+    .overall-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .overall strong { font-size:22px; color:var(--green); }
+    .bar { height:14px; border-radius:99px; background:#E8EFEC; overflow:hidden; }
+    .bar span { display:block; height:100%; background:linear-gradient(90deg,var(--green),var(--mint)); transition:width .25s; }
+    .stages { display:grid; gap:14px; }
+    .stage { background:white; border:1px solid var(--line); border-radius:16px; overflow:hidden; }
+    .stage-head { display:grid; grid-template-columns:58px 1fr auto; align-items:center; gap:12px; padding:16px 18px; cursor:pointer; }
+    .stage-number { width:46px; height:46px; display:grid; place-items:center; border-radius:12px; color:white; background:var(--green); font-weight:800; }
+    .stage-name h2 { margin:0; font-size:18px; }
+    .stage-name p { margin:4px 0 0; font-size:13px; color:#587069; }
+    .percent { font-weight:800; color:var(--green); }
+    .stage-bar { margin:0 18px 16px 88px; }
+    .tasks { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 16px; padding:0 18px 18px 88px; }
+    .task { display:flex; align-items:flex-start; gap:8px; padding:7px 0; font-size:14px; }
+    .task.done { color:#2D6356; }
+    .task.pending { color:#66736F; }
+    .mark { flex:none; width:18px; height:18px; border-radius:50%; display:grid; place-items:center; font-size:12px; border:2px solid #AABBB5; }
+    .done .mark { border-color:var(--mint); background:var(--mint); color:white; }
+    .pending .mark { border-color:var(--orange); }
+    @media(max-width:700px) { header{padding-top:18px} header img{width:72px;height:72px} .tasks{grid-template-columns:1fr;padding-left:18px} .stage-bar{margin-left:18px} }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="../../logos/opcao-a/icon-light.svg" alt="Controle-App">
+    <div><h1 id="title">Plano de desenvolvimento</h1><p id="state-date"></p></div>
+  </header>
+  <main>
+    <section class="overall">
+      <div class="overall-head"><span>Avanço geral</span><strong id="overall-percent">0%</strong></div>
+      <div class="bar"><span id="overall-bar" style="width:0"></span></div>
+    </section>
+    <section class="stages" id="stages"></section>
+  </main>
+  <script src="plano.dados.js"></script>
+  <script>
+    const data = window.PLANO_DATA;
+    document.getElementById('title').textContent = data.titulo;
+    document.getElementById('state-date').textContent = `Estado em ${data.dataEstado.split('-').reverse().join('/')}`;
+    let totalDone = 0;
+    let totalTasks = 0;
+    const container = document.getElementById('stages');
+    data.etapas.forEach(etapa => {
+      const done = etapa.tarefas.filter(t => t.feita).length;
+      const total = etapa.tarefas.length;
+      const percent = total ? Math.round(done / total * 100) : 0;
+      totalDone += done;
+      totalTasks += total;
+      const stage = document.createElement('article');
+      stage.className = 'stage';
+      stage.innerHTML = `
+        <div class="stage-head">
+          <div class="stage-number">${etapa.numero}</div>
+          <div class="stage-name"><h2>${etapa.nome}</h2><p>${done} de ${total} tarefas concluídas</p></div>
+          <div class="percent">${percent}%</div>
+        </div>
+        <div class="bar stage-bar"><span style="width:${percent}%"></span></div>
+        <div class="tasks">${etapa.tarefas.map(task => `
+          <div class="task ${task.feita ? 'done' : 'pending'}">
+            <span class="mark">${task.feita ? '✓' : ''}</span><span>${task.nome}</span>
+          </div>`).join('')}</div>`;
+      container.appendChild(stage);
+    });
+    const overall = totalTasks ? Math.round(totalDone / totalTasks * 100) : 0;
+    document.getElementById('overall-percent').textContent = overall + '%';
+    document.getElementById('overall-bar').style.width = overall + '%';
+  </script>
+</body>
+</html>

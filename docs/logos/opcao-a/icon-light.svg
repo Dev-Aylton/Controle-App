@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Controle-App opção A claro">
+  <rect width="192" height="192" rx="40" fill="#F7FAF8"/>
+  <path d="M46 48h100v100H46z" fill="#1F7A65" rx="18"/>
+  <path d="M46 48h100v34H46z" fill="#43A88B"/>
+  <rect x="60" y="96" width="24" height="38" rx="5" fill="#F7FAF8"/>
+  <rect x="84" y="82" width="24" height="52" rx="5" fill="#F7FAF8"/>
+  <rect x="108" y="68" width="24" height="66" rx="5" fill="#F7FAF8"/>
+  <circle cx="146" cy="46" r="10" fill="#F2A65A"/>
+</svg>
