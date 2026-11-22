@@ -1,6 +1,6 @@
 {
   "titulo": "Plano de desenvolvimento — Controle-App",
-  "dataEstado": "2026-11-21",
+  "dataEstado": "2026-11-22",
   "etapas": [
     {
       "numero": 0,
@@ -10,16 +10,16 @@
         {"nome": "Perfis e regras de acesso definidos", "feita": true},
         {"nome": "Análise da planilha concluída", "feita": true},
         {"nome": "Stack e hospedagem definidos", "feita": true},
-        {"nome": "5 etapas aprovadas", "feita": true},
+        {"nome": "Roadmap inicial de 5 etapas aprovado", "feita": true},
         {"nome": "Roadmap em PDF criado", "feita": true},
         {"nome": "Repositório criado", "feita": true},
         {"nome": "Supabase real criado (São Paulo)", "feita": true},
         {"nome": "Supabase de testes criado", "feita": true},
         {"nome": "Logo opção A escolhida", "feita": true},
-        {"nome": "Licença e links do autor no README", "feita": false},
-        {"nome": "Decidir quem cadastra produtos e importa planilhas e vendas", "feita": false},
-        {"nome": "Decidir se o admin lança movimentações", "feita": false},
-        {"nome": "Decidir aprovação de funcionário novo", "feita": false}
+        {"nome": "Licença e links do autor no README", "feita": true},
+        {"nome": "Decidir quem cadastra produtos e importa planilhas e vendas", "feita": true},
+        {"nome": "Decidir se o admin lança movimentações", "feita": true},
+        {"nome": "Decidir aprovação de funcionário novo", "feita": true}
       ]
     },
     {
@@ -32,22 +32,22 @@
         {"nome": "Cliente Supabase criado", "feita": true},
         {"nome": "Vitest e Playwright configurados", "feita": true},
         {"nome": "Logo opção A aplicada", "feita": true},
-        {"nome": "Migrations da etapa 1 escritas (não aplicadas)", "feita": true},
+        {"nome": "Migrations da etapa 1 escritas", "feita": true},
         {"nome": "Layout responsivo (notebook, tablet, mobile)", "feita": true},
-        {"nome": "Conectar a pasta ao Git e fazer o primeiro commit", "feita": false},
-        {"nome": "Preencher .env.local e testar conexão", "feita": false},
-        {"nome": "Aplicar migrations no projeto de testes e depois no real", "feita": false},
-        {"nome": "Login Google e e-mail/senha", "feita": false},
-        {"nome": "Telas de empresas: nome, foto e telefone", "feita": false},
-        {"nome": "Código da empresa", "feita": false},
-        {"nome": "Vínculos e cargos", "feita": false},
-        {"nome": "Desativação", "feita": false},
-        {"nome": "Perfil do usuário", "feita": false},
-        {"nome": "Seletor de empresa", "feita": false},
-        {"nome": "Testes de RLS de empresas e vínculos", "feita": false},
-        {"nome": "Fluxo de código", "feita": false},
-        {"nome": "Troca de código", "feita": false},
-        {"nome": "Multiempresa", "feita": false}
+        {"nome": "Conectar a pasta ao Git e fazer o primeiro commit", "feita": true},
+        {"nome": "Preencher .env.local e testar conexão", "feita": true},
+        {"nome": "Aplicar migrations e patches no banco de testes", "feita": true},
+        {"nome": "Login Google e e-mail/senha", "feita": true},
+        {"nome": "Telas de empresas: nome, foto e telefone", "feita": true},
+        {"nome": "Código da empresa", "feita": true},
+        {"nome": "Vínculos e cargos", "feita": true},
+        {"nome": "Desativação", "feita": true},
+        {"nome": "Perfil do usuário", "feita": true},
+        {"nome": "Seletor de empresa", "feita": true},
+        {"nome": "Testes de RLS de empresas e vínculos", "feita": true},
+        {"nome": "Fluxo de código", "feita": true},
+        {"nome": "Troca de código", "feita": true},
+        {"nome": "Multiempresa", "feita": true}
       ]
     },
     {
@@ -63,7 +63,7 @@
         {"nome": "Entrada manual rápida", "feita": true},
         {"nome": "Testes de importação", "feita": true},
         {"nome": "Testes de duplicados", "feita": true},
-        {"nome": "Testes de permissões de cadastro", "feita": false}
+        {"nome": "Testes de permissões de cadastro", "feita": true}
       ]
     },
     {
@@ -74,47 +74,105 @@
         {"nome": "Saídas com destino e motivo", "feita": true},
         {"nome": "Transferência automática", "feita": true},
         {"nome": "Saldo calculado", "feita": true},
-        {"nome": "Dose e garrafa aberta", "feita": false},
-        {"nome": "Saldo negativo", "feita": false},
-        {"nome": "Zeragem", "feita": false},
+        {"nome": "Dose e garrafa aberta", "feita": true},
+        {"nome": "Saldo negativo", "feita": true},
+        {"nome": "Zeragem", "feita": true},
         {"nome": "Estorno", "feita": true},
         {"nome": "Correção em 15 minutos", "feita": true},
         {"nome": "Visão restrita do funcionário", "feita": true},
         {"nome": "Auditoria", "feita": true},
-        {"nome": "Testes de saldo e dose", "feita": false},
-        {"nome": "RLS do funcionário", "feita": false},
-        {"nome": "Testes de estorno", "feita": false},
-        {"nome": "Testes da janela de 15 minutos", "feita": false}
+        {"nome": "Testes de saldo e dose", "feita": true},
+        {"nome": "RLS do funcionário", "feita": true},
+        {"nome": "Testes de estorno", "feita": true},
+        {"nome": "Testes da janela de 15 minutos", "feita": true}
       ]
     },
     {
       "numero": 4,
       "nome": "Gestão",
       "tarefas": [
-        {"nome": "Central de alertas", "feita": false},
-        {"nome": "Estoque mínimo e sugestão", "feita": false},
-        {"nome": "Motivo de perda pendente", "feita": false},
-        {"nome": "Inventário cego", "feita": false},
-        {"nome": "Lista de compras com sugestão", "feita": false},
-        {"nome": "Painel resumo", "feita": false},
-        {"nome": "Exportação Excel/CSV", "feita": false},
-        {"nome": "Testes de alertas", "feita": false},
-        {"nome": "Testes de inventário", "feita": false},
-        {"nome": "Testes de sugestões", "feita": false}
+        {"nome": "Central de alertas", "feita": true},
+        {"nome": "Estoque mínimo e sugestão", "feita": true},
+        {"nome": "Motivo de perda pendente", "feita": true},
+        {"nome": "Inventário cego", "feita": true},
+        {"nome": "Lista de compras com sugestão", "feita": true},
+        {"nome": "Painel resumo", "feita": true},
+        {"nome": "Exportação Excel/CSV", "feita": true},
+        {"nome": "Testes de alertas", "feita": true},
+        {"nome": "Testes de inventário", "feita": true},
+        {"nome": "Testes de sugestões", "feita": true}
       ]
     },
     {
       "numero": 5,
-      "nome": "Robustez e vitrine",
+      "nome": "Robustez, financeiro de vendas e vitrine",
       "tarefas": [
-        {"nome": "Offline com fila e sincronização", "feita": false},
-        {"nome": "Importação de vendas com mapa de produtos", "feita": false},
-        {"nome": "Prévia e desfazer da importação de vendas", "feita": false},
-        {"nome": "Modo demonstração com empresa fictícia e cargos", "feita": false},
-        {"nome": "README do portfólio", "feita": false},
-        {"nome": "Testes de offline", "feita": false},
-        {"nome": "Testes de importação de vendas", "feita": false},
-        {"nome": "Testes de fluxos completos", "feita": false}
+        {"nome": "Offline com fila e sincronização", "feita": true},
+        {"nome": "Importação de vendas com mapa de produtos", "feita": true},
+        {"nome": "Prévia e desfazer da importação de vendas", "feita": true},
+        {"nome": "Modo demonstração com empresa fictícia e cargos", "feita": true},
+        {"nome": "README do portfólio", "feita": true},
+        {"nome": "Testes de offline", "feita": true},
+        {"nome": "Testes de importação de vendas", "feita": true},
+        {"nome": "Preços e custos por ambiente com fallback para custo base", "feita": true},
+        {"nome": "Snapshots de preço/custo, faturamento, CMV e lucro bruto por lote", "feita": true},
+        {"nome": "Avaliação do estoque e lista de compras com custo por ambiente", "feita": true},
+        {"nome": "Testes unitários financeiros, build, lint e sintaxe SQL", "feita": true},
+        {"nome": "Aplicar migration 015 no banco de testes e validar RPCs/RLS financeiros", "feita": true},
+        {"nome": "Executar suíte Playwright da demonstração com todos os fluxos aprovados (11/11)", "feita": true}
+      ]
+    },
+    {
+      "numero": 6,
+      "nome": "Acabamento e conformidade",
+      "tarefas": [
+        {"nome": "Versão do app visível", "feita": true},
+        {"nome": "Diagnóstico por 7 cliques", "feita": true},
+        {"nome": "Rodapé com assinatura e contato", "feita": true},
+        {"nome": "Tema escuro", "feita": true},
+        {"nome": "Botões de ação protegidos", "feita": true},
+        {"nome": "Erros tratados e telas de erro", "feita": true},
+        {"nome": "Painel do usuário (atualizar app, versão, contato, reportar problema, exportar dados, sair e zona de perigo)", "feita": true},
+        {"nome": "Implementar pedido reversível de exclusão por 90 dias e preservar histórico", "feita": true},
+        {"nome": "Implementar modal dispensável e aceite versionado da política (aguarda validação)", "feita": true},
+        {"nome": "Relatório técnico de dados e lacunas LGPD", "feita": true},
+        {"nome": "Política de privacidade e LGPD", "feita": false},
+        {"nome": "Tutorial por usuário", "feita": true},
+        {"nome": "Revisão de CRUD e placeholders", "feita": true},
+        {"nome": "Acessibilidade básica", "feita": true},
+        {"nome": "Barra de navegação inferior (celular)", "feita": true},
+        {"nome": "Aviso de nova versão", "feita": true}
+      ]
+    },
+    {
+      "numero": 7,
+      "nome": "Finalização e publicação",
+      "tarefas": [
+        {"nome": "Confirmar banco de testes isolado e validar migration 016 com patch 014 atualizado", "feita": true},
+        {"nome": "Executar RLS: vendas financeiras e regressões já corrigidas", "feita": true},
+        {"nome": "Validar RLS da solicitação de exclusão e reativação dentro do prazo (101/101)", "feita": true},
+        {"nome": "Testar finalização vencida com conta sintética descartável", "feita": true},
+        {"nome": "Observar execução automática do cron e validar bloqueio da reativação após 90 dias", "feita": false},
+        {"nome": "Validar remoção de objeto sintético no Storage durante a finalização", "feita": false},
+        {"nome": "Implantar Edge Function no teste e verificar endpoint", "feita": true},
+        {"nome": "Configurar segredo dedicado e cron diário no banco de testes", "feita": true},
+        {"nome": "Corrigir/alinhar expectativas dos testes Playwright e obter 11/11", "feita": true},
+        {"nome": "Revisar fluxos visuais responsivos após corrigir os testes E2E", "feita": true},
+        {"nome": "Conceder SELECT de stock_movements a service_role no banco de testes e atualizar o SQL base", "feita": true},
+        {"nome": "Definir responsável, contato e texto da política de privacidade", "feita": true},
+        {"nome": "Aceite da política", "feita": false},
+        {"nome": "Validar aceite/versionamento da política no banco de testes", "feita": false},
+        {"nome": "Revisar juridicamente e aprovar o texto da política antes de publicar", "feita": false},
+        {"nome": "Obter aprovação explícita e aplicar migrations no banco real com rollback preparado", "feita": false},
+        {"nome": "Executar smoke test pós-publicação em empresa real sem expor dados", "feita": false},
+        {"nome": "Atualizar capturas do portfólio e confirmar deploy/release final", "feita": false},
+        {"nome": "Ajustar minuta v1.0.0 conforme decisões do dono e identificar lacunas", "feita": true},
+        {"nome": "Usar conteúdo único na página pública e no modal, com links no rodapé e Minha conta", "feita": true},
+        {"nome": "Testar seções da política e navegação por teclado do modal com Vitest", "feita": true},
+        {"nome": "Isolar fila offline por usuário e limpar os dados locais ao sair ou excluir", "feita": true},
+        {"nome": "Permitir remoção da foto de perfil por Storage e limpar as referências do perfil", "feita": true},
+        {"nome": "Executar a suíte Playwright em modo demonstração sem chamadas ao Supabase", "feita": false},
+        {"nome": "Gerar capturas fictícias das telas e referenciá-las no README", "feita": false}
       ]
     }
   ]
