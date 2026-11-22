@@ -2,8 +2,10 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../features/auth/auth-context'
 import { tryGetSupabaseClient } from '../lib/supabase'
 import { friendlySupabaseError } from '../lib/errors'
-import { Container, Card, PhotoPicker, Avatar } from '../components'
+import { Container, Card, PhotoPicker, Avatar, ActionButton } from '../components'
 import { profileUploadErrorMessage } from '../lib/profileUploadError'
+import { recordTechnicalError } from '../lib/diagnostics'
+import { removeProfilePhoto } from '../features/account/profilePhoto'
 
 export function ProfilePage() {
   const { user } = useAuth()
@@ -13,7 +15,8 @@ export function ProfilePage() {
   const [avatarKey, setAvatarKey] = useState('')
   const [uploadedPreview, setUploadedPreview] = useState('')
   const [uploadedBlob, setUploadedBlob] = useState<Blob | null>(null)
-  const [technicalError, setTechnicalError] = useState('')
+  const [photoRemoved, setPhotoRemoved] = useState(false)
+  const [, setTechnicalError] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
@@ -23,6 +26,7 @@ export function ProfilePage() {
       setName(data?.name ?? user.user_metadata.full_name ?? '')
       setAvatarUrl(data?.avatar_url ?? '')
       setAvatarKey(data?.avatar_key ?? '')
+      setPhotoRemoved(false)
     })
   }, [supabase, user])
 
@@ -58,11 +62,63 @@ export function ProfilePage() {
       setAvatarUrl(savedAvatarUrl)
       setUploadedBlob(null)
       setUploadedPreview('')
+      setPhotoRemoved(false)
       setMessage('Perfil atualizado.')
     } catch (caught) {
       const record = caught as { message?: string; code?: string }
       setError(profileUploadErrorMessage(caught) ?? friendlySupabaseError(caught))
       setTechnicalError(`${record.message ?? String(caught)}${record.code ? ` [${record.code}]` : ''}`)
+      recordTechnicalError('ProfilePage.submit', caught)
+    }
+  }
+
+  const removePhoto = async () => {
+    if (!supabase || !user) throw new Error('Usuário não autenticado.')
+    setError('')
+    setMessage('')
+    setTechnicalError('')
+    let profileCleared = false
+    try {
+      await removeProfilePhoto(user.id, avatarUrl, Boolean(user.user_metadata.avatar_url), {
+        removeStorageObject: async (path) => {
+          const { error: removeError } = await supabase.storage.from('profile-photos').remove([path])
+          if (removeError) throw removeError
+        },
+        clearProfilePhoto: async (fields) => {
+          let { error: saveError } = await supabase
+            .from('profiles')
+            .update(fields)
+            .eq('id', user.id)
+          if (saveError && /avatar_key|column.*does not exist/i.test(saveError.message)) {
+            const fallback = await supabase
+              .from('profiles')
+              .update({ avatar_url: null })
+              .eq('id', user.id)
+            saveError = fallback.error
+          }
+          if (saveError) throw saveError
+          profileCleared = true
+          setAvatarUrl('')
+          setAvatarKey('')
+          setUploadedBlob(null)
+          setPhotoRemoved(true)
+          if (uploadedPreview) URL.revokeObjectURL(uploadedPreview)
+          setUploadedPreview('')
+        },
+        clearProviderAvatar: async () => {
+          const { error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: null } })
+          if (updateError) throw updateError
+        },
+      })
+      setMessage('Foto de perfil removida.')
+    } catch (caught) {
+      const friendlyMessage = profileCleared
+        ? 'A foto foi removida do perfil, mas não foi possível limpar a foto do provedor. Tente novamente.'
+        : profileUploadErrorMessage(caught) ?? friendlySupabaseError(caught)
+      setError(friendlyMessage)
+      setTechnicalError(`${(caught as { message?: string }).message ?? String(caught)}`)
+      recordTechnicalError('ProfilePage.removePhoto', caught)
+      throw caught
     }
   }
 
@@ -70,12 +126,12 @@ export function ProfilePage() {
     <Container>
       <h1>Meu perfil</h1>
       <Card>
-        <form onSubmit={submit} className="form-stack">
-          <label>Nome<input value={name} onChange={(event) => setName(event.target.value)} /></label>
+        <form onSubmit={(event) => event.preventDefault()} className="form-stack">
+          <label>Nome<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Seu nome de exibição" /></label>
           <Avatar
             name={name}
             uploadedUrl={uploadedPreview || (avatarUrl && /^https?:/.test(avatarUrl) ? avatarUrl : undefined)}
-            googleUrl={user?.user_metadata.avatar_url}
+            googleUrl={photoRemoved ? null : user?.user_metadata.avatar_url}
             avatarKey={avatarKey}
             storageBucket="profile-photos"
             storagePath={avatarUrl && !/^https?:/.test(avatarUrl) ? avatarUrl : null}
@@ -88,8 +144,23 @@ export function ProfilePage() {
             onConfirm={(blob, previewUrl) => {
               setUploadedBlob(blob)
               setUploadedPreview(previewUrl)
+              setPhotoRemoved(false)
+              setError('')
+              setMessage('')
             }}
           />
+          {(avatarUrl || avatarKey || user?.user_metadata.avatar_url || uploadedPreview) && (
+            <ActionButton
+              className="danger-button"
+              busyLabel="Removendo..."
+              successLabel="Foto removida"
+              errorLabel="Tente novamente"
+              confirmMessage="A foto será removida do seu perfil e do Storage do aplicativo, se tiver sido enviada por você."
+              onAction={removePhoto}
+            >
+              Remover foto
+            </ActionButton>
+          )}
           <fieldset className="avatar-options">
             <legend>Avatar padrão</legend>
             <button type="button" className={avatarKey === 'default-male' ? 'avatar-choice active' : 'avatar-choice'} onClick={() => setAvatarKey('default-male')}>
@@ -100,9 +171,8 @@ export function ProfilePage() {
             </button>
           </fieldset>
           {error && <p className="form-error" role="alert">{error}</p>}
-          {import.meta.env.DEV && technicalError && <p className="technical-error">Detalhe técnico: {technicalError}</p>}
           {message && <p className="form-success" role="status">{message}</p>}
-          <button className="primary-button" type="submit">Salvar perfil</button>
+          <ActionButton className="primary-button" busyLabel="Salvando..." onAction={() => submit({ preventDefault: () => undefined } as FormEvent)}>Salvar perfil</ActionButton>
         </form>
       </Card>
     </Container>
