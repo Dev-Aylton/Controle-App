@@ -23,3 +23,5 @@ revoke execute on function public.upsert_product_cost(uuid, numeric) from public
 grant execute on function public.upsert_product_cost(uuid, numeric) to authenticated;
 revoke execute on function public.import_products(uuid, jsonb) from public, anon;
 grant execute on function public.import_products(uuid, jsonb) to authenticated;
+revoke execute on function public.delete_my_account() from public,anon;
+grant execute on function public.delete_my_account() to authenticated;

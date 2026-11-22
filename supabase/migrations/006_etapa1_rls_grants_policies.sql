@@ -32,6 +32,8 @@ grant select on public.memberships to authenticated;
 grant select on public.company_invites to authenticated;
 
 grant select on public.audit_log to authenticated;
+revoke update, delete on public.audit_log from public, anon, authenticated, service_role;
+revoke update, delete on public.audit_log from public, anon, authenticated, service_role;
 
 grant usage, select on sequence public.audit_log_id_seq to authenticated;
 

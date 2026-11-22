@@ -70,8 +70,42 @@ create table if not exists public.audit_log (
   company_id uuid references public.companies(id),
   action text not null,
   data jsonb not null default '{}'::jsonb,
+  acted_as_support boolean not null default false,
   created_at timestamptz not null default timezone('utc', now())
 );
+
+create or replace function public.mark_audit_support()
+returns trigger
+language plpgsql
+security definer
+set search_path=public,pg_temp
+as $$
+begin
+  new.acted_as_support:=coalesce(public.is_admin(),false);
+  return new;
+end;
+$$;
+
+drop trigger if exists audit_log_mark_support on public.audit_log;
+create trigger audit_log_mark_support
+before insert on public.audit_log
+for each row execute function public.mark_audit_support();
+
+create or replace function public.block_audit_changes()
+returns trigger
+language plpgsql
+security definer
+set search_path=public,pg_temp
+as $$
+begin
+  raise exception 'audit log is immutable';
+end;
+$$;
+
+drop trigger if exists audit_log_block_update on public.audit_log;
+create trigger audit_log_block_update
+before update or delete on public.audit_log
+for each statement execute function public.block_audit_changes();
 
 create or replace function public.enforce_owner_limit()
 returns trigger

@@ -7,6 +7,7 @@ describe('regras de movimentações', () => {
     expect(movementSignedQuantity('saida', 5)).toBe(-5)
     expect(movementSignedQuantity('perda', 2)).toBe(-2)
     expect(movementSignedQuantity('ajuste_inventario', 1, 3)).toBe(3)
+    expect(movementSignedQuantity('zeragem', 4)).toBe(-4)
   })
 
   it('permite estorno próprio somente em 15 minutos', () => {

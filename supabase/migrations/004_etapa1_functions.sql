@@ -253,8 +253,15 @@ begin
   if target.role <> 'employee' then
     raise exception 'only active employees can be promoted';
   end if;
-  if not public.is_admin()
-    and public.member_role(target.company_id) <> 'owner' then
+  if not coalesce(public.is_admin(), false)
+    and not exists (
+      select 1
+      from public.memberships m
+      where m.user_id = auth.uid()
+        and m.company_id = target.company_id
+        and m.active
+        and m.role = 'owner'
+    ) then
     raise exception 'only an admin or company owner can promote members';
   end if;
 

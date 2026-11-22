@@ -6,6 +6,7 @@ export type MovementType =
   | 'transferencia_saida'
   | 'transferencia_entrada'
   | 'estorno'
+  | 'zeragem'
 
 export type Movement = {
   id: string
@@ -31,6 +32,8 @@ export type MovementProduct = {
   name: string
   sku: string | null
   unit: string
+  volume_ml?: number | null
+  dose_ml?: number | null
 }
 
 export type MovementEnvironment = {

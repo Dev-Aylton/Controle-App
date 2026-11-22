@@ -194,10 +194,31 @@ suite('RLS Etapa 3 - movimentações e inventário', () => {
     expect(transfer.error).toBeNull()
   })
 
-  it('admin não consegue lançar movimentação', async () => {
+  it('admin lança movimentação como suporte em empresa onde não é membro', async () => {
     const session = await getAdminSession()
     const result = await session.client.rpc('register_movement', { p_company_id: companyA, p_product_id: productA, p_environment_id: environmentA, p_type: 'entrada', p_quantity: 1 })
-    expect(result.error, 'admin lançou movimentação').not.toBeNull()
+    expect(result.error, 'admin não lançou movimentação').toBeNull()
+    const audit = await session.client
+      .from('audit_log')
+      .select('id,action,acted_as_support')
+      .eq('company_id', companyA)
+      .eq('action', 'movement_registered')
+      .order('created_at', { ascending: false })
+      .limit(1)
+    expect(audit.error).toBeNull()
+    expect(audit.data?.[0]?.acted_as_support).toBe(true)
+    if (audit.data?.[0]) {
+      const update = await session.client
+        .from('audit_log')
+        .update({ action: 'alterado' })
+        .eq('id', audit.data[0].id)
+      expect(update.error).not.toBeNull()
+      const remove = await session.client
+        .from('audit_log')
+        .delete()
+        .eq('id', audit.data[0].id)
+      expect(remove.error).not.toBeNull()
+    }
   })
 
   it('inventário cego permite contar e só gerente finaliza', async () => {

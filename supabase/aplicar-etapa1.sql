@@ -91,8 +91,42 @@ create table if not exists public.audit_log (
   company_id uuid references public.companies(id),
   action text not null,
   data jsonb not null default '{}'::jsonb,
+  acted_as_support boolean not null default false,
   created_at timestamptz not null default timezone('utc', now())
 );
+
+create or replace function public.mark_audit_support()
+returns trigger
+language plpgsql
+security definer
+set search_path=public,pg_temp
+as $$
+begin
+  new.acted_as_support:=coalesce(public.is_admin(),false);
+  return new;
+end;
+$$;
+
+drop trigger if exists audit_log_mark_support on public.audit_log;
+create trigger audit_log_mark_support
+before insert on public.audit_log
+for each row execute function public.mark_audit_support();
+
+create or replace function public.block_audit_changes()
+returns trigger
+language plpgsql
+security definer
+set search_path=public,pg_temp
+as $$
+begin
+  raise exception 'audit log is immutable';
+end;
+$$;
+
+drop trigger if exists audit_log_block_update on public.audit_log;
+create trigger audit_log_block_update
+before update or delete on public.audit_log
+for each statement execute function public.block_audit_changes();
 
 create or replace function public.enforce_owner_limit()
 returns trigger
@@ -162,6 +196,46 @@ begin
     set name = coalesce(excluded.name, public.profiles.name),
         avatar_url = coalesce(excluded.avatar_url, public.profiles.avatar_url);
   return new;
+end;
+$$;
+
+create or replace function public.delete_my_account()
+returns void
+language plpgsql
+security definer
+set search_path=public,pg_temp
+as $$
+declare
+  v_user_id uuid:=auth.uid();
+  v_company record;
+begin
+  if v_user_id is null then raise exception 'authentication required'; end if;
+  if exists(select 1 from public.app_admins a where a.user_id=v_user_id) then
+    raise exception 'A conta administradora do app não pode ser excluída';
+  end if;
+  for v_company in
+    select m.company_id from public.memberships m
+    where m.user_id=v_user_id and m.active and m.role='owner'
+  loop
+    if not exists(
+      select 1 from public.memberships other
+      where other.company_id=v_company.company_id and other.user_id<>v_user_id
+        and other.active and other.role='owner'
+    ) then raise exception 'Transfira a propriedade antes de excluir esta conta'; end if;
+  end loop;
+  update public.memberships
+  set active=false,deactivated_at=timezone('utc',now()),deactivated_by=v_user_id
+  where user_id=v_user_id and active;
+  update public.profiles set avatar_url=null,avatar_key=null where id=v_user_id;
+  update auth.users
+  set email=null,phone=null,encrypted_password=null,raw_user_meta_data='{}'::jsonb,
+      banned_until=timezone('utc',now())+interval '100 years',updated_at=timezone('utc',now())
+  where id=v_user_id;
+  delete from auth.identities where user_id=v_user_id;
+  delete from auth.sessions where user_id=v_user_id;
+  insert into public.audit_log(user_id,company_id,action,data)
+  select v_user_id,m.company_id,'account_deleted',jsonb_build_object('self_service',true)
+  from public.memberships m where m.user_id=v_user_id group by m.company_id;
 end;
 $$;
 
@@ -508,8 +582,15 @@ begin
   if target.role <> 'employee' then
     raise exception 'only active employees can be promoted';
   end if;
-  if not public.is_admin()
-    and public.member_role(target.company_id) <> 'owner' then
+  if not coalesce(public.is_admin(), false)
+    and not exists (
+      select 1
+      from public.memberships m
+      where m.user_id = auth.uid()
+        and m.company_id = target.company_id
+        and m.active
+        and m.role = 'owner'
+    ) then
     raise exception 'only an admin or company owner can promote members';
   end if;
 
@@ -636,6 +717,8 @@ grant select on public.memberships to authenticated;
 grant select on public.company_invites to authenticated;
 
 grant select on public.audit_log to authenticated;
+revoke update, delete on public.audit_log from public, anon, authenticated, service_role;
+revoke update, delete on public.audit_log from public, anon, authenticated, service_role;
 
 grant usage, select on sequence public.audit_log_id_seq to authenticated;
 

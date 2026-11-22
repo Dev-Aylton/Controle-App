@@ -137,7 +137,7 @@ suite('RLS Etapa 2 - ambientes e produtos', () => {
 
   it('usuário da empresa A não lê nem altera dados da empresa B', async () => {
     const employee = clients.get('et2-employee-a')
-    const products = await employee!.from('products').select('*').eq('company_id', companyB)
+    const products = await employee!.from('products').select('id,name').eq('company_id', companyB)
     expect(products.data ?? [], 'funcionário da empresa A leu produtos da empresa B').toHaveLength(0)
     const environmentUpdate = await employee!.from('environments').update({ name: 'Proibido' }).eq('company_id', companyB).select('*')
     expect(environmentUpdate.data ?? [], 'funcionário da empresa A alterou ambiente da empresa B').toHaveLength(0)
@@ -145,7 +145,7 @@ suite('RLS Etapa 2 - ambientes e produtos', () => {
 
   it('funcionário lê produtos mas não lê custos nem histórico', async () => {
     const employee = clients.get('et2-employee-a')
-    const products = await employee!.from('products').select('*').eq('company_id', companyA)
+    const products = await employee!.from('products').select('id,name').eq('company_id', companyA)
     expect(products.data?.length ?? 0, 'funcionário não viu produto da própria empresa').toBeGreaterThan(0)
     const costs = await employee!.from('product_costs').select('*').eq('company_id', companyA)
     expect(costs.data ?? [], 'funcionário leu custo de produto').toHaveLength(0)
@@ -157,7 +157,7 @@ suite('RLS Etapa 2 - ambientes e produtos', () => {
     const employee = clients.get('et2-employee-a')
     const env = await employee!.from('environments').insert({ company_id: companyA, name: 'Proibido', active: true }).select('*')
     expect(env.error).not.toBeNull()
-    const product = await employee!.from('products').update({ name: 'Proibido' }).eq('id', productA).select('*')
+    const product = await employee!.from('products').update({ name: 'Proibido' }).eq('id', productA).select('id,name')
     expect(product.data ?? []).toHaveLength(0)
   })
 
@@ -166,7 +166,7 @@ suite('RLS Etapa 2 - ambientes e produtos', () => {
     const env = await manager!.from('environments').insert({ company_id: companyA, name: 'rls-test-bar', active: true }).select('*')
     expect(env.error).toBeNull()
     expect(env.data?.length).toBe(1)
-    const product = await manager!.from('products').insert({ company_id: companyA, name: 'rls-test-produto-gerente', unit: 'un', active: true }).select('*')
+    const product = await manager!.from('products').insert({ company_id: companyA, name: 'rls-test-produto-gerente', unit: 'un', active: true }).select('id,name')
     expect(product.error).toBeNull()
   })
 

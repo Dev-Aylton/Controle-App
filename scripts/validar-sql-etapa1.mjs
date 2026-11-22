@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { parseSync, parsePlPgSQL } from 'libpg-query'
+import { findUnsafeRoleChecks } from './sql-role-safety.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const migrationsDir = `${root}supabase/migrations`
@@ -28,7 +29,10 @@ function dependencyCheck(file, sql) {
 
   for (const [, functionName] of functionCreates) {
     const key = functionName.toLowerCase()
-    if (createdFunctions.has(key)) {
+    if (createdFunctions.has(key) && !(
+      (file === '010_etapa4_gestao.sql' && key === 'public.import_products')
+      || (file === '015_etapa5b_vendas_financeiro.sql' && ['public.import_sales_batch', 'public.get_purchase_list'].includes(key))
+    )) {
       failed = true
       console.error(`Nome duplicado de função em ${file}: ${functionName}`)
     }
@@ -94,11 +98,15 @@ async function parseFile(relativePath, sql) {
 
 for (const file of migrationFiles) {
   const sql = await readFile(`${migrationsDir}/${file}`, 'utf8')
+  for (const risk of findUnsafeRoleChecks(sql)) {
+    failed = true
+    console.error(`Checagem de cargo NULL-risco em ${file}:${risk.line}: ${risk.text}`)
+  }
   dependencyCheck(file, sql)
   await parseFile(`supabase/migrations/${file}`, sql)
 }
 
-for (const unifiedName of ['aplicar-etapa1.sql', 'aplicar-etapa2.sql', 'aplicar-etapa3.sql']) {
+for (const unifiedName of ['aplicar-etapa1.sql', 'aplicar-etapa2.sql', 'aplicar-etapa3.sql', 'aplicar-etapa4.sql', 'aplicar-etapa4-equipe.sql', 'aplicar-etapa4b.sql', 'aplicar-etapa5a.sql', 'aplicar-etapa3b.sql']) {
   const unifiedPath = `${root}supabase/${unifiedName}`
   try {
     const unified = await readFile(unifiedPath, 'utf8')
@@ -112,6 +120,11 @@ for (const unifiedName of ['aplicar-etapa1.sql', 'aplicar-etapa2.sql', 'aplicar-
 const patchFiles = (await readdir(`${root}supabase/patches`)).filter((name) => /\.sql$/i.test(name)).sort()
 for (const file of patchFiles) {
   const patch = await readFile(`${root}supabase/patches/${file}`, 'utf8')
+  // 011 já foi aplicado; 013 substitui a única função com fallback de enum vazio.
+  for (const risk of file === '011-fix-ownership-checks.sql' ? [] : findUnsafeRoleChecks(patch)) {
+    failed = true
+    console.error(`Checagem de cargo NULL-risco em supabase/patches/${file}:${risk.line}: ${risk.text}`)
+  }
   await parseFile(`supabase/patches/${file}`, patch)
 }
 

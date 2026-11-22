@@ -156,8 +156,9 @@ declare
   current_balance numeric(14,3);
   movement_kind public.stock_movement_type;
 begin
-  if public.is_admin() then raise exception 'admin cannot register movements'; end if;
-  if not public.is_active_member(p_company_id) then raise exception 'active membership required'; end if;
+  if not coalesce(public.is_admin(), false) and not coalesce(public.is_active_member(p_company_id), false) then
+    raise exception 'active membership required';
+  end if;
   if p_quantity is null or p_quantity <= 0 then raise exception 'quantity must be positive'; end if;
   if p_type not in ('entrada','saida','perda') then raise exception 'invalid movement type'; end if;
   movement_kind := p_type::public.stock_movement_type;
@@ -188,8 +189,9 @@ declare
   from_id uuid;
   to_id uuid;
 begin
-  if public.is_admin() then raise exception 'admin cannot register movements'; end if;
-  if not public.is_active_member(p_company_id) then raise exception 'active membership required'; end if;
+  if not coalesce(public.is_admin(), false) and not coalesce(public.is_active_member(p_company_id), false) then
+    raise exception 'active membership required';
+  end if;
   if p_quantity is null or p_quantity <= 0 then raise exception 'quantity must be positive'; end if;
   if p_from_environment_id = p_to_environment_id then raise exception 'source and destination must differ'; end if;
   source_balance := public.get_environment_balance(p_company_id,p_from_environment_id,p_product_id);
@@ -221,8 +223,10 @@ begin
   if target.type = 'estorno' then raise exception 'cannot reverse an estorno'; end if;
   if exists (select 1 from public.stock_movements s where s.reverses_movement_id = target.id) then raise exception 'movement already reversed'; end if;
   role_name := public.member_role(target.company_id);
-  if public.is_admin() then raise exception 'admin cannot reverse movements'; end if;
-  if role_name not in ('owner','manager') then
+  if not coalesce(public.is_admin(), false) and not coalesce(public.is_active_member(target.company_id), false) then
+    raise exception 'active membership required';
+  end if;
+  if not coalesce(public.is_admin(), false) and role_name not in ('owner','manager') then
     if target.created_by <> auth.uid() then raise exception 'employee cannot reverse another users movement'; end if;
     if target.created_at < timezone('utc', now()) - interval '15 minutes' then raise exception '15 minute correction window expired'; end if;
   end if;
@@ -251,7 +255,9 @@ as $$
 declare
   session_id uuid;
 begin
-  if not public.is_active_member(p_company_id) then raise exception 'active membership required'; end if;
+  if not coalesce(public.is_admin(), false) and not coalesce(public.is_active_member(p_company_id), false) then
+    raise exception 'active membership required';
+  end if;
   if not exists (select 1 from public.environments e where e.id=p_environment_id and e.company_id=p_company_id) then raise exception 'environment does not belong to company'; end if;
   insert into public.inventory_sessions(company_id,environment_id,status,opened_by)
   values (p_company_id,p_environment_id,'aberta',auth.uid()) returning id into session_id;
@@ -271,7 +277,9 @@ begin
   select * into session from public.inventory_sessions where id=p_session_id;
   if session.id is null then raise exception 'inventory session not found'; end if;
   if session.status <> 'aberta' then raise exception 'inventory session is not open'; end if;
-  if not public.is_active_member(session.company_id) then raise exception 'active membership required'; end if;
+  if not coalesce(public.is_admin(), false) and not coalesce(public.is_active_member(session.company_id), false) then
+    raise exception 'active membership required';
+  end if;
   if not exists (select 1 from public.products p where p.id=p_product_id and p.company_id=session.company_id) then raise exception 'product does not belong to company'; end if;
   if p_counted_quantity < 0 then raise exception 'counted quantity cannot be negative'; end if;
   insert into public.inventory_counts(session_id,product_id,counted_quantity,counted_by)
@@ -297,8 +305,9 @@ begin
   select * into session from public.inventory_sessions where id=p_session_id;
   if session.id is null then raise exception 'inventory session not found'; end if;
   if session.status <> 'aberta' then raise exception 'inventory session is not open'; end if;
-  if public.is_admin() then raise exception 'admin cannot finish inventory'; end if;
-  if public.member_role(session.company_id) not in ('owner','manager') then raise exception 'only owner or manager can finish inventory'; end if;
+  if not coalesce(public.is_admin(), false) and not coalesce(public.is_manager_or_owner(session.company_id), false) then
+    raise exception 'only owner or manager can finish inventory';
+  end if;
   for count_row in select * from public.inventory_counts where session_id=p_session_id loop
     current_balance := public.get_environment_balance(session.company_id,session.environment_id,count_row.product_id);
     difference := count_row.counted_quantity-current_balance;
@@ -322,6 +331,7 @@ alter table public.inventory_counts enable row level security;
 
 revoke all on table public.stock_movements, public.inventory_sessions, public.inventory_counts from anon, authenticated;
 grant select on public.stock_movements to authenticated;
+grant select on public.stock_movements to service_role;
 grant select on public.inventory_sessions to authenticated;
 grant select on public.inventory_counts to authenticated;
 

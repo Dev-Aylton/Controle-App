@@ -1,6 +1,6 @@
-﻿export function movementSignedQuantity(type: 'entrada' | 'saida' | 'perda' | 'ajuste_inventario' | 'transferencia_saida' | 'transferencia_entrada' | 'estorno', quantity: number, difference?: number) {
+export function movementSignedQuantity(type: 'entrada' | 'saida' | 'perda' | 'ajuste_inventario' | 'transferencia_saida' | 'transferencia_entrada' | 'estorno' | 'zeragem', quantity: number, difference?: number) {
   if (type === 'entrada' || type === 'transferencia_entrada') return quantity
-  if (type === 'saida' || type === 'perda' || type === 'transferencia_saida') return -quantity
+  if (type === 'saida' || type === 'perda' || type === 'transferencia_saida' || type === 'zeragem') return -quantity
   if (type === 'ajuste_inventario') return difference ?? quantity
   if (type === 'estorno') return -quantity
   return quantity
