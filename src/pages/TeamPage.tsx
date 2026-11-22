@@ -1,48 +1,89 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useCompanies } from '../features/company/company-context'
 import { useAuth } from '../features/auth/auth-context'
 import { tryGetSupabaseClient } from '../lib/supabase'
-import type { Tables, CompanyRole } from '../lib/database.types'
+import type { CompanyRole } from '../lib/database.types'
 import { friendlySupabaseError } from '../lib/errors'
 import { canDeactivate, canInvite, canPromote, canViewCompanyCode } from '../lib/uiPermissions'
-import { Container, Card, Avatar } from '../components'
-
-type Membership = Tables<'memberships'>
+import { Container, Card, Avatar, ActionButton } from '../components'
+import { buildTeamMemberViews } from './teamRules'
+import { getTeamMembers, type TeamMember } from '../services/team'
 
 export function TeamPage() {
   const supabase = tryGetSupabaseClient()
   const { user } = useAuth()
   const { activeCompany, role, isAdmin, refresh } = useCompanies()
-  const [members, setMembers] = useState<Membership[]>([])
-  const [profiles, setProfiles] = useState<Record<string, Tables<'profiles'>>>({})
+  const [members, setMembers] = useState<TeamMember[]>([])
   const [code, setCode] = useState('')
+  const [codeLoaded, setCodeLoaded] = useState(false)
+  const [loadingMembers, setLoadingMembers] = useState(false)
+  const [loadingCode, setLoadingCode] = useState(false)
+  const [membersError, setMembersError] = useState('')
+  const [codeError, setCodeError] = useState('')
+  const loadRequest = useRef(0)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<'owner' | 'manager'>('manager')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
   const load = useCallback(async () => {
-    if (!supabase || !activeCompany) return
-    setError('')
-    const [{ data: memberRows }, { data: codeRows }] = await Promise.all([
-      supabase.from('memberships').select('*').eq('company_id', activeCompany.id).eq('active', true),
-      canViewCompanyCode(role, isAdmin)
-        ? supabase.from('company_codes').select('*').eq('company_id', activeCompany.id).eq('active', true)
-        : Promise.resolve({ data: null }),
-    ])
-    if (memberRows) {
-      setMembers(memberRows)
-      const ids = memberRows.map((item) => item.user_id)
-      if (ids.length) {
-        const { data: profileRows } = await supabase.from('profiles').select('*').in('id', ids)
-        setProfiles(Object.fromEntries((profileRows ?? []).map((item) => [item.id, item])))
-      }
+    if (!supabase || !activeCompany) {
+      setMembers([])
+      setCode('')
+      setCodeLoaded(false)
+      setLoadingMembers(false)
+      setLoadingCode(false)
+      return
     }
-    setCode(codeRows?.[0]?.code ?? '')
+    const requestId = ++loadRequest.current
+    setLoadingMembers(true)
+    setLoadingCode(canViewCompanyCode(role, isAdmin))
+    setMembersError('')
+    setCodeError('')
+    setError('')
+    try {
+      const memberRows = await getTeamMembers(activeCompany.id)
+      if (requestId !== loadRequest.current) return
+      setMembers(memberRows)
+    } catch (caught) {
+      if (requestId !== loadRequest.current) return
+      setMembers([])
+      setMembersError(friendlySupabaseError(caught))
+    } finally {
+      if (requestId === loadRequest.current) setLoadingMembers(false)
+    }
+
+    if (!canViewCompanyCode(role, isAdmin)) {
+      setCode('')
+      setCodeLoaded(true)
+      setLoadingCode(false)
+      return
+    }
+    try {
+      const codeResult = await supabase
+        .from('company_codes')
+        .select('*')
+        .eq('company_id', activeCompany.id)
+        .eq('active', true)
+        .maybeSingle()
+      if (requestId !== loadRequest.current) return
+      if (codeResult.error) throw codeResult.error
+      setCode(codeResult.data?.code ?? '')
+      setCodeLoaded(true)
+      setCodeError('')
+    } catch (caught) {
+      if (requestId !== loadRequest.current) return
+      setCode('')
+      setCodeLoaded(true)
+      setCodeError(friendlySupabaseError(caught))
+    } finally {
+      if (requestId === loadRequest.current) setLoadingCode(false)
+    }
   }, [activeCompany, isAdmin, role, supabase])
 
   useEffect(() => {
     queueMicrotask(() => { void load() })
+    return () => { loadRequest.current += 1 }
   }, [load])
 
   const invite = async (event: FormEvent) => {
@@ -111,6 +152,17 @@ export function TeamPage() {
     return <Container><h1>Equipe</h1><Card><p>Esta área está disponível para proprietários e gerentes.</p></Card></Container>
   }
 
+  const teamMembers = buildTeamMemberViews({
+    members,
+    currentUserId: user?.id,
+    currentUserName: user?.user_metadata.full_name ?? user?.email,
+    currentUserEmail: user?.email,
+    isAdmin,
+  })
+  const adminNotListed = isAdmin
+    && Boolean(user?.id)
+    && !members.some((member) => member.userId === user?.id)
+
   return (
     <Container>
       <h1>Equipe — {activeCompany.name}</h1>
@@ -120,16 +172,23 @@ export function TeamPage() {
         {canViewCompanyCode(role, isAdmin) && (
           <div className="company-code">
             <span>Código atual</span>
-            <strong>{code || 'Carregando...'}</strong>
-            {isAdmin && <button className="secondary-button" type="button" onClick={rotateCode}>Trocar código</button>}
+            {loadingCode && <strong>Carregando...</strong>}
+            {!loadingCode && codeError && (
+              <>
+                <strong role="alert">Não foi possível carregar o código.</strong>
+                <ActionButton className="secondary-button" busyLabel="Tentando..." onAction={load}>Tentar de novo</ActionButton>
+              </>
+            )}
+            {!loadingCode && !codeError && codeLoaded && <strong>{code || 'Nenhum código ativo'}</strong>}
+            {isAdmin && <ActionButton className="secondary-button" busyLabel="Trocando..." confirmMessage="Trocar o código da empresa? O código atual deixará de funcionar." onAction={rotateCode}>Trocar código</ActionButton>}
           </div>
         )}
       </Card>
       {canInvite(role, isAdmin, 'manager') && (
         <Card>
           <h2>Convidar por e-mail</h2>
-          <form onSubmit={invite} className="form-grid">
-            <label>E-mail<input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} required /></label>
+          <form onSubmit={(event) => event.preventDefault()} className="form-grid">
+            <label>E-mail<input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="nome@empresa.com" required /></label>
             {isAdmin && (
               <label>Cargo
                 <select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as 'owner' | 'manager')}>
@@ -138,35 +197,50 @@ export function TeamPage() {
                 </select>
               </label>
             )}
-            <button className="primary-button" type="submit">Convidar</button>
+            <ActionButton className="primary-button" busyLabel="Enviando..." onAction={() => invite({ preventDefault: () => undefined } as FormEvent)}>Convidar</ActionButton>
           </form>
         </Card>
       )}
       <Card>
         <h2>Membros ativos</h2>
+        {adminNotListed && (
+          <p>Você é o administrador do app e não consta como membro desta empresa.</p>
+        )}
         <div className="member-list">
-          {members.map((member) => {
+          {loadingMembers && <p className="page-state">Carregando membros...</p>}
+          {!loadingMembers && membersError && (
+            <div>
+              <p className="form-error" role="alert">{membersError}</p>
+              <ActionButton className="secondary-button" busyLabel="Tentando..." onAction={load}>Tentar de novo</ActionButton>
+            </div>
+          )}
+          {!loadingMembers && !membersError && teamMembers.length === 0 && <p>Nenhum membro ativo encontrado.</p>}
+          {!loadingMembers && !membersError && teamMembers.map((member) => {
             const targetRole = member.role as CompanyRole
-            const deactivateAllowed = canDeactivate(role, isAdmin, targetRole, user?.id ?? '', member.user_id)
+            const deactivateAllowed = member.membershipId !== 'app-admin'
+              && canDeactivate(role, isAdmin, targetRole, user?.id ?? '', member.userId)
             return (
-              <article className="member-row" key={member.id}>
+              <article className="member-row" key={member.membershipId}>
                 <div className="member-identity">
                   <Avatar
-                    name={profiles[member.user_id]?.name}
+                    name={member.name}
                     googleUrl={undefined}
-                    avatarKey={profiles[member.user_id]?.avatar_key}
+                    avatarKey={member.avatarKey ?? undefined}
                     storageBucket="profile-photos"
-                    storagePath={profiles[member.user_id]?.avatar_url && !/^https?:/.test(profiles[member.user_id].avatar_url!) ? profiles[member.user_id].avatar_url : null}
+                    storagePath={member.avatarUrl && !/^https?:/.test(member.avatarUrl) ? member.avatarUrl : null}
                     size={44}
                   />
-                  <span><strong>{profiles[member.user_id]?.name || 'Usuário sem nome'}</strong><small>{targetRole}</small></span>
+                  <span>
+                    <strong>{member.name}</strong>
+                    <small>{member.email ?? 'E-mail não disponível'} • {targetRole} • {member.active ? 'Ativo' : 'Inativo'}</small>
+                  </span>
                 </div>
                 <div className="member-actions">
-                  {member.active && targetRole === 'employee' && canPromote(role, isAdmin) && (
-                    <button className="secondary-button" type="button" onClick={() => promote(member.id)}>Promover</button>
+                  {member.membershipId !== 'app-admin' && member.active && targetRole === 'employee' && canPromote(role, isAdmin) && (
+                    <ActionButton className="secondary-button" busyLabel="Promovendo..." onAction={() => promote(member.membershipId)}>Promover</ActionButton>
                   )}
                   {deactivateAllowed && (
-                    <button className="danger-button" type="button" onClick={() => deactivate(member.id)}>Desativar</button>
+                    <ActionButton className="danger-button" busyLabel="Desativando..." confirmMessage="Desativar este membro?" onAction={() => deactivate(member.membershipId)}>Desativar</ActionButton>
                   )}
                 </div>
               </article>
