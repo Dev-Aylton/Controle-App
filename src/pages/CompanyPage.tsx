@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useCompanies } from '../features/company/company-context'
 import { tryGetSupabaseClient } from '../lib/supabase'
 import { friendlySupabaseError } from '../lib/errors'
+import { recordTechnicalError } from '../lib/diagnostics'
 import { canManageCompany } from '../lib/uiPermissions'
-import { Container, Card, PhotoPicker, Avatar } from '../components'
+import { Container, Card, PhotoPicker, Avatar, ActionButton } from '../components'
 
 export function CompanyPage() {
   const supabase = tryGetSupabaseClient()
@@ -15,7 +16,7 @@ export function CompanyPage() {
   const [photo, setPhoto] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
-  const [technicalError, setTechnicalError] = useState('')
+  const [, setTechnicalError] = useState('')
   const [createName, setCreateName] = useState('')
   const [createPhone, setCreatePhone] = useState('')
   const [createLogoBlob, setCreateLogoBlob] = useState<Blob | null>(null)
@@ -65,6 +66,7 @@ export function CompanyPage() {
       const record = caught as { message?: string; code?: string }
       setError(friendlySupabaseError(caught))
       setTechnicalError(`${record.message ?? String(caught)}${record.code ? ` [${record.code}]` : ''}`)
+      recordTechnicalError('CompanyPage.submit', caught)
     }
   }
 
@@ -123,6 +125,7 @@ export function CompanyPage() {
       const record = caught as { message?: string; code?: string }
       setError(friendlySupabaseError(caught))
       setTechnicalError(`${record.message ?? String(caught)}${record.code ? ` [${record.code}]` : ''}`)
+      recordTechnicalError('CompanyPage.createCompany', caught)
     }
   }
 
@@ -132,7 +135,7 @@ export function CompanyPage() {
         <h1>Criar empresa</h1>
         {isAdmin ? (
           <Card>
-            <form onSubmit={(event) => { event.preventDefault(); void createCompany() }} className="form-stack">
+            <form onSubmit={(event) => event.preventDefault()} className="form-stack">
               <label>Nome da empresa *
                 <input value={createName} onChange={(event) => setCreateName(event.target.value)} required />
               </label>
@@ -149,9 +152,8 @@ export function CompanyPage() {
                 }}
               />
         {error && <p className="form-error" role="alert">{error}</p>}
-        {import.meta.env.DEV && technicalError && <p className="technical-error">Detalhe técnico: {technicalError}</p>}
         {message && <p className="form-success" role="status">{message}</p>}
-              <button className="primary-button" type="submit" disabled={!createName.trim()}>Criar empresa</button>
+              <ActionButton className="primary-button" disabled={!createName.trim()} busyLabel="Criando..." onAction={createCompany}>Criar empresa</ActionButton>
             </form>
           </Card>
         ) : (
@@ -176,7 +178,7 @@ export function CompanyPage() {
           companyLogoFallback
         />
         {canEdit ? (
-          <form onSubmit={submit} className="form-stack">
+          <form onSubmit={(event) => event.preventDefault()} className="form-stack">
             <label>Nome<input value={name} onChange={(event) => setName(event.target.value)} required /></label>
             <label>Telefone<input value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
             <PhotoPicker
@@ -188,9 +190,8 @@ export function CompanyPage() {
               }}
             />
             {error && <p className="form-error" role="alert">{error}</p>}
-            {import.meta.env.DEV && technicalError && <p className="technical-error">Detalhe técnico: {technicalError}</p>}
             {message && <p className="form-success" role="status">{message}</p>}
-            <button className="primary-button" type="submit">Salvar empresa</button>
+            <ActionButton className="primary-button" busyLabel="Salvando..." onAction={() => submit({ preventDefault: () => undefined } as FormEvent)}>Salvar empresa</ActionButton>
           </form>
         ) : (
           <div className="data-list"><p><strong>Nome:</strong> {name}</p><p><strong>Telefone:</strong> {phone || 'Não informado'}</p></div>

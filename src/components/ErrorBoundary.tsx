@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { recordTechnicalError } from '../lib/diagnostics'
 
 type Props = { children: ReactNode }
 type State = { error: Error | null; componentStack: string | null }
@@ -11,6 +12,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    recordTechnicalError('ErrorBoundary', `${error.message}\n${info.componentStack ?? ''}`)
     this.setState({ componentStack: info.componentStack ?? null })
     console.error('Erro inesperado no Controle-App', error, info)
   }
@@ -26,12 +28,8 @@ export class ErrorBoundary extends Component<Props, State> {
         <main className="auth-page">
           <section className="auth-card" role="alert">
             <h1>Não foi possível mostrar o aplicativo</h1>
-            <p>{this.state.error.message || 'Ocorreu um erro inesperado.'}</p>
-            <pre style={{ maxWidth: '100%', overflow: 'auto', whiteSpace: 'pre-wrap', textAlign: 'left' }}>
-              {this.state.error.stack || 'Stack não disponível'}
-              {this.state.componentStack ? `\nComponente:\n${this.state.componentStack}` : ''}
-            </pre>
-            <button className="primary-button" type="button" onClick={this.retry}>Tentar de novo</button>
+            <p>Ocorreu uma falha inesperada. Recarregue para tentar novamente.</p>
+            <button className="primary-button" type="button" onClick={this.retry}>Recarregar aplicativo</button>
           </section>
         </main>
       )

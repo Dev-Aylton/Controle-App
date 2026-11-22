@@ -7,6 +7,13 @@
     <link rel="icon" type="image/svg+xml" href="/Controle-App/favicon.svg" />
     <link rel="apple-touch-icon" href="/Controle-App/apple-touch-icon-180x180.png" />
     <title>Controle-App</title>
+    <script>
+      (() => {
+        const saved = localStorage.getItem('controle-app-theme') || 'system';
+        const dark = saved === 'dark' || (saved === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

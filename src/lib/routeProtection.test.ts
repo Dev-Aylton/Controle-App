@@ -8,6 +8,18 @@ describe('proteção de rota', () => {
   it('direciona sessão ausente ao login', () => {
     expect(getProtectedRoute({ configured: true, loading: false, session: null, companyLoading: false, dataLoaded: true, isAdmin: false, companyCount: 0 })).toBe('/login')
   })
+  it('limita conta com exclusão pendente à tela de reativação, mesmo durante carregamento da empresa', () => {
+    expect(getProtectedRoute({
+      configured: true,
+      loading: false,
+      session: { user: {} },
+      accountDeletionPending: true,
+      companyLoading: true,
+      dataLoaded: false,
+      isAdmin: false,
+      companyCount: 0,
+    })).toBe('/reativar-conta')
+  })
   it('direciona usuário sem empresa para código', () => {
     expect(getProtectedRoute({ configured: true, loading: false, session: { user: {} }, companyLoading: false, dataLoaded: true, isAdmin: false, companyCount: 0 })).toBe('/entrar-codigo')
   })

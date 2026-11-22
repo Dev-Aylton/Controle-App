@@ -145,6 +145,11 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const activeCompany = companies.find((item) => item.id === activeCompanyId) ?? null
 
   const selectCompany = (companyId: string) => {
+    if (!companyId) {
+      setActiveCompanyId(null)
+      localStorage.removeItem('controle-app-company')
+      return
+    }
     if (companies.some((company) => company.id === companyId)) {
       setActiveCompanyId(companyId)
       localStorage.setItem('controle-app-company', companyId)

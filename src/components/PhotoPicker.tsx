@@ -1,5 +1,6 @@
-import { useCallback, useState, type ChangeEvent } from 'react'
+import { useCallback, useId, useState, type ChangeEvent } from 'react'
 import Cropper, { type Area } from 'react-easy-crop'
+import { traduzirErro } from '../lib/errors'
 
 type PhotoPickerProps = {
   shape: 'round' | 'square'
@@ -58,8 +59,10 @@ async function cropImage(imageUrl: string, crop: Area): Promise<Blob> {
 }
 
 export function PhotoPicker({ shape, label = 'Trocar foto', onConfirm }: PhotoPickerProps) {
+  const fileInputId = useId()
   const [open, setOpen] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
+  const [fileName, setFileName] = useState('')
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [croppedArea, setCroppedArea] = useState<Area | null>(null)
@@ -69,6 +72,9 @@ export function PhotoPicker({ shape, label = 'Trocar foto', onConfirm }: PhotoPi
     const file = event.target.files?.[0]
     setError('')
     if (!file) return
+    if (imageUrl) URL.revokeObjectURL(imageUrl)
+    setImageUrl('')
+    setFileName('')
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       setError('Selecione uma imagem JPEG, PNG ou WebP.')
       return
@@ -77,6 +83,7 @@ export function PhotoPicker({ shape, label = 'Trocar foto', onConfirm }: PhotoPi
       setError('A imagem deve ter no máximo 5 MB.')
       return
     }
+    setFileName(file.name)
     setImageUrl(URL.createObjectURL(file))
   }
 
@@ -87,6 +94,7 @@ export function PhotoPicker({ shape, label = 'Trocar foto', onConfirm }: PhotoPi
   const cancel = () => {
     if (imageUrl) URL.revokeObjectURL(imageUrl)
     setImageUrl('')
+    setFileName('')
     setOpen(false)
     setError('')
   }
@@ -99,7 +107,7 @@ export function PhotoPicker({ shape, label = 'Trocar foto', onConfirm }: PhotoPi
       onConfirm(blob, previewUrl)
       cancel()
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Não foi possível recortar a imagem.')
+      setError(traduzirErro(caught, 'Não foi possível recortar a imagem.'))
     }
   }
 
@@ -110,7 +118,19 @@ export function PhotoPicker({ shape, label = 'Trocar foto', onConfirm }: PhotoPi
         <div className="photo-picker-modal" role="dialog" aria-modal="true" aria-label={label}>
           <div className="photo-picker-panel">
             <h2>Enquadrar foto</h2>
-            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={selectFile} />
+            <div className="photo-file-picker">
+              <label className="photo-file-control" htmlFor={fileInputId}>
+                <span className="photo-file-action">Escolher imagem</span>
+                <span className="photo-file-name">{fileName || 'JPEG, PNG ou WebP · até 5 MB'}</span>
+              </label>
+              <input
+                className="photo-file-input"
+                id={fileInputId}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={selectFile}
+              />
+            </div>
             {error && <p className="form-error" role="alert">{error}</p>}
             {imageUrl && (
               <>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { tryGetSupabaseClient } from '../lib/supabase'
 import { friendlySupabaseError } from '../lib/errors'
 import { useCompanies } from '../features/company/company-context'
-import { Container, Card } from '../components'
+import { Container, Card, ActionButton } from '../components'
 
 export function JoinCompanyPage() {
   const supabase = tryGetSupabaseClient()
@@ -33,14 +33,12 @@ export function JoinCompanyPage() {
     <Container>
       <h1>Entrar com código</h1>
       <Card>
-        <form onSubmit={submit} className="form-stack">
+        <form onSubmit={(event) => event.preventDefault()} className="form-stack">
           <label>Código da empresa
             <input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="XXXXX-XXXXX" required />
           </label>
           {error && <p className="form-error" role="alert">{error}</p>}
-          <button className="primary-button" type="submit" disabled={loading}>
-            {loading ? 'Entrando...' : 'Entrar na empresa'}
-          </button>
+          <ActionButton className="primary-button" disabled={loading} busyLabel="Entrando..." onAction={() => submit({ preventDefault: () => undefined } as FormEvent)}>Entrar na empresa</ActionButton>
         </form>
       </Card>
     </Container>

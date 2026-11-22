@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useCompanies } from '../features/company/company-context'
 import { listEnvironments, saveEnvironment } from '../features/environments/environmentService'
 import { canManageCompany } from '../lib/uiPermissions'
-import { Container, Card } from '../components'
+import { Container, Card, ActionButton } from '../components'
+import { traduzirErro } from '../lib/errors'
 
 export function EnvironmentsPage() {
   const { activeCompany, role, isAdmin } = useCompanies()
@@ -19,7 +20,7 @@ export function EnvironmentsPage() {
     try {
       setItems(await listEnvironments(activeCompanyId))
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Não foi possível carregar ambientes.')
+      setError(traduzirErro(caught, 'Não foi possível carregar ambientes.'))
     }
   }, [activeCompanyId])
 
@@ -37,7 +38,7 @@ export function EnvironmentsPage() {
       setEditingId(null)
       await load()
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Não foi possível salvar o ambiente.')
+      setError(traduzirErro(caught, 'Não foi possível salvar o ambiente.'))
     }
   }
 
@@ -47,14 +48,15 @@ export function EnvironmentsPage() {
       {error && <p className="form-error" role="alert">{error}</p>}
       {canManage && (
         <Card>
-          <form className="form-stack" onSubmit={save}>
-            <label>Nome<input value={name} onChange={(event) => setName(event.target.value)} required /></label>
-            <label>Descrição<input value={description} onChange={(event) => setDescription(event.target.value)} /></label>
-            <button className="primary-button" type="submit">{editingId ? 'Salvar ambiente' : 'Criar ambiente'}</button>
+          <form className="form-stack" onSubmit={(event) => event.preventDefault()}>
+            <label>Nome<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Bar VIP" required /></label>
+            <label>Descrição<input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Opcional: estoque de saída direta" /></label>
+            <ActionButton className="primary-button" busyLabel="Salvando..." onAction={() => save({ preventDefault: () => undefined } as FormEvent)}>{editingId ? 'Salvar ambiente' : 'Criar ambiente'}</ActionButton>
           </form>
         </Card>
       )}
       <Card>
+        {items.length === 0 && <p>Nenhum ambiente cadastrado ainda. Crie o primeiro ambiente.</p>}
         <div className="member-list">
           {items.map((item) => (
             <article className="member-row" key={item.id}>
@@ -62,11 +64,11 @@ export function EnvironmentsPage() {
               {canManage && (
                 <div className="member-actions">
                   <button className="secondary-button" type="button" onClick={() => { setEditingId(item.id); setName(item.name); setDescription(item.description ?? '') }}>Editar</button>
-                  <button className="danger-button" type="button" onClick={async () => {
+                  <ActionButton className="danger-button" busyLabel="Alterando..." confirmMessage={item.active ? 'Desativar este ambiente?' : undefined} onAction={async () => {
                     if (!activeCompany) return
                     await saveEnvironment(activeCompany.id, item.id, item.name, item.description ?? '', !item.active)
                     await load()
-                  }}>{item.active ? 'Desativar' : 'Reativar'}</button>
+                  }}>{item.active ? 'Desativar' : 'Reativar'}</ActionButton>
                 </div>
               )}
             </article>

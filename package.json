@@ -1,7 +1,7 @@
 {
   "name": "controle-app",
   "private": true,
-  "version": "0.0.0",
+  "version": "3.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -25,7 +25,8 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-easy-crop": "^6.2.5",
-    "react-router-dom": "^7.18.6"
+    "react-router-dom": "^7.18.6",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -39,6 +40,7 @@
     "eslint": "^10.15.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.8",
+    "fake-indexeddb": "^6.2.8",
     "globals": "^17.14.0",
     "libpg-query": "^18.2.4",
     "sharp": "^0.35.5",

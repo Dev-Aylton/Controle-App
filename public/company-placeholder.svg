@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 112 112" role="img" aria-label="Empresa não selecionada">
+  <rect width="112" height="112" rx="24" fill="#E7F3EF"/>
+  <rect x="18" y="46" width="76" height="48" rx="8" fill="#1F7A65"/>
+  <path d="M18 46h76L78 30H34L18 46Z" fill="#43A88B"/>
+  <rect x="30" y="58" width="14" height="36" rx="3" fill="#F7FAF8"/>
+  <rect x="52" y="58" width="14" height="14" rx="3" fill="#F7FAF8"/>
+  <rect x="52" y="80" width="14" height="14" rx="3" fill="#F7FAF8"/>
+  <rect x="74" y="58" width="8" height="14" rx="3" fill="#F7FAF8"/>
+  <rect x="74" y="80" width="8" height="14" rx="3" fill="#F7FAF8"/>
+</svg>

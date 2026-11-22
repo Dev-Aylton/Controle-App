@@ -3,7 +3,8 @@ import { useCompanies } from '../features/company/company-context'
 import { canManageCompany } from '../lib/uiPermissions'
 import { tryGetSupabaseClient } from '../lib/supabase'
 import { parseProductsCsv, type ParsedProductRow } from '../features/products/import/parseProductsCsv'
-import { Container, Card } from '../components'
+import { Container, Card, ActionButton } from '../components'
+import { traduzirErro } from '../lib/errors'
 
 export function ProductImportPage() {
   const { activeCompany, role, isAdmin } = useCompanies()
@@ -23,7 +24,7 @@ export function ProductImportPage() {
       if (text.includes('\uFFFD')) text = new TextDecoder('windows-1252').decode(buffer)
       setRows(parseProductsCsv(text))
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Não foi possível ler o arquivo.')
+      setError(traduzirErro(caught, 'Não foi possível ler o arquivo.'))
     }
   }
 
@@ -40,7 +41,7 @@ export function ProductImportPage() {
       unit_cost: row.cost,
     }))
     const response = await supabase.rpc('import_products', { p_company_id: activeCompany.id, p_rows: payload })
-    if (response.error) setError(response.error.message)
+    if (response.error) setError(traduzirErro(response.error, 'Não foi possível importar produtos.'))
     else setResult(JSON.stringify(response.data))
   }
 
@@ -52,7 +53,10 @@ export function ProductImportPage() {
       <h1>Importar produtos</h1>
       <Card>
         <a className="secondary-button" href={'data:text/csv;charset=utf-8,nome;codigo;categoria;unidade;estoque_minimo;custo%0ACerveja;CEV-1;Bebidas;un;10;12,50'} download="modelo-produtos.csv">Baixar modelo CSV</a>
-        <input type="file" accept=".csv,text/csv" onChange={loadFile} />
+        <label className="file-upload-label">Arquivo CSV
+          <input type="file" accept=".csv,text/csv" onChange={loadFile} />
+        </label>
+        <p className="field-help">Selecione um arquivo CSV para visualizar e importar os produtos.</p>
         {error && <p className="form-error" role="alert">{error}</p>}
         {result && <p className="form-success" role="status">{result}</p>}
       </Card>
@@ -66,7 +70,7 @@ export function ProductImportPage() {
               ))}</tbody>
             </table>
           </div>
-          <button className="primary-button" type="button" disabled={validCount === 0} onClick={importRows}>Importar {validCount} produto(s)</button>
+          <ActionButton className="primary-button" disabled={validCount === 0} busyLabel="Importando..." onAction={importRows}>Importar {validCount} produto(s)</ActionButton>
         </Card>
       )}
     </Container>

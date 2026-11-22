@@ -31,4 +31,15 @@ describe('permissões da interface', () => {
     expect(canViewCompanyCode('manager', false)).toBe(true)
     expect(canViewCompanyCode(null, true)).toBe(true)
   })
+
+  it('oculta menus novos de gestão para funcionário', () => {
+    expect(canManageCompany('employee', false)).toBe(false)
+    expect(canManageCompany('manager', false)).toBe(true)
+    expect(canManageCompany('owner', false)).toBe(true)
+    expect(canManageCompany(null, true)).toBe(true)
+  })
+
+  it('admin de suporte pode gerenciar todas as empresas', () => {
+    expect(canManageCompany(null, true)).toBe(true)
+  })
 })

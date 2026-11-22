@@ -16,12 +16,21 @@ dist-ssr
 .env.test
 .env.*.local
 .tmp-acompanhamento
+supabase/.temp/
 coverage
 .env*
 !.env.example
 !.env.test.example
 playwright-report
 test-results
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
 
 # Editor directories and files
 .vscode/*
