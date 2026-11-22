@@ -3,6 +3,9 @@ import type { Movement, MovementEnvironment, MovementProduct } from './types'
 import { filterMovements, groupTransferMovements, type MovementFilters } from './historyRules'
 import { formatMovementQuantity } from './rules'
 import { reverseMovement } from '../../services/movements'
+import { generateCsv } from '../management/csv'
+import { traduzirErro } from '../../lib/errors'
+import { ActionButton } from '../../components'
 
 type Props = {
   movements: Movement[]
@@ -11,9 +14,10 @@ type Props = {
   users: Array<{ id: string; name: string }>
   onChanged: () => void
   canReverse: boolean
+  companyName?: string
 }
 
-export function MovementHistory({ movements, products, environments, users, onChanged, canReverse }: Props) {
+export function MovementHistory({ movements, products, environments, users, onChanged, canReverse, companyName }: Props) {
   const [filters, setFilters] = useState<MovementFilters>({
     productId: '', environmentId: '', type: '', from: '', to: '', userId: '',
   })
@@ -22,6 +26,27 @@ export function MovementHistory({ movements, products, environments, users, onCh
   const [error, setError] = useState('')
   const filtered = filterMovements(movements, filters)
   const grouped = groupTransferMovements(filtered)
+
+  const exportHistory = () => {
+    const csv = generateCsv([
+      ['Data', 'Produto', 'Ambiente', 'Tipo', 'Quantidade', 'Usuário', 'Observação'],
+      ...filtered.map((movement) => [
+        new Date(movement.created_at).toLocaleString('pt-BR'),
+        products.find((item) => item.id === movement.product_id)?.name ?? movement.product_id,
+        environments.find((item) => item.id === movement.environment_id)?.name ?? movement.environment_id,
+        movement.type,
+        movement.signed_quantity,
+        users.find((item) => item.id === movement.created_by)?.name ?? 'Usuário sem nome',
+        movement.note ?? '',
+      ]),
+    ])
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${companyName ?? 'empresa'}-historico-movimentacoes-${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
 
   const confirmReverse = async () => {
     if (!reasonMovement) return
@@ -32,7 +57,7 @@ export function MovementHistory({ movements, products, environments, users, onCh
       setReason('')
       onChanged()
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Não foi possível estornar.')
+      setError(traduzirErro(caught, 'Não foi possível estornar.'))
     }
   }
 
@@ -68,6 +93,7 @@ export function MovementHistory({ movements, products, environments, users, onCh
         <label>De<input type="date" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} /></label>
         <label>Até<input type="date" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} /></label>
       </div>
+      <button className="secondary-button" type="button" onClick={exportHistory}>Exportar CSV</button>
       <div className="member-list">
         {grouped.map((group) => {
           const movement = group.movements[0]
@@ -103,7 +129,7 @@ export function MovementHistory({ movements, products, environments, users, onCh
             <label>Motivo<textarea value={reason} onChange={(event) => setReason(event.target.value)} /></label>
             <div className="member-actions">
               <button className="secondary-button" type="button" onClick={() => setReasonMovement(null)}>Cancelar</button>
-              <button className="danger-button" type="button" onClick={() => void confirmReverse()}>Confirmar estorno</button>
+              <ActionButton className="danger-button" busyLabel="Estornando..." confirmMessage="Confirmar o estorno desta movimentação?" onAction={confirmReverse}>Confirmar estorno</ActionButton>
             </div>
           </div>
         </div>
