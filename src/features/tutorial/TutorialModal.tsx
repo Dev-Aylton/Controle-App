@@ -13,6 +13,8 @@ type Props = {
 export function TutorialModal({ role, isAdmin, onClose, onNavigate }: Props) {
   const [index, setIndex] = useState(0)
   const panelRef = useRef<HTMLDivElement>(null)
+  const topicRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const stepCopyRef = useRef<HTMLDivElement>(null)
   const steps = getTutorialSteps(role, isAdmin)
   useEffect(() => {
     panelRef.current?.focus()
@@ -24,6 +26,16 @@ export function TutorialModal({ role, isAdmin, onClose, onNavigate }: Props) {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose, steps.length])
+  useEffect(() => {
+    topicRefs.current[index]?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'center',
+    })
+  }, [index])
+  useEffect(() => {
+    if (stepCopyRef.current) stepCopyRef.current.scrollTop = 0
+  }, [index])
   const current = steps[index]
   return (
     <div className="tutorial-backdrop" role="presentation" onMouseDown={(event) => {
@@ -42,6 +54,7 @@ export function TutorialModal({ role, isAdmin, onClose, onNavigate }: Props) {
             {steps.map((step, topicIndex) => (
               <button
                 key={step.title}
+                ref={(element) => { topicRefs.current[topicIndex] = element }}
                 type="button"
                 className={topicIndex === index ? 'active' : ''}
                 aria-current={topicIndex === index ? 'step' : undefined}
@@ -59,7 +72,7 @@ export function TutorialModal({ role, isAdmin, onClose, onNavigate }: Props) {
               <span key={step.title} className={topicIndex <= index ? 'active' : ''} />
             ))}
           </div>
-          <div className="tutorial-step-copy">
+          <div className="tutorial-step-copy" ref={stepCopyRef}>
             <small>Tópico {index + 1} de {steps.length}</small>
             <h2 id="tutorial-title">{current.title}</h2>
             <p>{current.body}</p>
