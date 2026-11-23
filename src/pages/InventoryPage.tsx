@@ -2,7 +2,7 @@ import { useEffect, useState, type ChangeEvent } from 'react'
 import { useCompanies } from '../features/company/company-context'
 import { tryGetSupabaseClient } from '../lib/supabase'
 import { applyInventoryCountBatch, finishInventory, getStockBalance, openInventory, submitInventoryCount, zeroStock } from '../services/movements'
-import { Container, Card, ActionButton, ContextHelp } from '../components'
+import { Container, Card, ActionButton, ContextHelp, PageGuide } from '../components'
 import { traduzirErro } from '../lib/errors'
 import {
   downloadInventoryCountTemplate,
@@ -33,6 +33,8 @@ type CountImportPreviewRow = {
   valid: boolean
   message: string
   suggestions: Array<{ id: string; name: string; sku: string | null }>
+  unit: string
+  measure: string
 }
 
 export function InventoryPage() {
@@ -104,6 +106,81 @@ export function InventoryPage() {
     })))
   }
 
+  const createMissingProducts = async () => {
+    if (!companyId) return
+    const missingRows = countImportPreview.filter((row) => !row.productId)
+    if (missingRows.length === 0) return
+    setError('')
+    setLoading(true)
+    try {
+      const supabase = tryGetSupabaseClient()
+      if (!supabase) throw new Error('Supabase não configurado.')
+      const createdIds = new Map<string, string>()
+      for (const row of missingRows) {
+        const unit = (row.unit || 'un').trim().toLowerCase()
+        const allowedUnits = ['un','kg','g','l','ml','cx','pct','garrafa','lata','maço','porcao','duzia','bandeja','pacote','saco','ramo','peca','fardo','frasco']
+        const safeUnit = allowedUnits.includes(unit) ? unit : 'un'
+        const measureText = row.measure.replace(',', '.').match(/[\d.]+/)
+        const volumeMl = /ml/i.test(row.measure) ? Number(measureText?.[0] ?? '') : null
+        const sku = row.code.trim() || null
+        if (sku) {
+          const { data: existingSku } = await supabase
+            .from('products')
+            .select('id')
+            .eq('company_id', companyId)
+            .ilike('sku', sku)
+            .maybeSingle()
+          if (existingSku) {
+            createdIds.set(`${row.line}`, existingSku.id)
+            continue
+          }
+        }
+        const { data, error: createError } = await supabase
+          .from('products')
+          .insert({
+            company_id: companyId,
+            name: row.name.trim(),
+            sku,
+            unit: safeUnit,
+            volume_ml: volumeMl && volumeMl > 0 ? volumeMl : null,
+            min_stock: 0,
+            active: true,
+          })
+          .select('id,name,sku,unit,volume_ml,dose_ml,weight_g')
+          .single()
+        if (createError) throw createError
+        if (data) {
+          createdIds.set(`${row.line}`, data.id)
+          setProducts((current) => [...current, {
+            id: data.id,
+            name: data.name,
+            sku: data.sku,
+            category_id: null,
+            unit: data.unit,
+            volume_ml: data.volume_ml,
+            dose_ml: data.dose_ml,
+            weight_g: data.weight_g,
+          }])
+        }
+      }
+      setCountImportPreview((current) => current.map((row) => {
+        const createdId = createdIds.get(`${row.line}`)
+        if (!createdId) return row
+        return {
+          ...row,
+          productId: createdId,
+          valid: true,
+          message: 'Produto criado e pronto para a contagem',
+        }
+      }))
+      setMessage(`${createdIds.size} produto(s) ausente(s) foram cadastrados. Revise a prévia antes de aplicar a contagem.`)
+    } catch (caught) {
+      setError(traduzirErro(caught, 'Não foi possível cadastrar os produtos ausentes.'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const readCountFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -147,7 +224,10 @@ export function InventoryPage() {
           valid: environmentMatches && Boolean(product) && Number.isFinite(row.quantity) && row.quantity >= 0,
           message,
           suggestions: suggestions.map((item) => ({ id: item.id, name: item.name, sku: item.sku ?? null })),
+          unit: row.unit,
+          measure: row.measure,
         }
+
       })
       setCountImportPreview(previewRows)
     } catch (caught) {
@@ -378,6 +458,12 @@ export function InventoryPage() {
   return (
     <Container>
       <h1>Inventário cego</h1>
+      <PageGuide
+        purpose="Comparar a quantidade física com o saldo registrado sem depender da memória operacional."
+        doNext="Selecione o ambiente, abra ou importe uma contagem e revise todas as diferenças."
+        result="Somente gestores ou administradores aplicam ajustes rastreáveis no estoque."
+        roleNote={canFinish ? 'Você pode contar, revisar, importar e finalizar.' : 'Você pode abrir sessões e registrar contagens.'}
+      />
       <ContextHelp
         title="Por que fazer um inventário?"
         description="Inventário é a contagem física do que realmente existe em um ambiente. Serve para corrigir diferenças entre o saldo registrado e o estoque real."
@@ -397,14 +483,32 @@ export function InventoryPage() {
         <div className="inventory-template-actions">
           <button className="secondary-button" type="button" onClick={() => setTemplatePreviewOpen(true)}>Visualizar modelo</button>
           <a className="secondary-button" href={`${import.meta.env.BASE_URL}modelo-contagem.xlsx`} download="modelo-contagem.xlsx">Baixar modelo</a>
-          <button className="secondary-button" type="button" onClick={downloadTemplate}>Gerar modelo personalizado</button>
-          <label className="secondary-button inventory-template-import">Importar contagem
-            <input type="file" accept=".xlsx,.xls,.csv,text/csv" onChange={(event) => void readCountFile(event)} disabled={!environmentId} />
-          </label>
+          {canFinish && (
+            <>
+              <button className="secondary-button" type="button" onClick={downloadTemplate}>Gerar modelo personalizado</button>
+              <label className="secondary-button inventory-template-import">Importar contagem
+                <input type="file" accept=".xlsx,.xls,.csv,text/csv" onChange={(event) => void readCountFile(event)} disabled={!environmentId} />
+              </label>
+            </>
+          )}
         </div>
         {countImportName && <p className="field-help">Arquivo selecionado: {countImportName}</p>}
         {countImportPreview.length > 0 && (
           <>
+            {countImportPreview.some((row) => !row.productId) && (
+              <div className="inventory-import-warning" role="alert">
+                <strong>Produtos ausentes encontrados</strong>
+                <p>O inventário não cria produtos automaticamente. Cadastre os itens ausentes somente após confirmar nome, unidade e medida. Você poderá revisar antes de aplicar.</p>
+                <ActionButton
+                  className="secondary-button"
+                  busyLabel="Cadastrando..."
+                  confirmMessage="Cadastrar automaticamente os produtos não encontrados nesta contagem com nome, código, unidade e medida informados?"
+                  onAction={createMissingProducts}
+                >
+                  Cadastrar produtos ausentes
+                </ActionButton>
+              </div>
+            )}
             <div className="table-wrap">
               <table>
                 <thead><tr><th>Linha</th><th>Código</th><th>Produto</th><th>Quantidade</th><th>Resultado</th></tr></thead>

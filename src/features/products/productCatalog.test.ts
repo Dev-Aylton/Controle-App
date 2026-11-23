@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { searchProductCatalog } from './productCatalog'
+import { expandProductSearchTerms, searchProductCatalog } from './productCatalog'
 
 describe('biblioteca inteligente de insumos', () => {
   it('sugere vodkas brasileiras por nome comum', () => {
@@ -50,5 +50,11 @@ describe('biblioteca inteligente de insumos', () => {
     expect(searchProductCatalog('asa de frango').some((item) => item.category === 'Aves')).toBe(true)
     expect(searchProductCatalog('robalo').some((item) => item.category === 'Peixes')).toBe(true)
     expect(searchProductCatalog('espeto de coracao').some((item) => item.unit === 'porcao')).toBe(true)
+  })
+
+  it('expande termos comuns para encontrar categorias por significado', () => {
+    expect(expandProductSearchTerms('refrigerante')).toContain('soft')
+    expect(expandProductSearchTerms('refrigerante')).toContain('refrigerantes')
+    expect(expandProductSearchTerms('coca cola')).toContain('refrigerantes')
   })
 })

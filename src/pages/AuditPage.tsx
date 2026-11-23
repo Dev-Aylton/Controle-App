@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useCompanies } from '../features/company/company-context'
-import { Container, Card, ActionButton, ContextHelp } from '../components'
+import { Container, Card, ActionButton, ContextHelp, PageGuide } from '../components'
 import { getAuditLog } from '../features/management/management'
 import type { AuditRow } from '../features/management/types'
 import { downloadCsv } from '../features/management/csv'
@@ -93,6 +93,12 @@ export function AuditPage() {
   return (
     <Container>
       <h1>Auditoria</h1>
+      <PageGuide
+        purpose="Identificar quem fez ações críticas e quando, evitando alterações sem rastreabilidade."
+        doNext="Filtre por período, usuário ou ação e abra um registro para ver detalhes."
+        result="A auditoria oferece responsabilidade, contexto e base para investigação."
+        roleNote="Disponível para proprietários, gerentes e administradores."
+      />
       <ContextHelp
         title="Para que serve a auditoria?"
         description="A auditoria registra quem fez ações importantes, em qual empresa e quando. Serve para identificar, revisar e corrigir alterações."

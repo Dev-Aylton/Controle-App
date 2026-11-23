@@ -71,6 +71,16 @@ export interface Database {
         Insert: never
         Update: never
       }
+      suppliers: {
+        Row: { id: string; company_id: string; name: string; contact_name: string | null; phone: string | null; email: string | null; notes: string | null; active: boolean; created_at: string; created_by: string | null }
+        Insert: never
+        Update: never
+      }
+      product_supplier_prices: {
+        Row: { id: number; company_id: string; product_id: string; supplier_id: string; unit_price: number; purchase_unit: string; units_per_purchase: number | null; valid_from: string; created_by: string | null }
+        Insert: never
+        Update: never
+      }
       stock_movements: {
         Row: { id: string; company_id: string; product_id: string; environment_id: string; type: 'entrada'|'saida'|'perda'|'ajuste_inventario'|'transferencia_saida'|'transferencia_entrada'|'estorno'|'zeragem'; quantity: number; signed_quantity: number; note: string | null; transfer_group_id: string | null; reverses_movement_id: string | null; inventory_session_id: string | null; created_by: string | null; created_at: string }
         Insert: never
@@ -96,6 +106,8 @@ export interface Database {
       member_role: { Args: { p_company_id: string }; Returns: CompanyRole }
       is_manager_or_owner: { Args: { p_company_id: string }; Returns: boolean }
       rotate_company_code: { Args: { p_company_id: string }; Returns: string }
+      get_company_code: { Args: { p_company_id: string }; Returns: string | null }
+      ensure_company_code: { Args: { p_company_id: string }; Returns: string }
       join_company_with_code: { Args: { p_code: string }; Returns: string }
       claim_invites: { Args: Record<string, never>; Returns: number }
       create_invite: { Args: { p_company_id: string; p_email: string; p_role: CompanyRole }; Returns: string }
@@ -128,6 +140,12 @@ export interface Database {
       complete_pending_loss_reason: { Args: { p_movement_id: string; p_reason_id: string }; Returns: undefined }
       seed_loss_reasons: { Args: { p_company_id: string }; Returns: number }
       get_purchase_list: { Args: { p_company_id: string; p_environment_id?: string }; Returns: Json }
+      create_purchase_request: { Args: { p_company_id: string; p_destination_environment_id: string; p_items: Json; p_note?: string }; Returns: string }
+      list_purchase_requests: { Args: { p_company_id: string }; Returns: Json }
+      resolve_purchase_request: { Args: { p_request_id: string; p_action: string; p_review_note?: string }; Returns: undefined }
+      fulfill_purchase_request: { Args: { p_request_id: string; p_source_environment_id: string; p_review_note?: string }; Returns: string }
+      save_supplier: { Args: { p_company_id: string; p_supplier_id: string | null; p_name: string; p_contact_name?: string | null; p_phone?: string | null; p_email?: string | null; p_notes?: string | null }; Returns: string }
+      save_product_supplier_price: { Args: { p_company_id: string; p_product_id: string; p_supplier_id: string; p_unit_price: number; p_purchase_unit?: string; p_units_per_purchase?: number | null }; Returns: undefined }
       list_product_environment_pricing: { Args: { p_company_id: string; p_environment_id: string }; Returns: Array<{ product_id: string; product_name: string; sku: string | null; unit: string; volume_ml: number | null; dose_ml: number | null; unit_cost: number | null; base_unit_cost: number | null; unit_price: number | null; dose_price: number | null }> }
       upsert_product_environment_pricing: { Args: { p_company_id: string; p_environment_id: string; p_product_id: string; p_unit_cost: number | null; p_unit_price: number | null; p_dose_price: number | null }; Returns: undefined }
       get_inventory_valuation: { Args: { p_company_id: string }; Returns: number | null }

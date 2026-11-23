@@ -205,6 +205,14 @@ export function AppShell({ children }: AppShellProps) {
     })
   }
 
+  const dismissAllNotifications = () => {
+    setNotifications((current) => {
+      const next = current.map((item) => ({ ...item, dismissed: true }))
+      persistNotificationState(next)
+      return next
+    })
+  }
+
   const footer = (
     <footer className="app-footer">
       <div className="app-footer-brand">
@@ -224,11 +232,18 @@ export function AppShell({ children }: AppShellProps) {
 
   const visibleItems = NAVIGATION_ITEMS.filter((item) => {
     if ([
-      '/equipe', '/estoque/saldo', '/alertas', '/compras', '/relatorios', '/auditoria', '/vendas/importar', '/vendas/precos',
+      '/equipe', '/alertas', '/relatorios', '/auditoria', '/vendas/importar', '/vendas/precos',
     ].includes(item.path)) {
       return canManageCompany(role, isAdmin)
     }
     return true
+  }).sort((left, right) => {
+    const priority = role === 'employee' && !isAdmin
+      ? ['/', '/movimentacoes', '/ambientes', '/produtos', '/estoque/saldo', '/inventario', '/perfil']
+      : ['/', '/movimentacoes', '/estoque/saldo', '/inventario', '/produtos', '/compras', '/vendas/importar', '/ambientes', '/equipe', '/perfil']
+    const leftIndex = priority.indexOf(left.path)
+    const rightIndex = priority.indexOf(right.path)
+    return (leftIndex === -1 ? 999 : leftIndex) - (rightIndex === -1 ? 999 : rightIndex)
   })
   const mobileItems = getMobileNavItems(role, isAdmin)
 
@@ -264,6 +279,7 @@ export function AppShell({ children }: AppShellProps) {
             onRead={readNotification}
             onDismiss={dismissNotification}
             onReadAll={readAllNotifications}
+            onDismissAll={dismissAllNotifications}
           />
           <button className="profile-button profile-link" type="button" onClick={() => setAccountOpen(true)} aria-label="Minha conta">
             <Avatar name={user?.user_metadata.full_name ?? user?.email} googleUrl={user?.user_metadata.avatar_url} size={44} />
@@ -398,6 +414,7 @@ export function AppShell({ children }: AppShellProps) {
           onRead={readNotification}
           onDismiss={dismissNotification}
           onReadAll={readAllNotifications}
+          onDismissAll={dismissAllNotifications}
         />
         <button className="profile-button profile-link" type="button" onClick={() => setAccountOpen(true)} aria-label="Minha conta">
           <Avatar name={user?.user_metadata.full_name ?? user?.email} googleUrl={user?.user_metadata.avatar_url} size={52} />

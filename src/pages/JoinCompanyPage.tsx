@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { tryGetSupabaseClient } from '../lib/supabase'
 import { friendlySupabaseError } from '../lib/errors'
 import { useCompanies } from '../features/company/company-context'
-import { Container, Card, ActionButton } from '../components'
+import { Container, Card, ActionButton, PageGuide } from '../components'
 
 export function JoinCompanyPage() {
   const supabase = tryGetSupabaseClient()
@@ -32,6 +32,12 @@ export function JoinCompanyPage() {
   return (
     <Container>
       <h1>Entrar com código</h1>
+      <PageGuide
+        purpose="Vincular sua conta a uma empresa existente."
+        doNext="Digite exatamente o código informado pelo proprietário ou gerente e confirme."
+        result="Os ambientes, produtos e ações disponíveis aparecerão conforme seu cargo."
+        roleNote="Não compartilhe o código fora da equipe autorizada."
+      />
       <Card>
         <form onSubmit={(event) => event.preventDefault()} className="form-stack">
           <label>Código da empresa

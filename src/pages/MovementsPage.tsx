@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useCompanies } from '../features/company/company-context'
 import { useAuth } from '../features/auth/auth-context'
 import { tryGetSupabaseClient } from '../lib/supabase'
-import { Container, Card, ActionButton, ContextHelp } from '../components'
+import { Container, Card, ActionButton, ContextHelp, PageGuide } from '../components'
 import { MovementLaunchForm } from '../features/movements/MovementLaunchForm'
 import { MovementHistory } from '../features/movements/MovementHistory'
 import type { Movement, MovementEnvironment, MovementProduct } from '../features/movements/types'
@@ -131,6 +131,12 @@ export function MovementsPage() {
   return (
     <Container>
       <h1>Movimentações</h1>
+      <PageGuide
+        purpose="Registrar entradas, saídas, perdas e transferências sem apagar o histórico."
+        doNext="Confirme empresa e ambiente, escolha o produto e informe a quantidade real."
+        result="O saldo muda de forma rastreável e pode ser corrigido por estorno ou inventário."
+        roleNote={canHistory ? 'Você pode lançar, revisar o histórico e estornar movimentações.' : 'Você pode lançar e corrigir somente seus lançamentos recentes.'}
+      />
       <ContextHelp
         title="O que são movimentações?"
         description="Movimentações registram tudo que entra, sai, é perdido ou transferido em cada ambiente da empresa."

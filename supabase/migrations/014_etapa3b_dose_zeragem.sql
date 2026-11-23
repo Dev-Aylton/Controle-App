@@ -25,8 +25,8 @@ declare
   v_quantity numeric(14,3);
   v_movement_id uuid;
 begin
-  if not coalesce(public.is_admin(), false) and not coalesce(public.is_manager_or_owner(p_company_id), false) then
-    raise exception 'Somente proprietário ou gerente pode lançar movimentação por dose';
+  if not coalesce(public.is_admin(), false) and not coalesce(public.is_active_member(p_company_id), false) then
+    raise exception 'Membro ativo necessário para lançar dose';
   end if;
   if p_kind not in ('entrada','saida','perda') then raise exception 'Tipo de dose inválido'; end if;
   if p_doses is null or p_doses <= 0 then raise exception 'Quantidade de doses deve ser positiva'; end if;

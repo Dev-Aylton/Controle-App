@@ -45,11 +45,15 @@ Preços por unidade/dose são obrigatórios para importar vendas. O custo por am
 
 | Área | Admin/suporte | Proprietário | Gerente | Funcionário |
 |---|---:|---:|---:|---:|
-| Cadastrar produtos, ambientes e categorias | Sim | Sim | Sim | Não |
+| Cadastrar produtos novos | Sim | Sim | Sim | Sim |
+| Editar ou desativar produtos existentes | Sim | Sim | Sim | Não |
+| Cadastrar ou editar ambientes | Sim | Sim | Sim | Não |
+| Consultar produtos e ambientes cadastrados | Sim | Sim | Sim | Sim, somente leitura |
 | Importar produtos e vendas | Sim | Sim | Sim | Não |
 | Lançar e estornar movimentações | Sim | Sim | Sim | Sim, conforme regra |
 | Finalizar inventário e zerar estoque | Sim | Sim | Sim | Não |
-| Gestão, saldo, custo e histórico | Sim | Sim | Sim | Não |
+| Saldo por ambiente | Sim | Sim | Sim | Sim |
+| Custo, compra, histórico e relatórios | Sim | Sim | Sim | Não |
 | Equipe e código da empresa | Sim | Sim | Parcial | Não |
 | Auditoria | Sim | Sim | Sim | Não |
 
@@ -94,11 +98,12 @@ Configure somente as variáveis públicas `VITE_SUPABASE_URL` e `VITE_SUPABASE_A
 npm test
 npm run lint
 npx playwright test
+npx playwright test --config playwright.company.config.ts
 ```
 
 - **Vitest:** suíte unitária do domínio e regras da interface.
 - **RLS:** testes em `tests/rls/`, executados contra o projeto Supabase de testes.
-- **Playwright:** suíte da demonstração em `tests/e2e/`.
+- **Playwright:** suíte da demonstração em `tests/e2e/` e fluxo da empresa com Supabase simulado em `tests/company-e2e/`.
 
 <!-- TODO: Atualizar os números de testes após a execução final das suítes no CI. -->
 

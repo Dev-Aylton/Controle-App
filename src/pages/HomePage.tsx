@@ -81,6 +81,7 @@ export function HomePage() {
             size={112}
             alt={`Logo de ${activeCompany.name}`}
             companyLogoFallback
+            fallbackUrl="/Controle-App/company-placeholder.svg"
           />
         ) : (
           <img

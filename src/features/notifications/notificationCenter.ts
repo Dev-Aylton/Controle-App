@@ -76,38 +76,37 @@ export async function getCompanyNotifications(companyId: string): Promise<Omit<A
     }
   }
 
-  for (const row of negative) {
+  if (negative.length) {
     notifications.push({
-      id: `negative:${row.product_id}:${row.environment_id}`,
+      id: 'negative:summary',
       severity: 'critical',
-      title: 'Saldo negativo',
-      description: `${row.product_name} está com saldo ${row.balance} em ${row.environment_name}.`,
+      title: `${negative.length} saldo(s) negativo(s)`,
+      description: `${negative[0].product_name} em ${negative[0].environment_name} é o primeiro item da lista. Abra o saldo para revisar todos.`,
       route: '/estoque/saldo',
-      routeLabel: 'Conferir saldo',
+      routeLabel: 'Conferir saldos',
       createdAt: now,
     })
   }
-  for (const row of environmentLow) {
-    if (row.balance >= 0 && row.balance <= row.min_stock) {
-      notifications.push({
-        id: `low:${row.product_id}:${row.environment_id}`,
-        severity: 'warning',
-        title: 'Produto abaixo do mínimo',
-        description: `${row.product_name} está em ${row.balance} em ${row.environment_name}; mínimo configurado: ${row.min_stock}.`,
-        route: '/compras',
-        routeLabel: 'Abrir lista de compras',
-        createdAt: now,
-      })
-    }
-  }
-  for (const row of pendingLosses) {
+  const lowRows = environmentLow.filter((row) => row.balance >= 0 && row.balance <= row.min_stock)
+  if (lowRows.length) {
     notifications.push({
-      id: `loss:${row.movement_id}`,
+      id: 'low:summary',
       severity: 'warning',
-      title: 'Perda sem motivo',
-      description: `${row.product_name} teve uma perda de ${row.quantity} em ${row.environment_name}.`,
+      title: `${lowRows.length} produto(s) abaixo do mínimo`,
+      description: `${lowRows[0].product_name} está em ${lowRows[0].environment_name}. Revise a lista consolidada antes de comprar ou transferir.`,
+      route: '/compras',
+      routeLabel: 'Abrir lista de compras',
+      createdAt: now,
+    })
+  }
+  if (pendingLosses.length) {
+    notifications.push({
+      id: 'loss:summary',
+      severity: 'warning',
+      title: `${pendingLosses.length} perda(s) sem motivo`,
+      description: `${pendingLosses[0].product_name} em ${pendingLosses[0].environment_name} aguarda classificação. Revise todas as pendências juntas.`,
       route: '/movimentacoes',
-      routeLabel: 'Informar motivo',
+      routeLabel: 'Informar motivos',
       createdAt: now,
     })
   }

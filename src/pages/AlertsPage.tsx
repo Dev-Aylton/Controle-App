@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useCompanies } from '../features/company/company-context'
 import { tryGetSupabaseClient } from '../lib/supabase'
-import { Container, Card, ContextHelp } from '../components'
+import { Container, Card, ContextHelp, PageGuide } from '../components'
 import {
   getEnvironmentLowStock, getLowStockAlerts, getMovementReport, getNegativeBalances, getPendingLossReasons,
 } from '../features/management/management'
@@ -84,6 +84,12 @@ export function AlertsPage() {
   return (
     <Container>
       <h1>Central de alertas</h1>
+      <PageGuide
+        purpose="Concentrar situações que exigem decisão antes de afetar o estoque ou o fechamento."
+        doNext="Escolha um tipo de alerta e use a rota sugerida para corrigir ou investigar."
+        result="Alertas resolvidos deixam de representar pendências operacionais."
+        roleNote="Disponível para proprietários, gerentes e administradores."
+      />
       <ContextHelp
         title="O que esta central monitora?"
         description="Os alertas apontam situações que precisam de atenção antes que afetem operação ou fechamento."

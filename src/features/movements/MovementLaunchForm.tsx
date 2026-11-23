@@ -27,7 +27,7 @@ type Props = {
 export function MovementLaunchForm({ companyId, environments, products, onRegistered, initial }: Props) {
   const { user } = useAuth()
   const { role, isAdmin } = useCompanies()
-  const canUseDoseMode = isAdmin || role === 'owner' || role === 'manager'
+  const canUseDoseMode = isAdmin || role === 'owner' || role === 'manager' || role === 'employee'
   const [fromEnvironment, setFromEnvironment] = useState(initial?.environmentId ?? '')
   const [toEnvironment, setToEnvironment] = useState('')
   const [productId, setProductId] = useState(initial?.productId ?? '')
@@ -328,7 +328,7 @@ export function MovementLaunchForm({ companyId, environments, products, onRegist
       {divergenceWarning && (
         <p className="stock-divergence-warning" role="alert">
           <strong>Possível divergência detectada</strong>
-          <span>{divergenceWarning} A operação não será bloqueada; confira o motivo e revise o lançamento.</span>
+          <span>{divergenceWarning} A operação será bloqueada se não houver saldo suficiente no ambiente de origem.</span>
         </p>
       )}
       <label>Observação

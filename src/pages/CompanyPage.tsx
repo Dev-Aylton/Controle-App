@@ -5,7 +5,14 @@ import { tryGetSupabaseClient } from '../lib/supabase'
 import { traduzirErro } from '../lib/errors'
 import { recordTechnicalError } from '../lib/diagnostics'
 import { canManageCompany } from '../lib/uiPermissions'
-import { Container, Card, PhotoPicker, Avatar, ActionButton, ContextHelp } from '../components'
+import { Container, Card, PhotoPicker, Avatar, ActionButton, ContextHelp, PageGuide } from '../components'
+
+function companyLogoPath(companyId: string, blob: Blob) {
+  const extensions: Record<string, string> = { 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png' }
+  const extension = extensions[blob.type]
+  if (!extension) throw new Error('Formato da imagem não suportado.')
+  return `companies/${companyId}/logo-${crypto.randomUUID()}.${extension}`
+}
 
 export function CompanyPage() {
   const supabase = tryGetSupabaseClient()
@@ -39,6 +46,21 @@ export function CompanyPage() {
     })
   }, [activeCompany])
 
+  useEffect(() => {
+    queueMicrotask(() => {
+      setPendingLogoBlob(null)
+      setPendingLogoPreview('')
+    })
+  }, [activeCompany?.id])
+
+  useEffect(() => () => {
+    if (pendingLogoPreview) URL.revokeObjectURL(pendingLogoPreview)
+  }, [pendingLogoPreview])
+
+  useEffect(() => () => {
+    if (createLogoPreview) URL.revokeObjectURL(createLogoPreview)
+  }, [createLogoPreview])
+
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!supabase || !activeCompany) return
@@ -48,25 +70,30 @@ export function CompanyPage() {
     try {
       let photoPath = photo
       if (pendingLogoBlob) {
-        photoPath = `companies/${activeCompany.id}/logo.webp`
+        photoPath = companyLogoPath(activeCompany.id, pendingLogoBlob)
         const { error: uploadError } = await supabase.storage
           .from('company-photos')
-          .upload(photoPath, pendingLogoBlob, { upsert: true, contentType: 'image/webp' })
+          .upload(photoPath, pendingLogoBlob, { contentType: pendingLogoBlob.type })
         if (uploadError) throw uploadError
       }
       const { error: updateError } = await supabase
         .from('companies')
         .update({ name, phone: phone || null, photo: photoPath || null })
         .eq('id', activeCompany.id)
+        .select('id')
+        .single()
       if (updateError) throw updateError
       setPhoto(photoPath)
+      setPendingLogoBlob(null)
+      setPendingLogoPreview('')
+      await refresh(true)
       setMessage('Empresa atualizada.')
-      await refresh()
     } catch (caught) {
       const record = caught as { message?: string; code?: string }
       setError(traduzirErro(caught, 'Não foi possível salvar as informações da empresa.'))
       setTechnicalError(`${record.message ?? String(caught)}${record.code ? ` [${record.code}]` : ''}`)
       recordTechnicalError('CompanyPage.submit', caught)
+      throw caught
     }
   }
 
@@ -95,19 +122,28 @@ export function CompanyPage() {
       if (!data?.id) throw new Error('Empresa criada, mas não foi possível concluir a configuração.')
 
       let photoPath: string | null = null
+      let photoFailed = false
       if (createLogoBlob) {
-        photoPath = `companies/${data.id}/logo.webp`
+        photoPath = companyLogoPath(data.id, createLogoBlob)
         const { error: uploadError } = await supabase.storage
           .from('company-photos')
-          .upload(photoPath, createLogoBlob, { upsert: true, contentType: 'image/webp' })
+          .upload(photoPath, createLogoBlob, { contentType: createLogoBlob.type })
         if (uploadError) {
+          photoFailed = true
           setTechnicalError(uploadError.message)
+          recordTechnicalError('CompanyPage.createCompany.logoUpload', uploadError)
         } else {
           const { error: photoError } = await supabase
             .from('companies')
             .update({ photo: photoPath })
             .eq('id', data.id)
-          if (photoError) setTechnicalError(photoError.message)
+            .select('id')
+            .single()
+          if (photoError) {
+            photoFailed = true
+            setTechnicalError(photoError.message)
+            recordTechnicalError('CompanyPage.createCompany.logoSave', photoError)
+          }
         }
       }
 
@@ -119,7 +155,8 @@ export function CompanyPage() {
 
       await refresh(true)
       selectCompany(data.id)
-      setMessage('Empresa criada.')
+      if (photoFailed) setError('Empresa criada, mas não foi possível salvar a logo. Tente novamente nesta página.')
+      else setMessage('Empresa criada.')
       navigate('/empresa', { replace: true })
     } catch (caught) {
       const record = caught as { message?: string; code?: string }
@@ -166,6 +203,12 @@ export function CompanyPage() {
   return (
     <Container>
       <h1>Empresa</h1>
+      <PageGuide
+        purpose="Identificar a empresa em documentos, relatórios, tela inicial e auditoria."
+        doNext="Revise nome, telefone e logo e use Salvar empresa após as alterações."
+        result="A seleção da empresa ficará clara para todos os membros autorizados."
+        roleNote={canEdit ? 'Você pode alterar os dados da empresa.' : 'Você pode consultar os dados, mas não alterá-los.'}
+      />
       <ContextHelp
         title="Dados que representam a operação"
         description="Nome, telefone e logo ajudam a identificar a empresa em PDF, relatórios e auditoria."

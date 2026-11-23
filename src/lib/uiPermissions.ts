@@ -4,6 +4,14 @@ export function canManageCompany(role: CompanyRole | null, isAdmin: boolean) {
   return isAdmin || role === 'owner' || role === 'manager'
 }
 
+export function canCreateProduct(role: CompanyRole | null, isAdmin: boolean) {
+  return isAdmin || role === 'owner' || role === 'manager' || role === 'employee'
+}
+
+export function canViewStock(role: CompanyRole | null, isAdmin: boolean) {
+  return isAdmin || role === 'owner' || role === 'manager' || role === 'employee'
+}
+
 export function canViewCompanyCode(role: CompanyRole | null, isAdmin: boolean) {
   return isAdmin || role === 'owner' || role === 'manager'
 }

@@ -7,6 +7,7 @@ type NotificationCenterProps = {
   onRead: (id: string) => void
   onDismiss: (id: string) => void
   onReadAll: () => void
+  onDismissAll: () => void
 }
 
 export function NotificationCenter({
@@ -14,6 +15,7 @@ export function NotificationCenter({
   onRead,
   onDismiss,
   onReadAll,
+  onDismissAll,
 }: NotificationCenterProps) {
   const [open, setOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -57,9 +59,10 @@ export function NotificationCenter({
               <h2>Notificações</h2>
             </div>
             {unreadCount > 0 && (
-              <button type="button" className="notification-read-all" onClick={onReadAll}>
-                Marcar todas como lidas
-              </button>
+              <div className="notification-header-actions">
+                <button type="button" className="notification-read-all" onClick={onReadAll}>Marcar todas como lidas</button>
+                {visible.length > 0 && <button type="button" className="notification-dismiss-all" onClick={onDismissAll}>Dispensar todas</button>}
+              </div>
             )}
           </header>
           <div className="notification-list">

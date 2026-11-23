@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useCompanies } from '../features/company/company-context'
-import { Container, Card, ActionButton, ContextHelp } from '../components'
+import { Container, Card, ActionButton, ContextHelp, PageGuide } from '../components'
 import { tryGetSupabaseClient } from '../lib/supabase'
 import {
   hashSalesFile,
@@ -293,6 +293,12 @@ export function SalesImportPage() {
   return (
     <Container>
       <h1>Importar vendas</h1>
+      <PageGuide
+        purpose="Converter um relatório de vendas em saídas de estoque, faturamento e lucro bruto."
+        doNext="Selecione o ambiente, revise cada item da planilha e confirme apenas quando todos tiverem produto e preço."
+        result="O estoque é descontado e o lote pode ser consultado ou desfeito pela gestão."
+        roleNote="Somente proprietários, gerentes e administradores podem aplicar vendas."
+      />
       <ContextHelp
         title="Para que serve a importação de vendas?"
         description="Esta tela transforma um relatório de vendas em descontos reais do estoque e em indicadores financeiros."

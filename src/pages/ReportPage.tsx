@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useCompanies } from '../features/company/company-context'
 import { tryGetSupabaseClient } from '../lib/supabase'
-import { Container, Card, ActionButton, ContextHelp } from '../components'
+import { Container, Card, ActionButton, ContextHelp, PageGuide } from '../components'
 import { getMovementReport } from '../features/management/management'
 import type { MovementReportRow } from '../features/management/types'
 import { downloadCsv } from '../features/management/csv'
@@ -61,6 +61,12 @@ export function ReportPage() {
   return (
     <Container>
       <h1>Relatórios de movimentação</h1>
+      <PageGuide
+        purpose="Explicar como o estoque mudou em um período escolhido."
+        doNext="Defina datas e ambiente e revise entradas, saídas, perdas, transferências e ajustes."
+        result="O relatório ajuda na conferência operacional e pode ser exportado."
+        roleNote="Disponível para proprietários, gerentes e administradores."
+      />
       <ContextHelp
         title="Como ler este relatório?"
         description="O relatório reúne todas as movimentações por produto e ambiente dentro do período escolhido."

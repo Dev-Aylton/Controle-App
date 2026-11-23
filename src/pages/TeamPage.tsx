@@ -5,7 +5,7 @@ import { tryGetSupabaseClient } from '../lib/supabase'
 import type { CompanyRole } from '../lib/database.types'
 import { friendlySupabaseError, traduzirErro } from '../lib/errors'
 import { canDeactivate, canInvite, canPromote, canViewCompanyCode } from '../lib/uiPermissions'
-import { Container, Card, Avatar, ActionButton, ContextHelp } from '../components'
+import { Container, Card, Avatar, ActionButton, ContextHelp, PageGuide } from '../components'
 import { buildTeamMemberViews } from './teamRules'
 import { getTeamMembers, type TeamMember } from '../services/team'
 
@@ -60,15 +60,10 @@ export function TeamPage() {
       return
     }
     try {
-      const codeResult = await supabase
-        .from('company_codes')
-        .select('*')
-        .eq('company_id', activeCompany.id)
-        .eq('active', true)
-        .maybeSingle()
+      const codeResult = await supabase.rpc('get_company_code', { p_company_id: activeCompany.id })
       if (requestId !== loadRequest.current) return
       if (codeResult.error) throw codeResult.error
-      setCode(codeResult.data?.code ?? '')
+      setCode(typeof codeResult.data === 'string' ? codeResult.data : '')
       setCodeLoaded(true)
       setCodeError('')
     } catch (caught) {
@@ -145,6 +140,20 @@ export function TeamPage() {
     }
   }
 
+  const ensureCode = async () => {
+    if (!supabase || !activeCompany) return
+    setError('')
+    try {
+      const { data, error: ensureError } = await supabase.rpc('ensure_company_code', { p_company_id: activeCompany.id })
+      if (ensureError) throw ensureError
+      setCode(typeof data === 'string' ? data : '')
+      setCodeLoaded(true)
+      setMessage('Código inicial da empresa criado.')
+    } catch (caught) {
+      setError(traduzirErro(caught, 'Não foi possível gerar o código inicial da empresa.'))
+    }
+  }
+
   if (!activeCompany) {
     return <Container><h1>Equipe</h1><Card><p>Nenhuma empresa ativa selecionada.</p></Card></Container>
   }
@@ -166,6 +175,12 @@ export function TeamPage() {
   return (
     <Container>
       <h1>Equipe — {activeCompany.name}</h1>
+      <PageGuide
+        purpose="Controlar membros, cargos e entrada de pessoas na empresa."
+        doNext="Confira os membros ativos e use convidar ou código apenas para pessoas autorizadas."
+        result="Cada usuário recebe somente as ações compatíveis com seu cargo."
+        roleNote={isAdmin ? 'Como administrador, você pode operar como suporte e revisar toda a equipe.' : role === 'owner' ? 'Como proprietário, você pode gerir equipe e promover gerentes.' : 'Como gerente, você pode operar membros da equipe conforme suas permissões.'}
+      />
       <ContextHelp
         title="Como funcionam os níveis da equipe?"
         description="Permissões definem quem pode visualizar, lançar ou administrar informações da empresa."
@@ -190,8 +205,12 @@ export function TeamPage() {
                 <ActionButton className="secondary-button" busyLabel="Tentando..." onAction={load}>Tentar de novo</ActionButton>
               </>
             )}
-            {!loadingCode && !codeError && codeLoaded && <strong>{code || 'Nenhum código ativo'}</strong>}
-            {isAdmin && <ActionButton className="secondary-button" busyLabel="Trocando..." confirmMessage="Trocar o código da empresa? O código atual deixará de funcionar." onAction={rotateCode}>Trocar código</ActionButton>}
+            {!loadingCode && !codeError && codeLoaded && (
+              code
+                ? <strong>{code}</strong>
+                : <ActionButton className="primary-button" busyLabel="Gerando..." confirmMessage="Gerar o primeiro código da empresa? Nenhum funcionário será desvinculado." onAction={ensureCode}>Gerar código inicial</ActionButton>
+            )}
+            {isAdmin && <ActionButton className="danger-button" busyLabel="Trocando..." confirmMessage={`Trocar o código da empresa "${activeCompany.name}"? A ação invalidará o código atual e pode afetar o acesso de novos funcionários. Use somente após comunicar à equipe.`} requireText={activeCompany.name} onAction={rotateCode}>Trocar código</ActionButton>}
           </div>
         )}
       </Card>

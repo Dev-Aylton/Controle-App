@@ -331,7 +331,11 @@ drop policy if exists "products_manage" on public.products;
 create policy "products_manage"
 on public.products for insert
 to authenticated
-with check (public.is_admin() or public.is_manager_or_owner(company_id));
+with check (
+  public.is_admin()
+  or public.is_manager_or_owner(company_id)
+  or public.is_active_member(company_id)
+);
 
 drop policy if exists "products_update" on public.products;
 create policy "products_update"

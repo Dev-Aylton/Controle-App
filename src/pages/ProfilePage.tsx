@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../features/auth/auth-context'
 import { tryGetSupabaseClient } from '../lib/supabase'
 import { friendlySupabaseError } from '../lib/errors'
-import { Container, Card, PhotoPicker, Avatar, ActionButton, ContextHelp } from '../components'
+import { Container, Card, PhotoPicker, Avatar, ActionButton, ContextHelp, PageGuide } from '../components'
 import { profileUploadErrorMessage } from '../lib/profileUploadError'
 import { recordTechnicalError } from '../lib/diagnostics'
 import { removeProfilePhoto } from '../features/account/profilePhoto'
@@ -128,6 +128,12 @@ export function ProfilePage() {
   return (
     <Container>
       <h1>Meu perfil</h1>
+      <PageGuide
+        purpose="Manter sua identificação correta em auditorias e lançamentos."
+        doNext="Confirme nome, foto ou avatar padrão e salve antes de sair da página."
+        result="A equipe consegue reconhecer quem fez cada operação."
+        roleNote="Esta página é individual e não altera seu cargo ou vínculo."
+      />
       <ContextHelp
         title="Por que manter o perfil atualizado?"
         description="Seu nome identifica quem fez movimentações, vendas, contagens e alterações registradas."

@@ -4,7 +4,7 @@ import { canManageCompany } from '../lib/uiPermissions'
 import { tryGetSupabaseClient } from '../lib/supabase'
 import { parseProductsCsv, parseProductRows, type ParsedProductRow } from '../features/products/import/parseProductsCsv'
 import * as XLSX from 'xlsx'
-import { Container, Card, ActionButton, ContextHelp } from '../components'
+import { Container, Card, ActionButton, ContextHelp, PageGuide } from '../components'
 import { traduzirErro } from '../lib/errors'
 import {
   generateProductSku,
@@ -235,6 +235,12 @@ export function ProductImportPage() {
   return (
     <Container>
       <h1>Importar produtos</h1>
+      <PageGuide
+        purpose="Cadastrar ou atualizar muitos produtos de uma vez sem perder correspondências."
+        doNext="Baixe o modelo, preencha uma linha por variante e revise cada correspondência antes de importar."
+        result="Produtos válidos entram no catálogo e variantes semelhantes não são gravadas por engano."
+        roleNote="Somente proprietários, gerentes e administradores podem importar."
+      />
       <ContextHelp
         title="Como funciona a importação de produtos?"
         description="A planilha inicia ou atualiza o catálogo da empresa. O sistema compara nome, SKU, unidade e variante antes de sugerir uma ação."

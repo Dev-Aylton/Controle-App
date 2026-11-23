@@ -8,7 +8,7 @@ import {
 import { tryGetSupabaseClient } from '../lib/supabase'
 import { traduzirErro } from '../lib/errors'
 import { canManageCompany } from '../lib/uiPermissions'
-import { Container, Card, ContextHelp, ActionButton } from '../components'
+import { Container, Card, ContextHelp, ActionButton, PageGuide } from '../components'
 import { calculateRecipeCost, calculateRecipeMargin, type SaleRecipe } from '../features/sales/saleRecipe'
 
 type Environment = { id: string; name: string }
@@ -138,6 +138,12 @@ export function SalesPricesPage() {
   return (
     <Container>
       <h1>Preços de venda</h1>
+      <PageGuide
+        purpose="Definir custo de compra, preço por unidade e preço por dose em cada ambiente."
+        doNext="Selecione o ambiente e configure somente os campos que correspondem às formas de venda."
+        result="Vendas calculam faturamento, custo da mercadoria vendida e lucro com base no preço efetivo."
+        roleNote="Somente proprietários, gerentes e administradores podem alterar custos e preços."
+      />
       <ContextHelp
         title="Por que cadastrar custos e preços?"
         description="Custos ajudam a calcular o quanto o estoque consumido custou. Preços por unidade ou dose ajudam a calcular faturamento e lucro das vendas."

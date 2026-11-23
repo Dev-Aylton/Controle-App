@@ -1,6 +1,6 @@
 import type { CompanyRole } from '../lib/database.types'
 
-export type MobileNavKey = 'home' | 'movements' | 'stock' | 'alerts' | 'inventory' | 'more'
+export type MobileNavKey = 'home' | 'movements' | 'stock' | 'alerts' | 'inventory' | 'products' | 'more'
 
 export function getMobileNavItems(role: CompanyRole | null, isAdmin: boolean) {
   if (isAdmin || role === 'owner' || role === 'manager') {
@@ -8,13 +8,14 @@ export function getMobileNavItems(role: CompanyRole | null, isAdmin: boolean) {
       { key: 'home', label: 'Início', path: '/' },
       { key: 'movements', label: 'Mov.', path: '/movimentacoes' },
       { key: 'stock', label: 'Saldo', path: '/estoque/saldo' },
-      { key: 'alerts', label: 'Alertas', path: '/alertas' },
+      { key: 'products', label: 'Produtos', path: '/produtos' },
       { key: 'more', label: 'Mais', path: '#' },
     ] as const
   }
   return [
     { key: 'home', label: 'Início', path: '/' },
     { key: 'movements', label: 'Mov.', path: '/movimentacoes' },
+    { key: 'stock', label: 'Saldo', path: '/estoque/saldo' },
     { key: 'inventory', label: 'Inventário', path: '/inventario' },
     { key: 'more', label: 'Mais', path: '#' },
   ] as const
@@ -27,6 +28,7 @@ export function getNavigationIconLabel(key: MobileNavKey) {
     stock: 'Saldo por ambiente',
     alerts: 'Alertas',
     inventory: 'Inventário',
+    products: 'Produtos',
     more: 'Mais opções',
   }
   return labels[key]

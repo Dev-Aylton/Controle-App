@@ -9,11 +9,12 @@ type Props = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onClick'> & {
   errorLabel?: string
   onAction: () => void | Promise<void>
   confirmMessage?: string
+  requireText?: string
 }
 
 export function ActionButton({
   children, busyLabel = 'Executando...', successLabel = 'Concluído', errorLabel = 'Tentar novamente',
-  onAction, confirmMessage, disabled, type = 'button', ...props
+  onAction, confirmMessage, requireText, disabled, type = 'button', ...props
 }: Props) {
   const [state, setState] = useState<'idle'|'running'|'success'|'error'>('idle')
   const guard = useRef(createActionGuard())
@@ -24,6 +25,7 @@ export function ActionButton({
       title: 'Confirmar ação',
       message: confirmMessage,
       confirmLabel: 'Confirmar',
+      requireText,
     })) return
     setState('running')
     try {

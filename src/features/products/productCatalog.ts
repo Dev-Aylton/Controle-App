@@ -171,6 +171,53 @@ function normalizeSearch(value: string) {
   return value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
+export const PRODUCT_CATEGORY_SYNONYMS: Record<string, string[]> = {
+  'refrigerantes': ['refrigerante', 'soft', 'soft drink', 'refri'],
+  'destilados': ['destilado', 'vodka', 'bebida alcoolica', 'bebida alcoólica', 'alcool'],
+  'whisky': ['whiskey', 'uisque', 'uisque'],
+  'cachaca': ['cachaça', 'aguardente'],
+  'cervejas': ['cerveja', 'beer'],
+  'energeticos': ['energético', 'energetico', 'energy drink'],
+  'aguas e bebidas': ['agua', 'água', 'agua mineral', 'água mineral'],
+  'hortifruti': ['legumes', 'frutas', 'verduras', 'hortifrúti', 'hortifruti'],
+  'verduras': ['verdura', 'folha', 'folhas'],
+  'carnes': ['carne', 'bovina', 'boi'],
+  'aves': ['frango', 'ave'],
+  'peixes': ['peixe', 'pescado'],
+  'carnes suinas': ['carne suina', 'porco', 'suino'],
+  'descartaveis': ['descartavel', 'copo', 'canudo', 'guardanapo'],
+  'padaria': ['pao', 'pão'],
+  'bar e cozinha': ['insumo', 'cozinha', 'bar'],
+  'queijos e laticinios': ['queijo', 'laticinio', 'laticínio'],
+}
+
+export function normalizeProductSearch(value: string) {
+  return normalizeSearch(value).replace(/[^\w\s-]/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+export function expandProductSearchTerms(query: string) {
+  const normalizedQuery = normalizeProductSearch(query)
+  if (!normalizedQuery) return []
+  const terms = new Set(normalizedQuery.split(' ').filter((term) => term.length >= 2))
+  terms.add(normalizedQuery)
+  for (const item of PRODUCT_CATALOG) {
+    const haystack = normalizeProductSearch([item.name, item.category, ...(item.aliases ?? [])].join(' '))
+    if (normalizedQuery.split(' ').some((term) => haystack.includes(term))) {
+      terms.add(normalizeProductSearch(item.name))
+      terms.add(normalizeProductSearch(item.category))
+      for (const alias of item.aliases ?? []) terms.add(normalizeProductSearch(alias))
+    }
+  }
+  for (const [category, synonyms] of Object.entries(PRODUCT_CATEGORY_SYNONYMS)) {
+    const normalizedCategory = normalizeProductSearch(category)
+    if ([normalizedCategory, ...synonyms.map(normalizeProductSearch)].some((term) => normalizedQuery.includes(term) || term.includes(normalizedQuery))) {
+      terms.add(normalizedCategory)
+      for (const synonym of synonyms) terms.add(normalizeProductSearch(synonym))
+    }
+  }
+  return [...terms].slice(0, 20)
+}
+
 export function searchProductCatalog(query: string, limit = 6) {
   const normalized = normalizeSearch(query)
   if (!normalized) return []

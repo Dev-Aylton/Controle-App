@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canDeactivate, canInvite, canManageCompany, canPromote, canViewCompanyCode } from './uiPermissions'
+import { canCreateProduct, canDeactivate, canInvite, canManageCompany, canPromote, canViewCompanyCode, canViewStock } from './uiPermissions'
 
 describe('permissões da interface', () => {
   it('reconhece cargos que podem gerenciar empresa', () => {
@@ -7,6 +7,12 @@ describe('permissões da interface', () => {
     expect(canManageCompany('manager', false)).toBe(true)
     expect(canManageCompany('employee', false)).toBe(false)
     expect(canManageCompany(null, true)).toBe(true)
+  })
+
+  it('permite cadastrar produto e consultar saldo ao funcionário sem permitir alteração', () => {
+    expect(canCreateProduct('employee', false)).toBe(true)
+    expect(canViewStock('employee', false)).toBe(true)
+    expect(canManageCompany('employee', false)).toBe(false)
   })
 
   it('limita convite e promoção', () => {

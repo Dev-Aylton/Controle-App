@@ -2,16 +2,18 @@ import { useEffect, useState } from 'react'
 import { useCompanies } from '../features/company/company-context'
 import { getStockBalance } from '../services/movements'
 import { tryGetSupabaseClient } from '../lib/supabase'
-import { Container, Card, ContextHelp } from '../components'
+import { Container, Card, ContextHelp, PageGuide } from '../components'
 import { getEnvironmentLowStock, getNegativeBalances } from '../features/management/management'
 import type { EnvironmentLowStock, NegativeBalance } from '../features/management/types'
 import { traduzirErro } from '../lib/errors'
+import { canManageCompany, canViewStock } from '../lib/uiPermissions'
 
 type BalanceRow = { product_id: string; environment_id: string; balance: number }
 
 export function StockPage() {
   const { activeCompany, role, isAdmin } = useCompanies()
   const companyId = activeCompany?.id
+  const canView = canViewStock(role, isAdmin)
   const [rows, setRows] = useState<BalanceRow[]>([])
   const [environments, setEnvironments] = useState<Record<string, string>>({})
   const [products, setProducts] = useState<Record<string, string>>({})
@@ -21,7 +23,7 @@ export function StockPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!companyId || (!isAdmin && role !== 'owner' && role !== 'manager')) return
+    if (!companyId || !canView) return
     const supabase = tryGetSupabaseClient()
     if (!supabase) {
       queueMicrotask(() => {
@@ -33,12 +35,13 @@ export function StockPage() {
     queueMicrotask(() => {
       setLoading(true)
       setError('')
+      const canManage = isAdmin || role === 'owner' || role === 'manager'
       void Promise.all([
         getStockBalance(companyId),
         supabase.from('environments').select('*').eq('company_id', companyId),
         supabase.from('products').select('id,name').eq('company_id', companyId),
-        getEnvironmentLowStock(companyId),
-        getNegativeBalances(companyId),
+        canManage ? getEnvironmentLowStock(companyId) : Promise.resolve([]),
+        canManage ? getNegativeBalances(companyId) : Promise.resolve([]),
       ]).then(([balances, environmentResult, productResult, low, negative]) => {
         setRows(balances)
         setLowRows(low)
@@ -51,15 +54,21 @@ export function StockPage() {
         setLoading(false)
       })
     })
-  }, [companyId, isAdmin, role])
+  }, [companyId, canView, isAdmin, role])
 
-  if (!isAdmin && role !== 'owner' && role !== 'manager') {
-    return <Container><h1>Saldo por ambiente</h1><Card><p>Saldo disponível somente para proprietário e gerente.</p></Card></Container>
+  if (!canView) {
+    return <Container><h1>Saldo por ambiente</h1><Card><p>Selecione uma empresa ativa para consultar os saldos.</p></Card></Container>
   }
 
   return (
     <Container>
       <h1>Saldo por ambiente</h1>
+      <PageGuide
+        purpose="Mostrar a quantidade física registrada de cada produto em cada local."
+        doNext="Filtre o ambiente ou produto que deseja conferir e use uma ação de movimentação ou inventário se houver divergência."
+        result="Você sabe exatamente onde o estoque está e pode decidir entre transferir ou comprar."
+        roleNote={canManageCompany(role, isAdmin) ? 'Você pode consultar alertas, mínimos e saldos detalhados.' : 'Você pode consultar o saldo operacional da empresa.'}
+      />
       <ContextHelp
         title="Como interpretar o saldo?"
         description="Cada linha representa a quantidade registrada de um produto em um ambiente específico."
