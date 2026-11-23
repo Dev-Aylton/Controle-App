@@ -21,6 +21,7 @@ export type AuthContextValue = {
   signInWithPassword: (email: string, password: string) => Promise<void>
   signUpWithPassword: (email: string, password: string) => Promise<void>
   resetPassword: (email: string) => Promise<void>
+  updatePassword: (password: string) => Promise<void>
   signOut: (discardPending?: boolean) => Promise<void>
   claimError: string | null
   clearClaimError: () => void

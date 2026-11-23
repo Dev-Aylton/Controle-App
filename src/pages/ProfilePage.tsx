@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../features/auth/auth-context'
 import { tryGetSupabaseClient } from '../lib/supabase'
 import { friendlySupabaseError } from '../lib/errors'
-import { Container, Card, PhotoPicker, Avatar, ActionButton } from '../components'
+import { Container, Card, PhotoPicker, Avatar, ActionButton, ContextHelp } from '../components'
 import { profileUploadErrorMessage } from '../lib/profileUploadError'
 import { recordTechnicalError } from '../lib/diagnostics'
 import { removeProfilePhoto } from '../features/account/profilePhoto'
@@ -73,7 +73,10 @@ export function ProfilePage() {
   }
 
   const removePhoto = async () => {
-    if (!supabase || !user) throw new Error('Usuário não autenticado.')
+    if (!supabase || !user) {
+      setError('Entre novamente antes de alterar sua foto.')
+      return
+    }
     setError('')
     setMessage('')
     setTechnicalError('')
@@ -125,6 +128,16 @@ export function ProfilePage() {
   return (
     <Container>
       <h1>Meu perfil</h1>
+      <ContextHelp
+        title="Por que manter o perfil atualizado?"
+        description="Seu nome identifica quem fez movimentações, vendas, contagens e alterações registradas."
+        steps={[
+          'Use seu nome profissional ou nome completo.',
+          'Adicione uma foto clara se quiser.',
+          'Não compartilhe sua senha ou sessão.',
+        ]}
+        result="A equipe e a auditoria conseguem reconhecer o responsável por cada ação."
+      />
       <Card>
         <form onSubmit={(event) => event.preventDefault()} className="form-stack">
           <label>Nome<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Seu nome de exibição" /></label>
@@ -172,7 +185,7 @@ export function ProfilePage() {
           </fieldset>
           {error && <p className="form-error" role="alert">{error}</p>}
           {message && <p className="form-success" role="status">{message}</p>}
-          <ActionButton className="primary-button" busyLabel="Salvando..." onAction={() => submit({ preventDefault: () => undefined } as FormEvent)}>Salvar perfil</ActionButton>
+          <ActionButton className="primary-button" busyLabel="Salvando..." confirmMessage="Confirmar as alterações do seu perfil?" onAction={() => submit({ preventDefault: () => undefined } as FormEvent)}>Salvar perfil</ActionButton>
         </form>
       </Card>
     </Container>

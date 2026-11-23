@@ -8,7 +8,8 @@ import {
 import { tryGetSupabaseClient } from '../lib/supabase'
 import { traduzirErro } from '../lib/errors'
 import { canManageCompany } from '../lib/uiPermissions'
-import { Container, Card } from '../components'
+import { Container, Card, ContextHelp, ActionButton } from '../components'
+import { calculateRecipeCost, calculateRecipeMargin, type SaleRecipe } from '../features/sales/saleRecipe'
 
 type Environment = { id: string; name: string }
 type EditablePricingField = 'unit_cost' | 'unit_price' | 'dose_price'
@@ -31,6 +32,11 @@ export function SalesPricesPage() {
   const [savingProductId, setSavingProductId] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [recipeName, setRecipeName] = useState('')
+  const [recipeCategory, setRecipeCategory] = useState<'bebida' | 'prato' | 'porcao'>('bebida')
+  const [recipePrice, setRecipePrice] = useState(0)
+  const [recipeProductId, setRecipeProductId] = useState('')
+  const [recipeQuantity, setRecipeQuantity] = useState(1)
 
   useEffect(() => {
     let cancelled = false
@@ -132,8 +138,19 @@ export function SalesPricesPage() {
   return (
     <Container>
       <h1>Preços de venda</h1>
+      <ContextHelp
+        title="Por que cadastrar custos e preços?"
+        description="Custos ajudam a calcular o quanto o estoque consumido custou. Preços por unidade ou dose ajudam a calcular faturamento e lucro das vendas."
+        steps={[
+          'Selecione o ambiente.',
+          'Informe o custo real ou use o custo base.',
+          'Cadastre preço por unidade para garrafas, pratos e caixas.',
+          'Cadastre preço por dose apenas em produtos com volume e dose válidos.',
+        ]}
+        result="Relatórios e importações de vendas passam a estimar faturamento, custo da mercadoria vendida e lucro bruto."
+      />
       <Card>
-        <p>Defina o custo e os preços de cada produto neste ambiente. O custo é usado no CMV; preços por unidade ou dose calculam o faturamento das importações.</p>
+        <p>Defina o custo e os preços de cada produto neste ambiente. O custo é usado no custo da mercadoria vendida; preços por unidade ou dose calculam o faturamento das importações.</p>
         <p className="field-help">Se o custo do ambiente ficar em branco, será usado o custo base do produto. Para vender por dose, cadastre volume e dose no produto.</p>
         <label>Ambiente
           <select
@@ -198,14 +215,15 @@ export function SalesPricesPage() {
                         />
                       </td>
                       <td>
-                        <button
-                          type="button"
+                        <ActionButton
                           className="primary-button"
                           disabled={savingProductId !== ''}
-                          onClick={() => void saveRow(row)}
+                          busyLabel="Salvando..."
+                          confirmMessage={`Salvar custos e preços de "${row.product_name}" neste ambiente?`}
+                          onAction={() => saveRow(row)}
                         >
-                          {savingProductId === row.product_id ? 'Salvando...' : 'Salvar'}
-                        </button>
+                          Salvar
+                        </ActionButton>
                       </td>
                     </tr>
                   ))}
@@ -213,6 +231,69 @@ export function SalesPricesPage() {
               </table>
             </div>
           )}
+        </Card>
+      )}
+      {environmentId && (
+        <Card>
+          <h2>Ficha técnica de prato ou drink</h2>
+          <p className="field-help">Cadastre aqui o que compõe uma venda comercial. O preço é separado do custo dos insumos e pode variar por ambiente.</p>
+          <div className="form-grid">
+            <label>Nome do item vendido
+              <input value={recipeName} onChange={(event) => setRecipeName(event.target.value)} placeholder="Ex.: Caipirinha de limão" />
+            </label>
+            <label>Categoria
+              <select value={recipeCategory} onChange={(event) => setRecipeCategory(event.target.value as typeof recipeCategory)}>
+                <option value="bebida">Bebida</option>
+                <option value="prato">Prato</option>
+                <option value="porcao">Porção</option>
+              </select>
+            </label>
+            <label>Preço de venda
+              <input type="number" min="0" step="0.01" value={recipePrice} onChange={(event) => setRecipePrice(Number(event.target.value))} />
+            </label>
+          </div>
+          <div className="form-grid">
+            <label>Insumo da ficha técnica
+              <select value={recipeProductId} onChange={(event) => setRecipeProductId(event.target.value)}>
+                <option value="">Selecione</option>
+                {rows.map((row) => <option key={row.product_id} value={row.product_id}>{row.product_name}</option>)}
+              </select>
+            </label>
+            <label>Quantidade usada
+              <input type="number" min="0.001" step="0.001" value={recipeQuantity} onChange={(event) => setRecipeQuantity(Number(event.target.value))} />
+            </label>
+          </div>
+          {recipeName && recipeProductId && recipeQuantity > 0 && (() => {
+            const product = rows.find((row) => row.product_id === recipeProductId)
+            if (!product) return null
+            const unitCost = product.unit_cost ?? product.base_unit_cost
+            const recipe: SaleRecipe = {
+              id: 'preview',
+              name: recipeName,
+              category: recipeCategory,
+              salePrice: recipePrice,
+              yieldQuantity: 1,
+              active: true,
+              ingredients: [{
+                productId: product.product_id,
+                productName: product.product_name,
+                quantity: recipeQuantity,
+                unit: product.unit,
+                unitCost,
+              }],
+            }
+            const cost = calculateRecipeCost(recipe)
+            const margin = calculateRecipeMargin(recipe)
+            return (
+              <div className="stock-gap-result ok">
+                <div><small>Custo do insumo</small><strong>{cost.totalCost}</strong></div>
+                <div><small>Custo por venda</small><strong>{cost.costPerYield ?? '-'}</strong></div>
+                <div><small>Lucro bruto</small><strong>{margin?.grossProfit ?? '-'}</strong></div>
+                <p>{margin?.marginPercent == null ? 'Informe preço e custo para calcular a margem.' : `Margem estimada: ${margin.marginPercent}%`}</p>
+              </div>
+            )
+          })()}
+          <p className="field-help">Os ingredientes serão cadastrados pela ficha técnica completa depois da aplicação do patch SQL no ambiente de teste. Até lá, esta prévia não altera estoque nem vendas.</p>
         </Card>
       )}
     </Container>

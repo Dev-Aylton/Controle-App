@@ -5,7 +5,7 @@ export async function listProductData(companyId: string, canManage = false) {
   const supabase = tryGetSupabaseClient()
   if (!supabase) throw new Error('Supabase não configurado.')
   const [productsResult, categoriesResult, costsResult] = await Promise.all([
-    supabase.from('products').select('id,company_id,category_id,name,sku,unit,volume_ml,dose_ml,photo_path,active,created_at,created_by').eq('company_id', companyId).order('name'),
+    supabase.from('products').select('id,company_id,category_id,name,sku,unit,weight_g,volume_ml,dose_ml,photo_path,active,created_at,created_by').eq('company_id', companyId).order('name'),
     supabase.from('product_categories').select('*').eq('company_id', companyId).order('name'),
     supabase.from('product_costs').select('*').eq('company_id', companyId),
   ])
@@ -58,7 +58,8 @@ export async function saveProduct(
     name: string
     sku: string | null
     category_id: string | null
-    unit: 'un'|'kg'|'g'|'l'|'ml'|'cx'|'pct'
+    unit: 'un'|'kg'|'g'|'l'|'ml'|'cx'|'pct'|'garrafa'|'lata'|'maço'|'porcao'|'duzia'|'bandeja'|'pacote'|'saco'|'ramo'|'peca'|'fardo'|'frasco'
+    weight_g: number | null
     min_stock: number | null
     max_stock: number | null
     volume_ml: number | null

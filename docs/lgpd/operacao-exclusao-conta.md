@@ -71,4 +71,4 @@ O front-end novo depende da RPC `get_account_deletion_status`; não o publique a
 
 ## Publicação
 
-O texto do Aviso de Privacidade está em minuta e a versão 1.0.0 permanece `draft`. Não marque uma versão como publicada nem ative o aceite antes de aprovação do texto e revisão jurídica. A migração para o banco real, a publicação da função e a criação do cron real exigem aprovação explícita e plano de rollback.
+O texto do Aviso de Privacidade está em minuta. A versão preparada nesta revisão é a 1.1.0, mas a versão existente no banco continua como 1.0.0 `draft` até aprovação jurídica e revisão técnica. Não marque uma versão como publicada nem ative o aceite antes disso. A migração para o banco real, a publicação da função e a criação do cron real exigem aprovação explícita e plano de rollback.

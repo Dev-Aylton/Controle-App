@@ -113,6 +113,8 @@ export async function hashSalesFile(file: File): Promise<string> {
 }
 
 export function validateSalesPreview(items: SalesPreviewItem[]): string | null {
+  const invalidQuantity = items.find((item) => !item.ignored && (!Number.isFinite(item.quantity) || item.quantity <= 0))
+  if (invalidQuantity) return `A quantidade de "${invalidQuantity.externalName}" é inválida. Informe um número maior que zero.`
   const overPrecision = items.find((item) => !item.ignored
     && Math.abs(item.quantity * 1000 - Math.round(item.quantity * 1000)) > 1e-8)
   if (overPrecision) return `A quantidade de "${overPrecision.externalName}" pode ter no máximo 3 casas decimais.`

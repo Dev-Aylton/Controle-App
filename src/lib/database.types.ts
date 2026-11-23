@@ -52,9 +52,9 @@ export interface Database {
         Update: { name?: string; active?: boolean }
       }
       products: {
-        Row: { id: string; company_id: string; category_id: string | null; name: string; sku: string | null; unit: 'un'|'kg'|'g'|'l'|'ml'|'cx'|'pct'; min_stock: number | null; max_stock: number | null; volume_ml: number | null; dose_ml: number | null; photo_path: string | null; active: boolean; created_at: string; created_by: string | null }
-        Insert: { id?: string; company_id: string; category_id?: string | null; name: string; sku?: string | null; unit?: 'un'|'kg'|'g'|'l'|'ml'|'cx'|'pct'; min_stock?: number | null; max_stock?: number | null; volume_ml?: number | null; dose_ml?: number | null; photo_path?: string | null; active?: boolean; created_at?: string; created_by?: string | null }
-        Update: { category_id?: string | null; name?: string; sku?: string | null; unit?: 'un'|'kg'|'g'|'l'|'ml'|'cx'|'pct'; min_stock?: number | null; max_stock?: number | null; volume_ml?: number | null; dose_ml?: number | null; photo_path?: string | null; active?: boolean }
+        Row: { id: string; company_id: string; category_id: string | null; name: string; sku: string | null; unit: 'un'|'kg'|'g'|'l'|'ml'|'cx'|'pct'|'garrafa'|'lata'|'maço'|'porcao'|'duzia'|'bandeja'|'pacote'|'saco'|'ramo'|'peca'|'fardo'|'frasco'; weight_g?: number | null; min_stock: number | null; max_stock: number | null; volume_ml: number | null; dose_ml: number | null; photo_path: string | null; active: boolean; created_at: string; created_by: string | null }
+        Insert: { id?: string; company_id: string; category_id?: string | null; name: string; sku?: string | null; unit?: 'un'|'kg'|'g'|'l'|'ml'|'cx'|'pct'|'garrafa'|'lata'|'maço'|'porcao'|'duzia'|'bandeja'|'pacote'|'saco'|'ramo'|'peca'|'fardo'|'frasco'; weight_g?: number | null; min_stock?: number | null; max_stock?: number | null; volume_ml?: number | null; dose_ml?: number | null; photo_path?: string | null; active?: boolean; created_at?: string; created_by?: string | null }
+        Update: { category_id?: string | null; name?: string; sku?: string | null; unit?: 'un'|'kg'|'g'|'l'|'ml'|'cx'|'pct'|'garrafa'|'lata'|'maço'|'porcao'|'duzia'|'bandeja'|'pacote'|'saco'|'ramo'|'peca'|'fardo'|'frasco'; weight_g?: number | null; min_stock?: number | null; max_stock?: number | null; volume_ml?: number | null; dose_ml?: number | null; photo_path?: string | null; active?: boolean }
       }
       product_costs: {
         Row: { product_id: string; company_id: string; unit_cost: number; updated_at: string; updated_by: string | null }
@@ -126,6 +126,7 @@ export interface Database {
       get_pending_loss_reasons: { Args: { p_company_id: string }; Returns: Json }
       get_my_pending_loss_reasons: { Args: { p_company_id: string }; Returns: Json }
       complete_pending_loss_reason: { Args: { p_movement_id: string; p_reason_id: string }; Returns: undefined }
+      seed_loss_reasons: { Args: { p_company_id: string }; Returns: number }
       get_purchase_list: { Args: { p_company_id: string; p_environment_id?: string }; Returns: Json }
       list_product_environment_pricing: { Args: { p_company_id: string; p_environment_id: string }; Returns: Array<{ product_id: string; product_name: string; sku: string | null; unit: string; volume_ml: number | null; dose_ml: number | null; unit_cost: number | null; base_unit_cost: number | null; unit_price: number | null; dose_price: number | null }> }
       upsert_product_environment_pricing: { Args: { p_company_id: string; p_environment_id: string; p_product_id: string; p_unit_cost: number | null; p_unit_price: number | null; p_dose_price: number | null }; Returns: undefined }

@@ -1,6 +1,6 @@
 window.PLANO_DATA = {
   "titulo": "Plano de desenvolvimento — Controle-App",
-  "dataEstado": "2026-11-22",
+  "dataEstado": "2026-11-23",
   "etapas": [
     {
       "numero": 0,

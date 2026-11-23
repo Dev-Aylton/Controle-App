@@ -1,15 +1,45 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useCompanies } from '../features/company/company-context'
-import { Container, Card, ActionButton } from '../components'
+import { Container, Card, ActionButton, ContextHelp } from '../components'
 import { getAuditLog } from '../features/management/management'
 import type { AuditRow } from '../features/management/types'
 import { downloadCsv } from '../features/management/csv'
 import { traduzirErro } from '../lib/errors'
 
+function getAuditActionLabel(action: string) {
+  const labels: Record<string, string> = {
+    movement_registered: 'Movimentação registrada',
+    movement_reversed: 'Movimentação estornada',
+    transfer_registered: 'Transferência registrada',
+    inventory_opened: 'Contagem iniciada',
+    inventory_finished: 'Inventário finalizado',
+    stock_zeroed: 'Estoque zerado',
+    sales_import_applied: 'Venda importada',
+    sales_import_undone: 'Importação de vendas desfeita',
+    products_created: 'Produto cadastrado',
+    products_updated: 'Produto atualizado',
+    products_deleted: 'Produto desativado',
+    products_imported: 'Produtos importados',
+    environments_created: 'Ambiente criado',
+    environments_updated: 'Ambiente atualizado',
+    product_categories_created: 'Categoria criada',
+    product_categories_updated: 'Categoria atualizada',
+    rotate_company_code: 'Código da empresa alterado',
+    promote_to_manager: 'Membro promovido',
+    deactivate_member: 'Membro desativado',
+    join_company_with_code: 'Membro entrou na empresa',
+    create_invite: 'Convite criado',
+  }
+  return labels[action] ?? action.replaceAll('_', ' ')
+}
+
 export function AuditPage() {
   const { activeCompany, role, isAdmin } = useCompanies()
   const [rows, setRows] = useState<AuditRow[]>([])
   const [action, setAction] = useState('')
+  const [userFilter, setUserFilter] = useState('')
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<AuditRow | null>(null)
   const [from, setFrom] = useState(() => new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10))
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10))
   const [loading, setLoading] = useState(false)
@@ -36,13 +66,26 @@ export function AuditPage() {
     return <Container><h1>Auditoria</h1><Card><p>Acesso restrito.</p></Card></Container>
   }
 
-  const filtered = action ? rows.filter((row) => row.action.includes(action)) : rows
+  const filtered = rows.filter((row) => {
+    const actionMatches = !action || row.action.includes(action)
+    const userMatches = !userFilter || row.user_name.toLowerCase().includes(userFilter.toLowerCase())
+    const searchText = search.trim().toLowerCase()
+    const searchMatches = !searchText || [
+      row.action,
+      row.object_name,
+      row.user_name,
+      row.summary,
+    ].some((value) => value.toLowerCase().includes(searchText))
+    return actionMatches && userMatches && searchMatches
+  })
+  const users = [...new Set(rows.map((row) => row.user_name).filter(Boolean))]
+  const supportCount = filtered.filter((row) => row.acted_as_support).length
   const exportCsv = () => {
     downloadCsv(
       `${activeCompany?.name ?? 'empresa'}-auditoria-${from}-${to}.csv`,
       [
         ['Data', 'Ação', 'Objeto', 'Usuário', 'Resumo'],
-        ...filtered.map((row) => [new Date(row.created_at).toLocaleString('pt-BR'), row.action, row.object_name, row.user_name, row.summary]),
+        ...filtered.map((row) => [new Date(row.created_at).toLocaleString('pt-BR'), getAuditActionLabel(row.action), row.object_name, row.user_name, row.summary]),
       ],
     )
   }
@@ -50,11 +93,33 @@ export function AuditPage() {
   return (
     <Container>
       <h1>Auditoria</h1>
+      <ContextHelp
+        title="Para que serve a auditoria?"
+        description="A auditoria registra quem fez ações importantes, em qual empresa e quando. Serve para identificar, revisar e corrigir alterações."
+        steps={[
+          'Filtre por período, usuário, ação ou produto.',
+          'Abra um registro para ver os detalhes.',
+          'Use “Suporte” apenas para ações feitas pelo administrador em nome da empresa.',
+          'Exporte os registros para investigação ou prestação de contas.',
+        ]}
+        result="Cada registro mostra responsabilidade operacional e reduz alterações sem rastreabilidade."
+      />
       {error && <p className="form-error" role="alert">{error}</p>}
+      <div className="audit-summary-grid" aria-label="Resumo da auditoria">
+        <Card><span>Registros</span><strong>{filtered.length}</strong><small>No período filtrado</small></Card>
+        <Card><span>Pessoas</span><strong>{new Set(filtered.map((row) => row.user_name)).size}</strong><small>Usuários identificados</small></Card>
+        <Card><span>Suporte</span><strong>{supportCount}</strong><small>Ações registradas como suporte</small></Card>
+      </div>
       <Card>
-        <div className="form-grid">
+        <div className="audit-filter-grid">
           <label>De<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
           <label>Até<input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+          <label>Usuário
+            <select value={userFilter} onChange={(event) => setUserFilter(event.target.value)}>
+              <option value="">Todos</option>
+              {users.map((user) => <option key={user} value={user}>{user}</option>)}
+            </select>
+          </label>
           <label>Tipo
             <select value={action} onChange={(event) => setAction(event.target.value)}>
               <option value="">Todos</option>
@@ -64,17 +129,44 @@ export function AuditPage() {
               <option value="promote">Promoções</option>
               <option value="deactivate">Desativações</option>
               <option value="rotate">Troca de código</option>
+              <option value="sales">Vendas</option>
+              <option value="stock">Estoque</option>
             </select>
           </label>
+          <label className="audit-search">Buscar
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Usuário, produto, ação ou ambiente" />
+          </label>
         </div>
-        <ActionButton className="primary-button" onAction={load} disabled={loading} busyLabel="Carregando...">Aplicar filtros</ActionButton>
-        <ActionButton className="secondary-button" onAction={exportCsv} disabled={loading || filtered.length === 0} busyLabel="Exportando...">Exportar CSV</ActionButton>
+        <div className="audit-filter-actions">
+          <ActionButton className="primary-button" onAction={load} disabled={loading} busyLabel="Carregando...">Aplicar filtros</ActionButton>
+          <ActionButton className="secondary-button" onAction={exportCsv} disabled={loading || filtered.length === 0} busyLabel="Exportando...">Exportar CSV</ActionButton>
+        </div>
       </Card>
       {loading && <p className="page-state">Carregando auditoria...</p>}
-      {!loading && <Card>{filtered.length === 0 ? <p>Nenhum registro de auditoria no período selecionado. Amplie o período para consultar.</p> : (
-        <div className="member-list">{filtered.map((row) => (
-          <article className="member-row" key={`${row.action}-${row.created_at}`}><div><strong>{row.summary}{row.acted_as_support ? ' • suporte' : ''}</strong><span>{row.action} • {row.object_name} • {row.user_name}</span><small>{new Date(row.created_at).toLocaleString('pt-BR')}</small></div></article>
-        ))}</div>
+      {!loading && <Card>{filtered.length === 0 ? <p>Nenhum registro corresponde aos filtros. Amplie o período ou limpe a busca.</p> : (
+        <div className="audit-timeline">
+          {filtered.map((row) => (
+            <article className="audit-record" key={`${row.action}-${row.created_at}-${row.user_name}-${row.summary}`}>
+              <button type="button" className="audit-record-main" onClick={() => setSelected(selected?.created_at === row.created_at ? null : row)}>
+                <span className={`audit-record-mark ${row.acted_as_support ? 'support' : ''}`} aria-hidden="true"></span>
+                <span className="audit-record-copy">
+                  <strong>{getAuditActionLabel(row.action)}</strong>
+                  <small>{row.user_name} • {row.object_name}</small>
+                </span>
+                <time>{new Date(row.created_at).toLocaleString('pt-BR')}</time>
+              </button>
+              {selected?.created_at === row.created_at && (
+                <div className="audit-record-detail">
+                  <div><span>Ação</span><strong>{getAuditActionLabel(row.action)}</strong></div>
+                  <div><span>Objeto</span><strong>{row.object_name}</strong></div>
+                  <div><span>Responsável</span><strong>{row.user_name}</strong></div>
+                  <div><span>Data e hora</span><strong>{new Date(row.created_at).toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'short' })}</strong></div>
+                  {row.acted_as_support && <div><span>Modo</span><strong>Ação registrada como suporte</strong></div>}
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
       )}</Card>}
     </Container>
   )

@@ -13,6 +13,7 @@ export type QueuedMovement = {
   type: 'entrada' | 'saida' | 'perda' | 'transferencia'
   quantity: number
   note: string | null
+  lossReasonId?: string | null
   localCreatedAt: string
   status: 'pendente' | 'enviando' | 'enviado' | 'falhou'
   failureReason: string | null

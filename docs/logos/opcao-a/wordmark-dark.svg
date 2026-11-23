@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 192" role="img" aria-label="Controle-App opção A escuro">
-  <rect width="192" height="192" rx="40" fill="#12342F"/>
-  <path d="M46 48h100v100H46z" fill="#68C4A5"/>
-  <path d="M46 48h100v34H46z" fill="#43A88B"/>
-  <rect x="60" y="96" width="24" height="38" rx="5" fill="#F7FAF8"/>
-  <rect x="84" y="82" width="24" height="52" rx="5" fill="#F7FAF8"/>
-  <rect x="108" y="68" width="24" height="66" rx="5" fill="#F7FAF8"/>
-  <circle cx="146" cy="46" r="10" fill="#F2A65A"/>
-  <text x="210" y="102" fill="#F7FAF8" font-family="system-ui, Arial, sans-serif" font-size="34" font-weight="700">Controle-App</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 192" role="img" aria-label="Controle-App opção A escuro">
+  <rect width="192" height="192" rx="44" fill="#12342F"/>
+  <rect x="24" y="24" width="144" height="144" rx="28" fill="#68C4A5"/>
+  <path d="M24 24h144v44H24z" fill="#43A88B"/>
+  <rect x="44" y="88" width="27" height="58" rx="6" fill="#12342F"/>
+  <rect x="82" y="70" width="27" height="76" rx="6" fill="#12342F"/>
+  <rect x="120" y="52" width="27" height="94" rx="6" fill="#12342F"/>
+  <circle cx="150" cy="36" r="12" fill="#F2A65A"/>
+  <text x="214" y="112" fill="#F7FAF8" font-family="Segoe UI, Arial, sans-serif" font-size="38" font-weight="800" letter-spacing="-1">Controle-App</text>
 </svg>

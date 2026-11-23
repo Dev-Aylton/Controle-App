@@ -29,9 +29,13 @@ export function MovementHistory({ movements, products, environments, users, onCh
 
   const exportHistory = () => {
     const csv = generateCsv([
-      ['Data', 'Produto', 'Ambiente', 'Tipo', 'Quantidade', 'Usuário', 'Observação'],
+      ['Data', 'Código/SKU', 'Produto', 'Ambiente', 'Tipo', 'Quantidade', 'Usuário', 'Observação'],
       ...filtered.map((movement) => [
         new Date(movement.created_at).toLocaleString('pt-BR'),
+        (() => {
+          const product = products.find((item) => item.id === movement.product_id)
+          return product?.sku ?? ''
+        })(),
         products.find((item) => item.id === movement.product_id)?.name ?? movement.product_id,
         environments.find((item) => item.id === movement.environment_id)?.name ?? movement.environment_id,
         movement.type,

@@ -8,6 +8,7 @@ import {
 type Props = {
   open: boolean
   policyVersion: string
+  policyPublishedAt?: string
   busy: boolean
   acceptError: string
   onDismiss: () => void
@@ -17,6 +18,7 @@ type Props = {
 export function PrivacyPolicyDialog({
   open,
   policyVersion,
+  policyPublishedAt,
   busy,
   acceptError,
   onDismiss,
@@ -76,14 +78,17 @@ export function PrivacyPolicyDialog({
           Há uma nova versão ({policyVersion}) do aviso. Você pode fechar este aviso e continuar
           usando o aplicativo; ele voltará a aparecer no próximo login até o aceite.
         </p>
-        <PrivacyPolicyContent headingId="privacy-policy-dialog-title" />
+        <PrivacyPolicyContent
+          headingId="privacy-policy-dialog-title"
+          release={policyPublishedAt ? { version: policyVersion, publishedAt: policyPublishedAt } : null}
+        />
         <a
           className="privacy-policy-read-link"
           href={`${import.meta.env.BASE_URL}#/privacidade`}
           target="_blank"
           rel="noreferrer"
         >
-          Abrir página pública da minuta
+          {policyPublishedAt ? 'Abrir página pública da política' : 'Abrir página pública da minuta'}
         </a>
         {acceptError && <p className="form-error" role="alert">{acceptError}</p>}
         <div className="privacy-policy-actions">

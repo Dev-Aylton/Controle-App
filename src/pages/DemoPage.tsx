@@ -12,6 +12,10 @@ import { downloadCsv } from '../features/management/csv'
 import { traduzirErro } from '../lib/errors'
 import type { DemoRole } from '../features/demo/demoData'
 import { applyTheme, getSavedTheme, type ThemeMode } from '../lib/theme'
+import { NavigationIcon } from '../components/NavigationIcon'
+import { getMobileNavItems, getNavigationIconLabel } from '../components/mobileNavigation'
+import wordmarkLight from '../../docs/logos/opcao-a/wordmark-light.svg'
+import wordmarkDark from '../../docs/logos/opcao-a/wordmark-dark.svg'
 
 function DemoContent() {
   const { state, setRole, reset, deactivateEmployee, rotateCode } = useDemo()
@@ -25,6 +29,7 @@ function DemoContent() {
   const [doseMode, setDoseMode] = useState(false)
   const [doses, setDoses] = useState(1)
   const [accountOpen, setAccountOpen] = useState(false)
+  const [demoMoreOpen, setDemoMoreOpen] = useState(false)
   const [theme, setTheme] = useState<ThemeMode>(getSavedTheme)
   const accountRef = useRef<HTMLElement>(null)
 
@@ -60,6 +65,20 @@ function DemoContent() {
   const zero = state.products.filter((product) => product.balance === 0)
   const negative = state.products.filter((product) => product.balance < 0)
   const pendingLosses = state.movements.filter((movement) => movement.type === 'perda' && !movement.lossReasonId)
+  const demoRole = state.role === 'admin' ? null : state.role
+  const demoMobileItems = getMobileNavItems(demoRole, state.role === 'admin')
+
+  const scrollToDemoSection = (key: string) => {
+    const sectionIds: Record<string, string> = {
+      home: 'demo-home',
+      movements: 'demo-movements',
+      stock: 'demo-stock',
+      inventory: 'demo-inventory',
+      alerts: 'demo-alerts',
+    }
+    const id = sectionIds[key]
+    if (id) document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   return (
     <main className="demo-page">
@@ -157,8 +176,9 @@ function DemoContent() {
       )}
 
       {sensitive && (
-        <Card>
-          <h2>Mapa de produtos e compras</h2>
+        <section id="demo-stock" data-demo-capture>
+          <Card>
+            <h2>Mapa de produtos e compras</h2>
           {state.salesMap.map((row) => (
             <p key={row.externalName}>{row.externalName} → {state.products.find((product) => product.id === row.productId)?.name}</p>
           ))}
@@ -173,12 +193,14 @@ function DemoContent() {
             `Bar-Demonstracao-compras-${new Date().toISOString().slice(0,10)}.csv`,
             [['Produto','Saldo','Mínimo','Sugestão'], ...getDemoPurchaseItems(state).map((item) => [item.name,item.balance,item.minimum,item.suggestion])],
           )}>Exportar lista de compras</button>
-        </Card>
+          </Card>
+        </section>
       )}
 
       {sensitive && (
-        <Card>
-          <h2>Inventário cego fictício</h2>
+        <section id="demo-inventory" data-demo-capture>
+          <Card>
+            <h2>Inventário cego fictício</h2>
           {state.products.slice(0, 6).map((product) => (
             <label key={product.id}>{product.name}
               <input type="number" min="0" step="0.001" value={inventoryCounts[product.id] ?? ''} onChange={(event) => setInventoryCounts((current) => ({ ...current, [product.id]: Number(event.target.value) }))} />
@@ -189,7 +211,8 @@ function DemoContent() {
               try { finishDemoInventory(state, state.role, inventoryCounts); setMessage('Inventário fictício finalizado.') } catch (caught) { setMessage(traduzirErro(caught, 'Não foi possível finalizar.')) }
             }}>Finalizar inventário</button>
           )}
-        </Card>
+          </Card>
+        </section>
       )}
 
       {sensitive && (
@@ -272,12 +295,74 @@ function DemoContent() {
       )}
     </Container>
     <nav className="bottom-nav demo-bottom-nav" aria-label="Navegação da demonstração">
-      <button className="nav-link-button" type="button" onClick={() => document.getElementById('demo-home')?.scrollIntoView({ behavior: 'smooth' })}>Início</button>
-      <button className="nav-link-button" type="button" onClick={() => document.getElementById('demo-products')?.scrollIntoView({ behavior: 'smooth' })}>Produtos</button>
-      <button className="nav-link-button" type="button" onClick={() => document.getElementById('demo-movements')?.scrollIntoView({ behavior: 'smooth' })}>Movimentações</button>
-      <button className="nav-link-button" type="button" onClick={() => document.getElementById('demo-alerts')?.scrollIntoView({ behavior: 'smooth' })}>Alertas</button>
-      <button className="nav-link-button" type="button" onClick={() => setAccountOpen(true)}>Minha conta</button>
+      {demoMobileItems.map((item) => item.key === 'more'
+        ? (
+          <button
+            key={item.key}
+            className={`nav-link-button bottom-nav-more${demoMoreOpen ? ' active' : ''}`}
+            type="button"
+            aria-expanded={demoMoreOpen}
+            aria-haspopup="dialog"
+            onClick={() => setDemoMoreOpen(true)}
+          >
+            <span className="nav-icon" aria-hidden="true"><NavigationIcon label={getNavigationIconLabel(item.key)} /></span>
+            <span>Mais</span>
+          </button>
+        )
+        : (
+          <button
+            key={item.key}
+            className="nav-link-button"
+            type="button"
+            onClick={() => scrollToDemoSection(item.key)}
+          >
+            <span className="nav-icon" aria-hidden="true"><NavigationIcon label={getNavigationIconLabel(item.key)} /></span>
+            <span>{item.label}</span>
+          </button>
+        ))}
     </nav>
+    {demoMoreOpen && (
+      <div className="mobile-menu-backdrop" role="presentation" onMouseDown={(event) => {
+        if (event.target === event.currentTarget) setDemoMoreOpen(false)
+      }}>
+        <aside className="mobile-sidebar" role="dialog" aria-modal="true" aria-label="Menu lateral">
+          <div className="mobile-sidebar-heading">
+            <div className="mobile-sidebar-brand">
+              <img className="mobile-wordmark light-logo" src={wordmarkLight} alt="Controle-App" />
+              <img className="mobile-wordmark dark-logo" src={wordmarkDark} alt="Controle-App" />
+            </div>
+            <button className="secondary-button" type="button" onClick={() => setDemoMoreOpen(false)}>Fechar</button>
+          </div>
+          <button className="mobile-sidebar-profile" type="button" onClick={() => { setDemoMoreOpen(false); setAccountOpen(true) }}>
+            <Avatar name="Usuário de demonstração" size={44} />
+            <span><strong>Minha conta</strong><small>{state.role === 'admin' ? 'Administrador' : state.role === 'owner' ? 'Proprietário' : state.role === 'manager' ? 'Gerente' : 'Funcionário'}</small></span>
+          </button>
+          <nav className="mobile-sidebar-nav" aria-label="Navegação lateral móvel">
+            <button type="button" onClick={() => { setDemoMoreOpen(false); scrollToDemoSection('home') }}>
+              <span className="nav-icon" aria-hidden="true"><NavigationIcon label="Início" /></span><span>Início</span>
+            </button>
+            {sensitive && (
+              <>
+                <button type="button" onClick={() => { setDemoMoreOpen(false); scrollToDemoSection('stock') }}>
+                  <span className="nav-icon" aria-hidden="true"><NavigationIcon label="Saldo por ambiente" /></span><span>Saldo</span>
+                </button>
+                <button type="button" onClick={() => { setDemoMoreOpen(false); scrollToDemoSection('inventory') }}>
+                  <span className="nav-icon" aria-hidden="true"><NavigationIcon label="Inventário" /></span><span>Inventário</span>
+                </button>
+              </>
+            )}
+            <button type="button" onClick={() => { setDemoMoreOpen(false); scrollToDemoSection('movements') }}>
+              <span className="nav-icon" aria-hidden="true"><NavigationIcon label="Movimentações" /></span><span>Movimentações</span>
+            </button>
+            {sensitive && (
+              <button type="button" onClick={() => { setDemoMoreOpen(false); scrollToDemoSection('alerts') }}>
+                <span className="nav-icon" aria-hidden="true"><NavigationIcon label="Alertas" /></span><span>Alertas</span>
+              </button>
+            )}
+          </nav>
+        </aside>
+      </div>
+    )}
     {accountOpen && (
       <div className="account-drawer-backdrop" role="presentation" onMouseDown={(event) => {
         if (event.target === event.currentTarget) setAccountOpen(false)
@@ -290,7 +375,7 @@ function DemoContent() {
           <section className="account-drawer-section">
             <div className="member-identity">
               <Avatar name="Usuário de demonstração" size={64} />
-              <span><strong>Usuário de demonstração</strong><small>{state.role}</small></span>
+              <span><strong>Usuário de demonstração</strong><small>{state.role === 'admin' ? 'Administrador' : state.role === 'owner' ? 'Proprietário' : state.role === 'manager' ? 'Gerente' : 'Funcionário'}</small></span>
             </div>
             <p className="account-section-description">Perfil fictício. Nenhuma sessão ou dado pessoal é usado neste modo.</p>
           </section>

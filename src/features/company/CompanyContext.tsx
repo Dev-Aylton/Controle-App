@@ -5,6 +5,7 @@ import { useAuth } from '../auth/auth-context'
 import { CompanyContext } from './company-context'
 import { friendlySupabaseError } from '../../lib/errors'
 import { SessionLoadDeduper } from '../../lib/sessionLoad'
+import { canSelectCompany } from './companyVisibility'
 
 type Membership = Tables<'memberships'>
 type Company = Tables<'companies'>
@@ -150,7 +151,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('controle-app-company')
       return
     }
-    if (companies.some((company) => company.id === companyId)) {
+    if (canSelectCompany(isAdmin, companies.map((company) => company.id), companyId)) {
       setActiveCompanyId(companyId)
       localStorage.setItem('controle-app-company', companyId)
     }

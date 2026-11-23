@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { useCompanies } from '../features/company/company-context'
 import { getStockBalance } from '../services/movements'
 import { tryGetSupabaseClient } from '../lib/supabase'
-import { Container, Card } from '../components'
+import { Container, Card, ContextHelp } from '../components'
 import { getEnvironmentLowStock, getNegativeBalances } from '../features/management/management'
 import type { EnvironmentLowStock, NegativeBalance } from '../features/management/types'
+import { traduzirErro } from '../lib/errors'
 
 type BalanceRow = { product_id: string; environment_id: string; balance: number }
 
@@ -16,12 +17,22 @@ export function StockPage() {
   const [products, setProducts] = useState<Record<string, string>>({})
   const [lowRows, setLowRows] = useState<EnvironmentLowStock[]>([])
   const [negativeRows, setNegativeRows] = useState<NegativeBalance[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (!companyId || (!isAdmin && role !== 'owner' && role !== 'manager')) return
     const supabase = tryGetSupabaseClient()
-    if (!supabase) return
+    if (!supabase) {
+      queueMicrotask(() => {
+        setError('O servidor de dados não está configurado. Entre em contato com o suporte.')
+        setLoading(false)
+      })
+      return
+    }
     queueMicrotask(() => {
+      setLoading(true)
+      setError('')
       void Promise.all([
         getStockBalance(companyId),
         supabase.from('environments').select('*').eq('company_id', companyId),
@@ -34,6 +45,10 @@ export function StockPage() {
         setNegativeRows(negative)
         setEnvironments(Object.fromEntries((environmentResult.data ?? []).map((item) => [item.id, item.name])))
         setProducts(Object.fromEntries((productResult.data ?? []).map((item) => [item.id, item.name])))
+      }).catch((caught) => {
+        setError(traduzirErro(caught, 'Não foi possível carregar o saldo dos ambientes.'))
+      }).finally(() => {
+        setLoading(false)
       })
     })
   }, [companyId, isAdmin, role])
@@ -45,8 +60,21 @@ export function StockPage() {
   return (
     <Container>
       <h1>Saldo por ambiente</h1>
+      <ContextHelp
+        title="Como interpretar o saldo?"
+        description="Cada linha representa a quantidade registrada de um produto em um ambiente específico."
+        steps={[
+          'Amarelo: saldo chegou ao mínimo configurado.',
+          'Vermelho: saldo ficou negativo.',
+          'Use esta página para conferência; alterações são feitas em movimentações ou inventário.',
+        ]}
+        result="O saldo atual vem das entradas, saídas, perdas, transferências e ajustes do período."
+      />
       <Card>
         <p><span style={{ color: '#8a6500' }}>■ Amarelo: abaixo do mínimo</span> • <span style={{ color: '#b00020' }}>■ Vermelho: saldo negativo</span></p>
+        {loading && <p className="page-state">Carregando saldos...</p>}
+        {error && <p className="form-error" role="alert">{error}</p>}
+        {!loading && !error && rows.length === 0 && <p>Nenhum saldo cadastrado. Faça uma entrada ou abra uma contagem para iniciar o controle.</p>}
         <div className="member-list">
           {rows.map((row) => (
             <article

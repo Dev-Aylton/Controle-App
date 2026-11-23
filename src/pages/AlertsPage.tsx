@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useCompanies } from '../features/company/company-context'
 import { tryGetSupabaseClient } from '../lib/supabase'
-import { Container, Card } from '../components'
+import { Container, Card, ContextHelp } from '../components'
 import {
   getEnvironmentLowStock, getLowStockAlerts, getMovementReport, getNegativeBalances, getPendingLossReasons,
 } from '../features/management/management'
@@ -69,7 +69,14 @@ export function AlertsPage() {
     return <Container><h1>Central de alertas</h1><Card><p>Acesso restrito a administradores, proprietários e gerentes.</p></Card></Container>
   }
 
-  const belowFiltered = below.filter((row) => !environmentId || environmentLow.some((env) => env.product_id === row.product_id && env.environment_id === environmentId))
+  const belowFiltered = below.filter((row) => {
+    if (!environmentId) return true
+    return environmentLow.some((env) =>
+      env.product_id === row.product_id
+      && env.environment_id === environmentId
+      && env.balance <= row.min_stock,
+    )
+  })
   const negativeFiltered = negative.filter((row) => !environmentId || row.environment_id === environmentId)
   const pendingFiltered = pending.filter((row) => !environmentId || row.environment_id === environmentId)
   const noStock = environmentLow.filter((row) => row.balance === 0 && (!environmentId || row.environment_id === environmentId))
@@ -77,6 +84,17 @@ export function AlertsPage() {
   return (
     <Container>
       <h1>Central de alertas</h1>
+      <ContextHelp
+        title="O que esta central monitora?"
+        description="Os alertas apontam situações que precisam de atenção antes que afetem operação ou fechamento."
+        steps={[
+          'Abaixo do mínimo: saldo chegou ao limite definido.',
+          'Sem estoque: não existe saldo disponível no ambiente.',
+          'Saldo negativo: lançamentos retiraram mais do que havia.',
+          'Perdas pendentes: falta informar o motivo da perda.',
+        ]}
+        result="Use os alertas para corrigir dados e preparar reposições."
+      />
       {error && <p className="form-error" role="alert">{error}</p>}
       <Card>
         <div className="form-grid">

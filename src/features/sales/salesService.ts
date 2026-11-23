@@ -105,15 +105,23 @@ export async function removeSalesMap(companyId: string, mapId: string) {
   if (result.error) throw new Error(friendlySupabaseError(result.error))
 }
 
-export async function importSalesBatch(companyId: string, environmentId: string, label: string, items: Array<{ product_id: string; quantity: number; sale_type: 'unidade' | 'dose' }>) {
+export async function importSalesBatch(
+  companyId: string,
+  environmentId: string,
+  label: string,
+  items: Array<{ product_id: string; quantity: number; sale_type: 'unidade' | 'dose' }>,
+  sourceHash?: string,
+) {
   const supabase = tryGetSupabaseClient()
   if (!supabase) throw new Error('Supabase não configurado.')
-  const result = await supabase.rpc('import_sales_batch', {
+  const args: Record<string, unknown> = {
     p_company_id: companyId,
     p_environment_id: environmentId,
     p_label: label,
     p_items: items,
-  })
+  }
+  if (sourceHash) args.p_source_hash = sourceHash
+  const result = await supabase.rpc('import_sales_batch', args)
   if (result.error) throw new Error(friendlySupabaseError(result.error))
   return result.data as string
 }

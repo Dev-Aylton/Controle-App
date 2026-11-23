@@ -3,7 +3,7 @@ import { friendlySupabaseError, traduzirErro } from './errors'
 
 describe('mensagens amigáveis', () => {
   it('traduz permission denied', () => {
-    expect(friendlySupabaseError(new Error('permission denied for table memberships'))).toBe('Você não tem permissão para esta ação.')
+    expect(friendlySupabaseError(new Error('permission denied for table memberships'))).toBe('Você não tem permissão para concluir esta ação.')
   })
 
   it('traduz falha de rede', () => {
@@ -17,5 +17,10 @@ describe('mensagens amigáveis', () => {
   it('traduz saldo e janela de correção sem vazar detalhe bruto', () => {
     expect(traduzirErro(new Error('saldo insuficiente no ambiente'))).toBe('Saldo insuficiente no ambiente.')
     expect(traduzirErro(new Error('15 minute correction window expired'))).toContain('15 minutos')
+  })
+
+  it('traduz configuração e registros duplicados', () => {
+    expect(traduzirErro(new Error('Supabase não configurado'))).toContain('servidor')
+    expect(traduzirErro(new Error('duplicate key value violates unique constraint'))).toContain('já está cadastrado')
   })
 })

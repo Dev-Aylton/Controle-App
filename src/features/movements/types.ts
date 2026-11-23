@@ -34,6 +34,7 @@ export type MovementProduct = {
   unit: string
   volume_ml?: number | null
   dose_ml?: number | null
+  weight_g?: number | null
 }
 
 export type MovementEnvironment = {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useCompanies } from '../features/company/company-context'
 import { tryGetSupabaseClient } from '../lib/supabase'
-import { Container, Card, ActionButton } from '../components'
+import { Container, Card, ActionButton, ContextHelp } from '../components'
 import { getMovementReport } from '../features/management/management'
 import type { MovementReportRow } from '../features/management/types'
 import { downloadCsv } from '../features/management/csv'
@@ -61,6 +61,17 @@ export function ReportPage() {
   return (
     <Container>
       <h1>Relatórios de movimentação</h1>
+      <ContextHelp
+        title="Como ler este relatório?"
+        description="O relatório reúne todas as movimentações por produto e ambiente dentro do período escolhido."
+        steps={[
+          'Defina início e fim.',
+          'Escolha um ambiente ou consulte todos.',
+          'Compare entradas, saídas, perdas, transferências e ajustes.',
+          'Exporte o resultado em CSV para análise externa.',
+        ]}
+        result="O relatório ajuda a explicar por que o estoque mudou em determinado período."
+      />
       {error && <p className="form-error" role="alert">{error}</p>}
       <Card>
         <div className="form-grid">
@@ -78,9 +89,17 @@ export function ReportPage() {
       </Card>
       {loading && <p className="page-state">Carregando relatório...</p>}
       {!loading && <Card>{rows.length === 0 ? <p>Nenhuma movimentação encontrada. Altere o período ou o ambiente.</p> : (
+        <>
+        <div className="form-grid" aria-label="Resumo consolidado">
+          <Card><p><strong>Entradas</strong><br />{rows.reduce((sum, row) => sum + Number(row.entradas), 0)}</p></Card>
+          <Card><p><strong>Saídas</strong><br />{rows.reduce((sum, row) => sum + Number(row.saidas), 0)}</p></Card>
+          <Card><p><strong>Perdas</strong><br />{rows.reduce((sum, row) => sum + Number(row.perdas), 0)}</p></Card>
+          <Card><p><strong>Ajustes</strong><br />{rows.reduce((sum, row) => sum + Number(row.ajustes), 0)}</p></Card>
+        </div>
         <div className="table-wrap"><table><thead><tr><th>Produto</th><th>Ambiente</th><th>Entradas</th><th>Saídas</th><th>Perdas</th><th>Transf. saída</th><th>Transf. entrada</th><th>Ajustes</th><th>Estornos</th></tr></thead>
           <tbody>{rows.map((row) => <tr key={`${row.product_id}-${row.environment_id}`}><td>{row.product_name}</td><td>{row.environment_name}</td><td>{row.entradas}</td><td>{row.saidas}</td><td>{row.perdas}</td><td>{row.transferencias_saida}</td><td>{row.transferencias_entrada}</td><td>{row.ajustes}</td><td>{row.estornos}</td></tr>)}</tbody>
         </table></div>
+        </>
       )}</Card>}
     </Container>
   )

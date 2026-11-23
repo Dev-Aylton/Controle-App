@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useCompanies } from '../features/company/company-context'
 import { listEnvironments, saveEnvironment } from '../features/environments/environmentService'
 import { canManageCompany } from '../lib/uiPermissions'
-import { Container, Card, ActionButton } from '../components'
+import { Container, Card, ActionButton, ContextHelp } from '../components'
 import { traduzirErro } from '../lib/errors'
 
 export function EnvironmentsPage() {
@@ -38,20 +38,37 @@ export function EnvironmentsPage() {
       setEditingId(null)
       await load()
     } catch (caught) {
-      setError(traduzirErro(caught, 'Não foi possível salvar o ambiente.'))
+      setError(traduzirErro(caught, 'Não foi possível salvar o ambiente. Confira o nome e tente novamente.'))
     }
   }
 
   return (
     <Container>
       <h1>Ambientes</h1>
+      <ContextHelp
+        title="O que é um ambiente?"
+        description="Ambiente representa um local onde o estoque é guardado ou usado, como estoque central, cozinha, bar principal ou camarote."
+        steps={[
+          'Crie um ambiente para cada local físico que precisa de controle.',
+          'Atribua movimentações e contagens ao ambiente correto.',
+          'Desative ambientes antigos sem apagar o histórico.',
+        ]}
+        result="Um produto pode ter saldos diferentes em cada ambiente."
+      />
       {error && <p className="form-error" role="alert">{error}</p>}
       {canManage && (
         <Card>
           <form className="form-stack" onSubmit={(event) => event.preventDefault()}>
-            <label>Nome<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Bar VIP" required /></label>
+            <label>Nome<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Ambiente de destino" required /></label>
             <label>Descrição<input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Opcional: estoque de saída direta" /></label>
-            <ActionButton className="primary-button" busyLabel="Salvando..." onAction={() => save({ preventDefault: () => undefined } as FormEvent)}>{editingId ? 'Salvar ambiente' : 'Criar ambiente'}</ActionButton>
+            <ActionButton
+              className="primary-button"
+              busyLabel="Salvando..."
+              confirmMessage={editingId ? 'Confirmar a alteração deste ambiente?' : `Criar o ambiente "${name.trim()}"?`}
+              onAction={() => save({ preventDefault: () => undefined } as FormEvent)}
+            >
+              {editingId ? 'Salvar ambiente' : 'Criar ambiente'}
+            </ActionButton>
           </form>
         </Card>
       )}

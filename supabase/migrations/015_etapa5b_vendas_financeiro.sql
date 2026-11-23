@@ -21,7 +21,8 @@ create table if not exists public.product_environment_pricing (
 alter table public.sales_import_batches
   add column if not exists total_revenue numeric(14,2),
   add column if not exists total_cogs numeric(14,2),
-  add column if not exists total_gross_profit numeric(14,2);
+  add column if not exists total_gross_profit numeric(14,2),
+  add column if not exists source_hash text;
 
 alter table public.sales_import_items
   add column if not exists sale_price_snapshot numeric(12,2),

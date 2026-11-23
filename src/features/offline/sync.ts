@@ -1,6 +1,7 @@
 import { LEGACY_UNASSIGNED_USER_ID, offlineDb, type QueuedMovement } from './db'
 import { registerMovement, registerTransfer } from '../../services/movements'
 import { traduzirErro } from '../../lib/errors'
+import { completePendingLossReason } from '../movements/lossReasons'
 
 let syncing = false
 export function isOfflineSyncing() { return syncing }
@@ -75,7 +76,7 @@ export async function syncQueuedMovements(userId: string): Promise<{ sent: numbe
           item.clientRequestId,
         )
       } else {
-        await registerMovement(
+        const movementId = await registerMovement(
           item.companyId,
           item.productId,
           item.environmentId,
@@ -84,6 +85,9 @@ export async function syncQueuedMovements(userId: string): Promise<{ sent: numbe
           item.note ?? undefined,
           item.clientRequestId,
         )
+        if (item.type === 'perda' && item.lossReasonId) {
+          await completePendingLossReason(movementId, item.lossReasonId)
+        }
       }
       await offlineDb.queuedMovements.update(item.clientRequestId, { status: 'enviado', failureReason: null })
       sent += 1

@@ -17,6 +17,14 @@ import iconDark from '../../docs/logos/opcao-a/icon-dark.svg'
 import { NavigationIcon } from './NavigationIcon'
 import { PrivacyPolicyPrompt } from '../features/privacy/PrivacyPolicyPrompt'
 import { recordTechnicalError } from '../lib/diagnostics'
+import { getPrivacyPolicyLinkLabel, usePrivacyPolicyRelease } from '../features/privacy/privacyPolicyStatus'
+import { NotificationCenter } from './NotificationCenter'
+import {
+  getCompanyNotifications,
+  loadNotificationState,
+  saveNotificationState,
+  type AppNotification,
+} from '../features/notifications/notificationCenter'
 
 type AppShellProps = {
   children: ReactNode
@@ -27,14 +35,16 @@ export function AppShell({ children }: AppShellProps) {
   const [tabletExpanded, setTabletExpanded] = useState(false)
   const { companies, activeCompany, selectCompany, role, isAdmin, error: companyError, clearError } = useCompanies()
   const { claimError, clearClaimError, user } = useAuth()
+  const privacyPolicyRelease = usePrivacyPolicyRelease(user?.id ?? null)
   const [online, setOnline] = useState(navigator.onLine)
   const [pendingCount, setPendingCount] = useState(0)
   const [offlineError, setOfflineError] = useState('')
   const appError = claimError || companyError || offlineError
   const [accountOpen, setAccountOpen] = useState(false)
   const [newVersion, setNewVersion] = useState('')
-  const [moreOpen, setMoreOpen] = useState(false)
-  const moreRef = useRef<HTMLElement>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const mobileMenuRef = useRef<HTMLElement>(null)
+  const [notifications, setNotifications] = useState<AppNotification[]>([])
 
   useEffect(() => {
     let active = true
@@ -82,22 +92,71 @@ export function AppShell({ children }: AppShellProps) {
   }, [user?.id])
 
   useEffect(() => {
-    if (!moreOpen) return
+    if (!mobileMenuOpen) return
     const previous = document.activeElement as HTMLElement | null
-    moreRef.current?.querySelector<HTMLElement>('button,a')?.focus()
+    mobileMenuRef.current?.querySelector<HTMLElement>('button,select,a')?.focus()
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMoreOpen(false)
-      if (event.key !== 'Tab' || !moreRef.current) return
-      const items = [...moreRef.current.querySelectorAll<HTMLElement>('button:not(:disabled),a')]
-      if (!items.length) return
-      const first = items[0]
-      const last = items[items.length - 1]
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
-      if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+      if (event.key === 'Escape') setMobileMenuOpen(false)
     }
     document.addEventListener('keydown', onKey)
     return () => { document.removeEventListener('keydown', onKey); previous?.focus() }
-  }, [moreOpen])
+  }, [mobileMenuOpen])
+
+  useEffect(() => {
+    let active = true
+    if (!activeCompany?.id || !user?.id || (!canManageCompany(role, isAdmin))) {
+      queueMicrotask(() => {
+        if (active) setNotifications([])
+      })
+      return () => { active = false }
+    }
+    queueMicrotask(() => {
+      void getCompanyNotifications(activeCompany.id)
+        .then((items) => {
+          if (!active) return
+          const state = loadNotificationState(activeCompany.id, user.id)
+          const operational = items.map((item) => ({
+            ...item,
+            read: state.readIds.includes(item.id),
+            dismissed: state.dismissedIds.includes(item.id),
+          }))
+          const next: AppNotification[] = []
+          if (pendingCount > 0) {
+            next.push({
+              id: 'offline:pending',
+              severity: 'info',
+              title: 'Lançamentos pendentes',
+              description: `${pendingCount} lançamento(s) aguardam conexão ou sincronização.`,
+              route: '/movimentacoes',
+              routeLabel: 'Revisar lançamentos',
+              read: state.readIds.includes('offline:pending'),
+              dismissed: state.dismissedIds.includes('offline:pending'),
+              createdAt: new Date().toISOString(),
+            })
+          }
+          if (newVersion) {
+            next.push({
+              id: `version:${newVersion}`,
+              severity: 'info',
+              title: 'Nova versão disponível',
+              description: `A versão ${newVersion} pode ser instalada pela sua conta.`,
+              route: '/',
+              routeLabel: 'Abrir Minha conta',
+              read: state.readIds.includes(`version:${newVersion}`),
+              dismissed: state.dismissedIds.includes(`version:${newVersion}`),
+              createdAt: new Date().toISOString(),
+            })
+          }
+          setNotifications([...operational, ...next])
+        })
+        .catch((error: unknown) => {
+          if (!active) return
+          recordTechnicalError('AppShell.notifications', error)
+          setNotifications([])
+        })
+    })
+    return () => { active = false }
+  }, [activeCompany?.id, user?.id, role, isAdmin, pendingCount, newVersion])
 
   useEffect(() => {
     const check = async () => {
@@ -114,6 +173,38 @@ export function AppShell({ children }: AppShellProps) {
     return () => window.removeEventListener('focus', check)
   }, [])
 
+  const persistNotificationState = (next: AppNotification[]) => {
+    if (!activeCompany?.id || !user?.id) return
+    saveNotificationState(activeCompany.id, user.id, {
+      readIds: next.filter((item) => item.read).map((item) => item.id),
+      dismissedIds: next.filter((item) => item.dismissed).map((item) => item.id),
+    })
+  }
+
+  const readNotification = (id: string) => {
+    setNotifications((current) => {
+      const next = current.map((item) => item.id === id ? { ...item, read: true } : item)
+      persistNotificationState(next)
+      return next
+    })
+  }
+
+  const dismissNotification = (id: string) => {
+    setNotifications((current) => {
+      const next = current.map((item) => item.id === id ? { ...item, dismissed: true } : item)
+      persistNotificationState(next)
+      return next
+    })
+  }
+
+  const readAllNotifications = () => {
+    setNotifications((current) => {
+      const next = current.map((item) => item.dismissed ? item : { ...item, read: true })
+      persistNotificationState(next)
+      return next
+    })
+  }
+
   const footer = (
     <footer className="app-footer">
       <div className="app-footer-brand">
@@ -121,13 +212,10 @@ export function AppShell({ children }: AppShellProps) {
         <span>{formatAppVersion()}</span>
       </div>
       <nav className="app-footer-links" aria-label="Links institucionais">
-        <NavLink to="/privacidade">Aviso de Privacidade (minuta)</NavLink>
+        <NavLink className="footer-privacy-link" to="/privacidade">{getPrivacyPolicyLinkLabel(privacyPolicyRelease)}</NavLink>
         <a className="footer-portfolio-button" href="https://dev-aylton.github.io/" target="_blank" rel="noreferrer">
           <span>Desenvolvido por</span>
           <strong>Aylton Alberto</strong>
-        </a>
-        <a className="footer-contact-button" href="mailto:desenvolvedor.aylton@gmail.com">
-          Entrar em contato
         </a>
       </nav>
     </footer>
@@ -148,7 +236,35 @@ export function AppShell({ children }: AppShellProps) {
     return (
       <div className="app-shell app-shell-mobile">
         <header className="mobile-header">
-          <span className="mobile-brand">Controle-App</span>
+          <button
+            className="mobile-menu-button"
+            type="button"
+            aria-label="Abrir menu lateral"
+            aria-expanded={mobileMenuOpen}
+            aria-haspopup="dialog"
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            <span aria-hidden="true">☰</span>
+          </button>
+          {companies.length ? (
+            <select
+              className="company-selector mobile-company-selector"
+              aria-label="Seletor de empresa"
+              value={activeCompany?.id ?? ''}
+              onChange={(event) => selectCompany(event.target.value)}
+            >
+              <option value="">Selecionar empresa</option>
+              {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+            </select>
+          ) : (
+            <NavLink className="company-selector mobile-company-selector" to="/entrar-codigo">Entrar com código</NavLink>
+          )}
+          <NotificationCenter
+            notifications={notifications}
+            onRead={readNotification}
+            onDismiss={dismissNotification}
+            onReadAll={readAllNotifications}
+          />
           <button className="profile-button profile-link" type="button" onClick={() => setAccountOpen(true)} aria-label="Minha conta">
             <Avatar name={user?.user_metadata.full_name ?? user?.email} googleUrl={user?.user_metadata.avatar_url} size={44} />
           </button>
@@ -169,25 +285,64 @@ export function AppShell({ children }: AppShellProps) {
         </main>
         <nav className="bottom-nav" aria-label="Navegação principal móvel">
           {mobileItems.map((item) => item.key === 'more'
-            ? <button key={item.key} className="nav-link-button" type="button" onClick={() => setMoreOpen(true)}><span className="nav-icon" aria-hidden="true"><NavigationIcon label={getNavigationIconLabel(item.key)} /></span><span>Mais</span></button>
+            ? <button
+                key={item.key}
+                className={`nav-link-button bottom-nav-more${mobileMenuOpen ? ' active' : ''}`}
+                type="button"
+                aria-expanded={mobileMenuOpen}
+                aria-haspopup="dialog"
+                onClick={() => setMobileMenuOpen(true)}
+              >
+                <span className="nav-icon" aria-hidden="true"><NavigationIcon label={getNavigationIconLabel(item.key)} /></span>
+                <span>Mais</span>
+              </button>
             : <NavLink key={item.key} to={item.path} className={({ isActive }) => isActive ? 'active' : ''}>
                 <span className="nav-icon" aria-hidden="true"><NavigationIcon label={getNavigationIconLabel(item.key)} /></span><span>{item.label}</span>
               </NavLink>)}
         </nav>
-        <AccountDrawer open={accountOpen} online={online} pendingCount={pendingCount} onClose={() => setAccountOpen(false)} />
-        <PrivacyPolicyPrompt />
-        {moreOpen && (
-          <div className="mobile-more-backdrop" role="presentation" onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setMoreOpen(false)
+        {mobileMenuOpen && (
+          <div className="mobile-menu-backdrop" role="presentation" onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setMobileMenuOpen(false)
           }}>
-            <aside className="mobile-more-drawer" ref={moreRef} role="dialog" aria-modal="true" aria-label="Mais opções">
-              <button className="secondary-button" type="button" onClick={() => setMoreOpen(false)}>Fechar</button>
-              {visibleItems.map((item) => (
-                <NavLink key={item.path} to={item.path} onClick={() => setMoreOpen(false)}>{item.label}</NavLink>
-              ))}
+            <aside className="mobile-sidebar" ref={mobileMenuRef} role="dialog" aria-modal="true" aria-label="Menu lateral">
+              <div className="mobile-sidebar-heading">
+                <NavLink to="/" className="mobile-sidebar-brand" aria-label="Controle-App — ir para o início" onClick={() => setMobileMenuOpen(false)}>
+                  <img className="mobile-sidebar-icon light-logo" src={iconLight} alt="" />
+                  <img className="mobile-sidebar-icon dark-logo" src={iconDark} alt="" />
+                  <span>Controle-App</span>
+                </NavLink>
+                <button className="secondary-button" type="button" onClick={() => setMobileMenuOpen(false)}>Fechar</button>
+              </div>
+              {companies.length ? (
+                <select
+                  className="company-selector mobile-sidebar-company"
+                  aria-label="Seletor de empresa"
+                  value={activeCompany?.id ?? ''}
+                  onChange={(event) => selectCompany(event.target.value)}
+                >
+                  <option value="">Selecionar empresa</option>
+                  {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+                </select>
+              ) : (
+                <NavLink className="company-selector mobile-sidebar-company" to="/entrar-codigo" onClick={() => setMobileMenuOpen(false)}>Entrar com código</NavLink>
+              )}
+              <button className="mobile-sidebar-profile" type="button" onClick={() => { setMobileMenuOpen(false); setAccountOpen(true) }}>
+                <Avatar name={user?.user_metadata.full_name ?? user?.email} googleUrl={user?.user_metadata.avatar_url} size={44} />
+                <span><strong>Minha conta</strong><small>{isAdmin ? 'Administrador' : role === 'owner' ? 'Proprietário' : role === 'manager' ? 'Gerente' : role === 'employee' ? 'Funcionário' : 'Sem vínculo'}</small></span>
+              </button>
+              <nav className="mobile-sidebar-nav" aria-label="Navegação lateral móvel">
+                {visibleItems.map((item) => (
+                  <NavLink key={item.path} to={item.path} onClick={() => setMobileMenuOpen(false)}>
+                    <span className="nav-icon" aria-hidden="true"><NavigationIcon label={item.label} /></span>
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </nav>
             </aside>
           </div>
         )}
+        <AccountDrawer open={accountOpen} online={online} pendingCount={pendingCount} onClose={() => setAccountOpen(false)} />
+        <PrivacyPolicyPrompt />
       </div>
     )
   }
@@ -238,6 +393,12 @@ export function AppShell({ children }: AppShellProps) {
         ) : (
           <NavLink className="company-selector" to="/entrar-codigo">Entrar com código</NavLink>
         )}
+        <NotificationCenter
+          notifications={notifications}
+          onRead={readNotification}
+          onDismiss={dismissNotification}
+          onReadAll={readAllNotifications}
+        />
         <button className="profile-button profile-link" type="button" onClick={() => setAccountOpen(true)} aria-label="Minha conta">
           <Avatar name={user?.user_metadata.full_name ?? user?.email} googleUrl={user?.user_metadata.avatar_url} size={52} />
         </button>

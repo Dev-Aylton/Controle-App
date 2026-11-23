@@ -220,6 +220,8 @@ declare
   item_max_stock numeric;
   existing_max_stock numeric;
   item_cost numeric;
+  item_volume_ml numeric;
+  item_dose_ml numeric;
 begin
   if jsonb_typeof(p_rows) is distinct from 'array' then raise exception 'rows must be a JSON array'; end if;
   if jsonb_array_length(p_rows) > 1000 then raise exception 'import limit is 1000 rows'; end if;
@@ -236,6 +238,8 @@ begin
       item_min_stock := coalesce(nullif(item->>'min_stock', '')::numeric, 0);
       item_max_stock := nullif(item->>'max_stock', '')::numeric(14,3);
       item_cost := nullif(item->>'unit_cost', '')::numeric;
+      item_volume_ml := nullif(item->>'volume_ml', '')::numeric(14,3);
+      item_dose_ml := nullif(item->>'dose_ml', '')::numeric(14,3);
     exception when data_exception then
       ignored_count := ignored_count + 1;
       continue;
@@ -247,9 +251,12 @@ begin
         or (item_sku is null and lower(p.name) = lower(item_name)))
     limit 1;
     if not (item ? 'max_stock') and v_product_id is not null then item_max_stock := existing_max_stock; end if;
-    if item_name = '' or item_unit not in ('un','kg','g','l','ml','cx','pct')
+    if item_name = '' or item_unit not in ('un','kg','g','l','ml','cx','pct','garrafa','lata','maço')
       or item_min_stock < 0 or item_max_stock < 0
-      or item_max_stock < item_min_stock or item_cost < 0 then
+      or item_max_stock < item_min_stock or item_cost < 0
+      or (item_volume_ml is not null and item_volume_ml <= 0)
+      or (item_dose_ml is not null and item_dose_ml <= 0)
+      or (item_volume_ml is not null and item_dose_ml is not null and item_dose_ml > item_volume_ml) then
       ignored_count := ignored_count + 1;
       continue;
     end if;
@@ -264,13 +271,14 @@ begin
       v_category_id := null;
     end if;
     if v_product_id is null then
-      insert into public.products(company_id, category_id, name, sku, unit, min_stock, max_stock, active, created_by)
-      values (p_company_id, v_category_id, item_name, item_sku, item_unit, item_min_stock, item_max_stock, true, auth.uid())
+      insert into public.products(company_id, category_id, name, sku, unit, min_stock, max_stock, volume_ml, dose_ml, active, created_by)
+      values (p_company_id, v_category_id, item_name, item_sku, item_unit, item_min_stock, item_max_stock, item_volume_ml, item_dose_ml, true, auth.uid())
       returning id into v_product_id;
       created_count := created_count + 1;
     else
       update public.products p set category_id = v_category_id, name = item_name, sku = item_sku,
-        unit = item_unit, min_stock = item_min_stock, max_stock = item_max_stock, active = true
+        unit = item_unit, min_stock = item_min_stock, max_stock = item_max_stock,
+        volume_ml = item_volume_ml, dose_ml = item_dose_ml, active = true
       where p.id = v_product_id;
       updated_count := updated_count + 1;
     end if;

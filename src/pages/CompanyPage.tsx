@@ -2,10 +2,10 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCompanies } from '../features/company/company-context'
 import { tryGetSupabaseClient } from '../lib/supabase'
-import { friendlySupabaseError } from '../lib/errors'
+import { traduzirErro } from '../lib/errors'
 import { recordTechnicalError } from '../lib/diagnostics'
 import { canManageCompany } from '../lib/uiPermissions'
-import { Container, Card, PhotoPicker, Avatar, ActionButton } from '../components'
+import { Container, Card, PhotoPicker, Avatar, ActionButton, ContextHelp } from '../components'
 
 export function CompanyPage() {
   const supabase = tryGetSupabaseClient()
@@ -64,7 +64,7 @@ export function CompanyPage() {
       await refresh()
     } catch (caught) {
       const record = caught as { message?: string; code?: string }
-      setError(friendlySupabaseError(caught))
+      setError(traduzirErro(caught, 'Não foi possível salvar as informações da empresa.'))
       setTechnicalError(`${record.message ?? String(caught)}${record.code ? ` [${record.code}]` : ''}`)
       recordTechnicalError('CompanyPage.submit', caught)
     }
@@ -75,7 +75,7 @@ export function CompanyPage() {
     setMessage('')
     setTechnicalError('')
     if (!supabase) {
-      setError('Supabase não configurado. Preencha as variáveis de ambiente.')
+      setError('Não foi possível conectar ao servidor. Recarregue a página e tente novamente.')
       return
     }
     if (!createName.trim()) {
@@ -92,7 +92,7 @@ export function CompanyPage() {
         .select('*')
         .single()
       if (createError) throw createError
-      if (!data?.id) throw new Error('A criação não retornou o identificador da empresa.')
+      if (!data?.id) throw new Error('Empresa criada, mas não foi possível concluir a configuração.')
 
       let photoPath: string | null = null
       if (createLogoBlob) {
@@ -115,7 +115,7 @@ export function CompanyPage() {
         p_company_id: data.id,
       })
       if (codeError) throw codeError
-      if (!code) throw new Error('A empresa foi criada, mas o código não foi gerado.')
+      if (!code) throw new Error('Empresa criada, mas o código de acesso ainda não está disponível.')
 
       await refresh(true)
       selectCompany(data.id)
@@ -123,7 +123,7 @@ export function CompanyPage() {
       navigate('/empresa', { replace: true })
     } catch (caught) {
       const record = caught as { message?: string; code?: string }
-      setError(friendlySupabaseError(caught))
+      setError(traduzirErro(caught, 'Não foi possível criar a empresa. Confira os dados e tente novamente.'))
       setTechnicalError(`${record.message ?? String(caught)}${record.code ? ` [${record.code}]` : ''}`)
       recordTechnicalError('CompanyPage.createCompany', caught)
     }
@@ -166,6 +166,16 @@ export function CompanyPage() {
   return (
     <Container>
       <h1>Empresa</h1>
+      <ContextHelp
+        title="Dados que representam a operação"
+        description="Nome, telefone e logo ajudam a identificar a empresa em PDF, relatórios e auditoria."
+        steps={[
+          'Use o nome oficial do estabelecimento.',
+          'Informe um telefone de contato atualizado.',
+          'Envie uma logo legível para documentos e modelos.',
+        ]}
+        result="Os dados identificam corretamente todos os registros da empresa."
+      />
       <Card>
         <Avatar
           name={name}
@@ -191,7 +201,7 @@ export function CompanyPage() {
             />
             {error && <p className="form-error" role="alert">{error}</p>}
             {message && <p className="form-success" role="status">{message}</p>}
-            <ActionButton className="primary-button" busyLabel="Salvando..." onAction={() => submit({ preventDefault: () => undefined } as FormEvent)}>Salvar empresa</ActionButton>
+            <ActionButton className="primary-button" busyLabel="Salvando..." confirmMessage="Confirmar as alterações dos dados da empresa?" onAction={() => submit({ preventDefault: () => undefined } as FormEvent)}>Salvar empresa</ActionButton>
           </form>
         ) : (
           <div className="data-list"><p><strong>Nome:</strong> {name}</p><p><strong>Telefone:</strong> {phone || 'Não informado'}</p></div>

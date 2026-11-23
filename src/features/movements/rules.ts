@@ -20,3 +20,29 @@ export function formatMovementQuantity(quantity: number) {
 export function formatBRL(value: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
+
+export function calculateDoseQuantity(volumeMl: number | null, doseMl: number | null, doses: number): number | null {
+  if (!volumeMl || !doseMl || volumeMl <= 0 || doseMl <= 0 || doses <= 0) return null
+  const dosesPerUnit = Math.floor(volumeMl / doseMl)
+  if (dosesPerUnit < 1) return null
+  return Number((doses / dosesPerUnit).toFixed(3))
+}
+
+export function calculateWeightQuantity(weightKg: number, stockUnit: string, weightPerUnitG: number | null): number | null {
+  if (!Number.isFinite(weightKg) || weightKg <= 0) return null
+  if (stockUnit === 'kg') return Number(weightKg.toFixed(3))
+  if (stockUnit === 'g') return Number((weightKg * 1000).toFixed(3))
+  if (weightPerUnitG && weightPerUnitG > 0) {
+    return Number(((weightKg * 1000) / weightPerUnitG).toFixed(3))
+  }
+  return null
+}
+
+export function calculatePortionQuantity(portions: number, stockUnit: string, weightPerUnitG: number | null): number | null {
+  if (!Number.isFinite(portions) || portions <= 0) return null
+  if (stockUnit === 'porcao' || stockUnit === 'peca' || stockUnit === 'un') return Number(portions.toFixed(3))
+  if (!weightPerUnitG || weightPerUnitG <= 0) return null
+  if (stockUnit === 'kg') return Number(((portions * weightPerUnitG) / 1000).toFixed(3))
+  if (stockUnit === 'g') return Number((portions * weightPerUnitG).toFixed(3))
+  return null
+}

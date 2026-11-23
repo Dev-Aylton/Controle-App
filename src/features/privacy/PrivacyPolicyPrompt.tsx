@@ -6,7 +6,7 @@ import { PrivacyPolicyDialog } from './PrivacyPolicyDialog'
 
 export function PrivacyPolicyPrompt() {
   const { user, loading } = useAuth()
-  const [policyStatus, setPolicyStatus] = useState<{ userId: string; version: string; needsAcceptance: boolean } | null>(null)
+  const [policyStatus, setPolicyStatus] = useState<{ userId: string; version: string; publishedAt: string; needsAcceptance: boolean } | null>(null)
   const [dismissedKey, setDismissedKey] = useState('')
   const [queryError, setQueryError] = useState<{ userId: string; message: string } | null>(null)
   const [acceptError, setAcceptError] = useState('')
@@ -38,6 +38,7 @@ export function PrivacyPolicyPrompt() {
       setPolicyStatus({
         userId: user.id,
         version: currentRelease?.policy_version ?? '',
+        publishedAt: currentRelease?.published_at ?? '',
         needsAcceptance: Boolean(currentRelease && !currentRelease.accepted_at),
       })
     }
@@ -96,6 +97,7 @@ export function PrivacyPolicyPrompt() {
       <PrivacyPolicyDialog
         open={open}
         policyVersion={policyVersion}
+        policyPublishedAt={currentStatus?.publishedAt}
         busy={busy}
         acceptError={acceptError}
         onDismiss={dismiss}

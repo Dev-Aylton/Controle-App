@@ -26,6 +26,9 @@ create table if not exists public.profiles (
   created_at timestamptz not null default timezone('utc', now())
 );
 
+alter table public.profiles
+  add column if not exists avatar_key text;
+
 create table if not exists public.app_admins (
   user_id uuid primary key references auth.users(id) on delete cascade,
   created_at timestamptz not null default timezone('utc', now())
@@ -704,7 +707,7 @@ from anon, authenticated;
 grant usage on schema public to anon, authenticated;
 
 grant select on public.profiles to authenticated;
-grant update(name, avatar_url) on public.profiles to authenticated;
+grant update(name, avatar_url, avatar_key) on public.profiles to authenticated;
 
 grant select on public.app_admins to authenticated;
 

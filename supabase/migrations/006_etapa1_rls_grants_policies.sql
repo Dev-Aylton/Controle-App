@@ -1,4 +1,5 @@
 alter table public.profiles enable row level security;
+alter table public.profiles add column if not exists avatar_key text;
 alter table public.app_admins enable row level security;
 alter table public.companies enable row level security;
 alter table public.company_codes enable row level security;
@@ -19,7 +20,7 @@ from anon, authenticated;
 grant usage on schema public to anon, authenticated;
 
 grant select on public.profiles to authenticated;
-grant update(name, avatar_url) on public.profiles to authenticated;
+grant update(name, avatar_url, avatar_key) on public.profiles to authenticated;
 
 grant select on public.app_admins to authenticated;
 

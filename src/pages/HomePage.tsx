@@ -23,6 +23,7 @@ export function HomePage() {
   const [zeroCount, setZeroCount] = useState(0)
   const [negativeCount, setNegativeCount] = useState(0)
   const [pendingLossCount, setPendingLossCount] = useState(0)
+  const [environmentCount, setEnvironmentCount] = useState(0)
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const tutorialRole = isAdmin ? 'admin' : role ?? 'sem-vinculo'
   const [tutorialDismissed, setTutorialDismissed] = useState(() => wasTutorialDismissed(getTutorialStorage(), tutorialRole))
@@ -50,6 +51,8 @@ export function HomePage() {
           .catch(() => setStockValueErrorCompanyId(activeCompanyId))
         const supabase = tryGetSupabaseClient()
         if (supabase) {
+          void supabase.from('environments').select('id', { count: 'exact', head: true }).eq('company_id', activeCompanyId).eq('active', true)
+            .then((result) => setEnvironmentCount(result.count ?? 0))
           const start = new Date()
           start.setHours(0, 0, 0, 0)
           void supabase.from('stock_movements').select('id', { count: 'exact', head: true }).eq('company_id', activeCompanyId).gte('created_at', start.toISOString()).then((result) => setMovementsToday(result.count ?? 0))
@@ -92,13 +95,53 @@ export function HomePage() {
       </header>
       {!tutorialDismissed && (
         <Card>
-          <p>Quer conhecer os recursos disponíveis para seu cargo?</p>
+          <p>Conhecer como usar o aplicativo?</p>
           <div className="member-actions">
             <button className="secondary-button" type="button" onClick={() => setTutorialOpen(true)}>Ver tutorial</button>
             <button className="secondary-button" type="button" onClick={() => {
               dismissTutorial(getTutorialStorage(), tutorialRole)
               setTutorialDismissed(true)
-            }}>Dispensar convite</button>
+            }}>Não mostrar novamente</button>
+          </div>
+        </Card>
+      )}
+      {activeCompanyId && showStockValue && (environmentCount === 0 || activeProducts === 0) && (
+        <Card>
+          <h2>Primeiros passos</h2>
+          <p>Complete o cadastro inicial para começar o controle com segurança.</p>
+          <div className="home-onboarding-list">
+            {environmentCount === 0 && (
+              <NavLink className="dashboard-action-button" to="/ambientes">
+                <span>1. Criar o primeiro ambiente</span><span aria-hidden="true">→</span>
+              </NavLink>
+            )}
+            {activeProducts === 0 && (
+              <NavLink className="dashboard-action-button" to="/produtos">
+                <span>2. Cadastrar produtos ou insumos</span><span aria-hidden="true">→</span>
+              </NavLink>
+            )}
+            {environmentCount > 0 && activeProducts !== 0 && (
+              <NavLink className="dashboard-action-button" to="/movimentacoes">
+                <span>3. Registrar o estoque inicial</span><span aria-hidden="true">→</span>
+              </NavLink>
+            )}
+          </div>
+        </Card>
+      )}
+      {activeCompanyId && showStockValue && (
+        <Card>
+          <h2>Fluxo diário do estoque</h2>
+          <p>Oriente a equipe nessa ordem para manter os saldos rastreáveis.</p>
+          <div className="home-onboarding-list">
+            <NavLink className="dashboard-action-button" to="/movimentacoes">
+              <span>Antes: retirar ou comprar diretamente no ambiente de destino</span><span aria-hidden="true">→</span>
+            </NavLink>
+            <NavLink className="dashboard-action-button" to="/vendas/importar">
+              <span>Durante: registrar vendas e consumir no ambiente correto</span><span aria-hidden="true">→</span>
+            </NavLink>
+            <NavLink className="dashboard-action-button" to="/inventario">
+              <span>Depois: devolver o restante e conciliar o ambiente</span><span aria-hidden="true">→</span>
+            </NavLink>
           </div>
         </Card>
       )}

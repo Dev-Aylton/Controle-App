@@ -2,16 +2,17 @@ import { useCallback, useEffect, useState } from 'react'
 import { useCompanies } from '../features/company/company-context'
 import { useAuth } from '../features/auth/auth-context'
 import { tryGetSupabaseClient } from '../lib/supabase'
-import { Container, Card, ActionButton } from '../components'
+import { Container, Card, ActionButton, ContextHelp } from '../components'
 import { MovementLaunchForm } from '../features/movements/MovementLaunchForm'
 import { MovementHistory } from '../features/movements/MovementHistory'
 import type { Movement, MovementEnvironment, MovementProduct } from '../features/movements/types'
 import { canReverseMovement } from '../features/movements/rules'
 import { reverseMovement } from '../services/movements'
-import { completePendingLossReason, getMyPendingLossReasons, listLossReasons, type LossReason, type PendingLossMovement } from '../features/movements/lossReasons'
+import { completePendingLossReason, getMyPendingLossReasons, listLossReasons, seedLossReasons, type LossReason, type PendingLossMovement } from '../features/movements/lossReasons'
 import { getPendingLossReasons } from '../features/management/management'
 import type { PendingLoss } from '../features/management/types'
 import { traduzirErro } from '../lib/errors'
+import { useConfirm } from '../components/confirmContext'
 
 export function MovementsPage() {
   const { activeCompany, role, isAdmin } = useCompanies()
@@ -28,6 +29,7 @@ export function MovementsPage() {
   const [pendingLosses, setPendingLosses] = useState<Array<PendingLoss | PendingLossMovement>>([])
   const [selectedPending, setSelectedPending] = useState('')
   const [pendingReason, setPendingReason] = useState('')
+  const confirmAction = useConfirm()
 
   const load = useCallback(async () => {
     if (!activeCompany) return
@@ -37,7 +39,7 @@ export function MovementsPage() {
     setError('')
     const [environmentResult, productResult, movementResult] = await Promise.all([
       supabase.from('environments').select('id,name').eq('company_id', activeCompany.id).eq('active', true),
-      supabase.from('products').select('id,name,sku,unit').eq('company_id', activeCompany.id).eq('active', true),
+      supabase.from('products').select('id,name,sku,unit,volume_ml,dose_ml,weight_g').eq('company_id', activeCompany.id).eq('active', true),
       supabase.from('stock_movements').select('*').eq('company_id', activeCompany.id).order('created_at', { ascending: false }).limit(100),
     ])
     if (environmentResult.error) setError(traduzirErro(environmentResult.error, 'Não foi possível carregar ambientes.'))
@@ -85,12 +87,18 @@ export function MovementsPage() {
   const quickReverse = async (movement: Movement) => {
     setError('')
     setMessage('')
+    const confirmed = await confirmAction({
+      title: 'Confirmar correção do lançamento',
+      message: 'Esta ação estornará o lançamento original. Depois você poderá revisar e registrar uma nova movimentação.',
+      confirmLabel: 'Estornar e corrigir',
+    })
+    if (!confirmed) return
     try {
       await reverseMovement(movement.id)
       await load()
       await correctMovement(movement)
     } catch (caught) {
-      setError(traduzirErro(caught, 'Não foi possível corrigir.'))
+      setError(traduzirErro(caught, 'Não foi possível corrigir o lançamento. Confira o saldo e tente novamente.'))
     }
   }
 
@@ -108,12 +116,43 @@ export function MovementsPage() {
     }
   }
 
+  const seedReasons = async () => {
+    if (!activeCompany) return
+    setError('')
+    try {
+      await seedLossReasons(activeCompany.id)
+      setLossReasons(await listLossReasons(activeCompany.id))
+      setMessage('Motivos padrão cadastrados.')
+    } catch (caught) {
+      setError(traduzirErro(caught, 'Não foi possível cadastrar os motivos padrão.'))
+    }
+  }
+
   return (
     <Container>
       <h1>Movimentações</h1>
+      <ContextHelp
+        title="O que são movimentações?"
+        description="Movimentações registram tudo que entra, sai, é perdido ou transferido em cada ambiente da empresa."
+        steps={[
+          'Entrada: compra, reposição ou recebimento.',
+          'Saída: consumo, venda direta ou retirada.',
+          'Perda: quebra, derramamento, validade ou erro operacional.',
+          'Transferência: saída de um ambiente e entrada em outro.',
+          'Ciclo diário entre ambientes: retire do ambiente de origem, realize vendas ou consumo no destino e devolva o restante ao ambiente de origem.',
+        ]}
+        result="O saldo de cada produto e ambiente é atualizado automaticamente."
+      />
       {loading && <p className="page-state">Carregando movimentações...</p>}
       {error && <p className="form-error" role="alert">{error}</p>}
       {message && <p className="form-success" role="status">{message}</p>}
+      {(isAdmin || role === 'owner' || role === 'manager') && lossReasons.length === 0 && (
+        <Card>
+          <h2>Motivos de perda</h2>
+          <p>Cadastre os motivos usados pela planilha: quebra, derramamento, validade, cortesia e outros.</p>
+          <ActionButton className="secondary-button" busyLabel="Cadastrando..." onAction={seedReasons}>Cadastrar motivos padrão</ActionButton>
+        </Card>
+      )}
       {pendingLosses.length > 0 && (
         <Card>
           <h2>Perdas sem motivo</h2>
@@ -181,7 +220,7 @@ export function MovementsPage() {
               .map((movement) => (
                 <article className="member-row" key={movement.id}>
                   <div><strong>{movement.type}</strong><span>{movement.quantity}</span></div>
-                  <ActionButton className="secondary-button" busyLabel="Corrigindo..." onAction={() => quickReverse(movement)}>Corrigir</ActionButton>
+                  <ActionButton className="secondary-button" busyLabel="Preparando..." onAction={() => quickReverse(movement)}>Corrigir lançamento</ActionButton>
                 </article>
               ))}
           </div>

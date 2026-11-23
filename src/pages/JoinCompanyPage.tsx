@@ -15,7 +15,7 @@ export function JoinCompanyPage() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (!supabase) return setError('Supabase não configurado.')
+    if (!supabase) return setError('Não foi possível conectar ao servidor. Recarregue a página e tente novamente.')
     setLoading(true)
     setError('')
     try {

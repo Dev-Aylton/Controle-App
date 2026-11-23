@@ -19,11 +19,13 @@ import { TutorialModal } from '../features/tutorial/TutorialModal'
 import { deleteCurrentAccount } from '../features/account/deleteAccount'
 import { useSafeSignOut } from '../features/account/useSafeSignOut'
 import { getOfflineQueueStatus } from '../features/offline/sync'
+import { getPrivacyPolicyLinkLabel, usePrivacyPolicyRelease } from '../features/privacy/privacyPolicyStatus'
 
 type Props = { open: boolean; online: boolean; pendingCount: number; onClose: () => void }
 
 export function AccountDrawer({ open, online, pendingCount, onClose }: Props) {
   const { user } = useAuth()
+  const privacyPolicyRelease = usePrivacyPolicyRelease(user?.id ?? null)
   const { activeCompany, role, isAdmin } = useCompanies()
   const layout = useBreakpoint()
   const confirm = useConfirm()
@@ -68,7 +70,7 @@ export function AccountDrawer({ open, online, pendingCount, onClose }: Props) {
       if (isNewerVersion(version, published)) {
         setUpdate(published)
         setUpdateStatus(`Nova versão disponível: v${published.version}`)
-      } else setUpdateStatus('Seu app está atualizado.')
+      } else setUpdateStatus('O aplicativo está atualizado.')
     } catch (error) {
       setUpdateStatus(traduzirErro(error, 'Não foi possível verificar atualização.'))
     }
@@ -104,7 +106,7 @@ export function AccountDrawer({ open, online, pendingCount, onClose }: Props) {
       const queueStatus = await getOfflineQueueStatus(user.id)
       const ok = await confirm({
         title: 'Solicitar exclusão da conta',
-        message: `O acesso será encerrado e seus vínculos desativados. Você poderá cancelar o pedido entrando novamente em até 90 dias; depois desse prazo, os identificadores da conta serão removidos e o histórico operacional será preservado.${queueStatus.userPending > 0 ? ` ${queueStatus.userPending} lançamento(s) pendente(s) desta conta serão descartados do aparelho.` : ''}${queueStatus.hasUnassignedPending ? ' Registros offline antigos sem conta vinculada também serão descartados do aparelho.' : ''}`,
+        message: `O acesso será encerrado e seus vínculos desativados. Você poderá cancelar o pedido entrando novamente em até 90 dias. Depois desse prazo, seu perfil e dados de login serão removidos; o histórico operacional poderá preservar o número técnico da ação, sem identificar você publicamente.${queueStatus.userPending > 0 ? ` ${queueStatus.userPending} lançamento(s) pendente(s) desta conta serão descartados do aparelho.` : ''}${queueStatus.hasUnassignedPending ? ' Registros offline antigos sem conta vinculada também serão descartados do aparelho.' : ''}`,
         confirmLabel: 'Solicitar exclusão',
         requireText: 'EXCLUIR',
       })
@@ -126,6 +128,16 @@ export function AccountDrawer({ open, online, pendingCount, onClose }: Props) {
     width: window.innerWidth, height: window.innerHeight, browser: navigator.userAgent,
   })
   const reportBody = buildReportBody(version.version, version.build, diagnosticSummary)
+  const roleLabel = isAdmin
+    ? 'Administrador'
+    : role === 'owner'
+      ? 'Proprietário'
+      : role === 'manager'
+        ? 'Gerente'
+        : role === 'employee'
+          ? 'Funcionário'
+          : 'Sem vínculo'
+  const pendingLabel = pendingCount === 1 ? '1 lançamento pendente' : `${pendingCount} lançamentos pendentes`
 
   return (
     <div className="account-drawer-backdrop" role="presentation" onMouseDown={(event) => {
@@ -136,49 +148,62 @@ export function AccountDrawer({ open, online, pendingCount, onClose }: Props) {
           <h2>Minha conta</h2>
           <button className="secondary-button" type="button" onClick={onClose} aria-label="Fechar painel da conta">Fechar</button>
         </header>
-        <section className="account-drawer-section">
+        <section className="account-drawer-section account-profile-card">
           <div className="member-identity">
             <Avatar name={user?.user_metadata.full_name ?? user?.email} googleUrl={user?.user_metadata.avatar_url} size={64} />
-            <span><strong>{user?.user_metadata.full_name ?? 'Usuário'}</strong><small>{isAdmin ? 'Admin/suporte' : role ?? 'Sem vínculo'}</small></span>
+            <span>
+              <strong>{user?.user_metadata.full_name ?? 'Usuário'}</strong>
+              <small>{roleLabel}</small>
+            </span>
           </div>
-          <p className="account-section-description">Sua identidade e o status de conexão nesta sessão.</p>
-        <div className="account-status" role="status">
-          <span className={online ? 'status-online' : 'status-offline'} aria-hidden="true"></span>
-          <strong>{online ? 'Online' : 'Offline'}</strong>
-          {pendingCount > 0 && <small>{pendingCount} item(ns) pendente(s)</small>}
-        </div>
-        <NavLink to="/perfil" onClick={onClose}>Editar meu perfil</NavLink>
+          <div className="account-status" role="status">
+            <span className={online ? 'status-online' : 'status-offline'} aria-hidden="true"></span>
+            <strong>{online ? 'Online' : 'Offline'}</strong>
+            {pendingCount > 0 && <small>{pendingLabel}</small>}
+          </div>
+          <NavLink className="account-profile-link" to="/perfil" onClick={onClose}>Editar meu perfil</NavLink>
         </section>
-        <section className="account-drawer-section">
+        <section className="account-drawer-section account-preferences">
           <h3 className="account-drawer-section-title">Preferências</h3>
-          <p className="account-section-description">Escolha como o aplicativo será exibido e mantenha o sistema atualizado.</p>
-          <label>Tema
+          <p className="account-section-description">Escolha a aparência usada nesta sessão.</p>
+          <label className="account-theme-field">Tema
             <select value={theme} onChange={(event) => setTheme(event.target.value as ThemeMode)}>
               <option value="light">Claro</option><option value="dark">Escuro</option>
             </select>
           </label>
-          <button
-            className="version-button"
-            type="button"
-            onClick={sevenClicks}
-            aria-label={`Versão do aplicativo ${formatAppVersion()}`}
-            title="Versão do aplicativo"
-          >
-            {formatAppVersion()}
-          </button>
-          <ActionButton className="secondary-button" busyLabel="Verificando..." onAction={checkUpdate}>Verificar atualização</ActionButton>
+        </section>
+        <section className="account-drawer-section account-app-info">
+          <h3 className="account-drawer-section-title">Aplicativo</h3>
+          <div className="account-app-version-row">
+            <span>
+              <small>Versão instalada</small>
+              <strong>Controle-App</strong>
+            </span>
+            <button
+              className="version-button"
+              type="button"
+              onClick={sevenClicks}
+              aria-label={`Versão do aplicativo ${formatAppVersion()}`}
+              title="Versão do aplicativo"
+            >
+              {formatAppVersion()}
+            </button>
+          </div>
+          <ActionButton className="secondary-button account-update-button" busyLabel="Verificando..." onAction={checkUpdate}>Verificar atualização</ActionButton>
           {updateStatus && <p role="status">{updateStatus}</p>}
           {update && <ActionButton className="primary-button" onAction={applyUpdate}>Atualizar agora</ActionButton>}
         </section>
-        <section className="account-drawer-section">
-          <h3 className="account-drawer-section-title">Ações e ajuda</h3>
-          <p className="account-section-description">Conheça os recursos do seu cargo, envie informações técnicas ou exporte seus dados.</p>
-          <button className="secondary-button" type="button" onClick={() => setTutorialOpen(true)}>Ver tutorial do meu cargo</button>
-          <NavLink to="/privacidade" onClick={onClose}>Aviso de Privacidade (minuta)</NavLink>
-          <a href={`mailto:desenvolvedor.aylton@gmail.com?subject=${encodeURIComponent('Problema no Controle-App')}&body=${encodeURIComponent(reportBody)}`}>Reportar problema</a>
-          <ActionButton className="secondary-button" busyLabel="Copiando..." onAction={copyReport}>Copiar diagnóstico completo</ActionButton>
-          {user?.id && <ActionButton className="secondary-button" busyLabel="Preparando..." onAction={() => exportPersonalData(user.id)}>Baixar meus dados pessoais</ActionButton>}
-          {activeCompany && canManageCompany(role, isAdmin) && <ActionButton className="secondary-button" busyLabel="Exportando..." onAction={() => exportCompanyData(activeCompany.id, activeCompany.name, role, isAdmin)}>Exportar dados da empresa</ActionButton>}
+        <section className="account-drawer-section account-actions-section">
+          <h3 className="account-drawer-section-title">Ajuda e dados</h3>
+          <div className="account-action-list">
+            <button className="account-action-button" type="button" onClick={() => setTutorialOpen(true)}>Tutorial</button>
+            <NavLink className="account-action-link" to="/privacidade" onClick={onClose}>{getPrivacyPolicyLinkLabel(privacyPolicyRelease)}</NavLink>
+            <a className="account-action-link" href={`mailto:desenvolvedor.aylton@gmail.com?subject=${encodeURIComponent('Problema no Controle-App')}&body=${encodeURIComponent(reportBody)}`}>Reportar problema</a>
+            <a className="account-action-link" href="mailto:desenvolvedor.aylton@gmail.com">Entrar em contato</a>
+            <ActionButton className="account-action-button" busyLabel="Copiando..." onAction={copyReport}>Copiar diagnóstico completo</ActionButton>
+            {user?.id && <ActionButton className="account-action-button" busyLabel="Preparando..." onAction={() => exportPersonalData(user.id)}>Baixar meus dados pessoais</ActionButton>}
+            {activeCompany && canManageCompany(role, isAdmin) && <ActionButton className="account-action-button" busyLabel="Exportando..." onAction={() => exportCompanyData(activeCompany.id, activeCompany.name, role, isAdmin)}>Exportar dados da empresa</ActionButton>}
+          </div>
         </section>
         <button className="logout-button" type="button" disabled={safeSignOut.busy} onClick={() => void safeSignOut.requestSignOut()}>
           {safeSignOut.busy ? 'Saindo...' : 'Sair'}
@@ -195,7 +220,7 @@ export function AccountDrawer({ open, online, pendingCount, onClose }: Props) {
           <details className="danger-zone-details">
             <summary>Gerenciar exclusão da conta</summary>
             <div className="danger-zone-content">
-              <p>O pedido encerra sua sessão e inicia um prazo de 90 dias para reativação. Ao fim do prazo, os identificadores serão removidos; o histórico operacional será mantido. Transfira a propriedade das empresas antes de continuar.</p>
+              <p>O pedido encerra sua sessão e inicia um prazo de 90 dias para reativação. Ao fim do prazo, perfil e dados de login serão removidos; o histórico operacional será preservado por rastreabilidade e poderá conter somente identificadores técnicos, não o seu nome. Transfira a propriedade das empresas antes de continuar.</p>
               <ActionButton className="danger-button" disabled={deletePending} busyLabel="Solicitando..." onAction={deleteAccount}>Solicitar exclusão da conta</ActionButton>
               {deleteError && <p className="form-error" role="alert">{deleteError}</p>}
             </div>

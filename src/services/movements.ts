@@ -84,6 +84,22 @@ export async function submitInventoryCount(sessionId: string, productId: string,
   if (result.error) throw new Error(friendlySupabaseError(result.error))
 }
 
+export async function applyInventoryCountBatch(
+  companyId: string,
+  environmentId: string,
+  counts: Array<{ product_id: string; counted_quantity: number }>,
+) {
+  const supabase = tryGetSupabaseClient()
+  if (!supabase) throw new Error('Supabase não configurado.')
+  const result = await supabase.rpc('apply_inventory_count_batch', {
+    p_company_id: companyId,
+    p_environment_id: environmentId,
+    p_counts: counts,
+  })
+  if (result.error) throw new Error(friendlySupabaseError(result.error))
+  return result.data
+}
+
 export async function finishInventory(sessionId: string) {
   const supabase = tryGetSupabaseClient()
   if (!supabase) throw new Error('Supabase não configurado.')

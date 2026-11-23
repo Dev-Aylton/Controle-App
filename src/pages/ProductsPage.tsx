@@ -5,12 +5,13 @@ import { tryGetSupabaseClient } from '../lib/supabase'
 import { friendlySupabaseError } from '../lib/errors'
 import { canManageCompany } from '../lib/uiPermissions'
 import { formatBRL } from '../features/products/import/formatCurrency'
-import { Container, Card, PhotoPicker, Avatar, ActionButton } from '../components'
+import { Container, Card, PhotoPicker, Avatar, ActionButton, ContextHelp } from '../components'
 import { useNavigate } from 'react-router-dom'
 import type { Tables } from '../lib/database.types'
 import { validateStockRange } from '../features/management/rules'
-import { getStockSuggestions, type StockSuggestion } from '../features/management/stockSuggestions'
+import { analyzeReplenishmentPattern, getStockSuggestions, type StockSuggestion } from '../features/management/stockSuggestions'
 import { traduzirErro } from '../lib/errors'
+import { searchProductCatalog, type ProductCatalogSuggestion } from '../features/products/productCatalog'
 
 type Product = Tables<'products'>
 type Category = Tables<'product_categories'>
@@ -32,11 +33,12 @@ export function ProductsPage() {
   const [sku, setSku] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [inlineCategory, setInlineCategory] = useState('')
-  const [unit, setUnit] = useState<'un'|'kg'|'g'|'l'|'ml'|'cx'|'pct'>('un')
+  const [unit, setUnit] = useState<'un'|'kg'|'g'|'l'|'ml'|'cx'|'pct'|'garrafa'|'lata'|'maço'|'porcao'|'duzia'|'bandeja'|'pacote'|'saco'|'ramo'|'peca'|'fardo'|'frasco'>('un')
   const [minStock, setMinStock] = useState<number | null>(0)
   const [maxStock, setMaxStock] = useState<number | null>(null)
   const [volumeMl, setVolumeMl] = useState<number | null>(null)
   const [doseMl, setDoseMl] = useState<number | null>(null)
+  const [weightG, setWeightG] = useState<number | null>(null)
   const [unitCost, setUnitCost] = useState(0)
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null)
   const [photoPreview, setPhotoPreview] = useState('')
@@ -47,6 +49,27 @@ export function ProductsPage() {
   const [suggestionLoading, setSuggestionLoading] = useState(false)
   const [categoryName, setCategoryName] = useState('')
   const [categoryEditingId, setCategoryEditingId] = useState<string | null>(null)
+
+  const catalogSuggestions = name.trim().length >= 2
+    ? searchProductCatalog(name)
+    : []
+
+  const applyCatalogSuggestion = (suggestion: ProductCatalogSuggestion) => {
+    setName(suggestion.name)
+    setUnit(suggestion.unit)
+    setVolumeMl(suggestion.volumeMl ?? null)
+    setDoseMl(suggestion.doseMl ?? null)
+    const existingCategory = categories.find((item) =>
+      item.name.trim().toLowerCase() === suggestion.category.trim().toLowerCase(),
+    )
+    if (existingCategory) {
+      setCategoryId(existingCategory.id)
+      setInlineCategory('')
+    } else {
+      setCategoryId('')
+      setInlineCategory(suggestion.category)
+    }
+  }
 
   const load = useCallback(async () => {
     if (!activeCompanyId) return
@@ -67,7 +90,7 @@ export function ProductsPage() {
   const reset = () => {
     setEditingId(null); setName(''); setSku(''); setCategoryId(''); setInlineCategory('')
     setUnit('un'); setMinStock(0); setMaxStock(null); setUnitCost(0); setPhotoBlob(null); setPhotoPreview(''); setPhotoPath(null)
-    setVolumeMl(null); setDoseMl(null)
+    setVolumeMl(null); setDoseMl(null); setWeightG(null)
   }
 
   const openSuggestions = async () => {
@@ -76,7 +99,52 @@ export function ProductsPage() {
     setSuggestionLoading(true)
     setError('')
     try {
-      setSuggestions(await getStockSuggestions(activeCompanyId, null, 90))
+      const baseSuggestions = await getStockSuggestions(activeCompanyId, null, 90)
+      const supabase = tryGetSupabaseClient()
+      if (!supabase) throw new Error('Supabase não configurado.')
+      const cutoff = new Date(Date.now() - 90 * 86400000).toISOString()
+      const productIds = [...new Set(baseSuggestions.map((item) => item.product_id))]
+      if (productIds.length === 0) {
+        setSuggestions([])
+        return
+      }
+      const movementsResult = await supabase
+        .from('stock_movements')
+        .select('product_id,environment_id,type,quantity,created_at')
+        .eq('company_id', activeCompanyId)
+        .in('product_id', productIds)
+        .gte('created_at', cutoff)
+      if (movementsResult.error) throw movementsResult.error
+      const movements = movementsResult.data ?? []
+      const enriched = baseSuggestions.map((suggestion) => {
+        const category = categories.find((item) => item.id === products.find((product) => product.id === suggestion.product_id)?.category_id)
+        const pattern = analyzeReplenishmentPattern(
+          suggestion.product_name,
+          category?.name ?? '',
+          movements
+            .filter((item) => item.product_id === suggestion.product_id && item.environment_id === suggestion.environment_id)
+            .map((item) => ({
+              type: item.type as 'entrada' | 'saida' | 'perda',
+              quantity: Number(item.quantity),
+              created_at: item.created_at,
+            })),
+          suggestion.current_min,
+          suggestion.current_max,
+        )
+        return {
+          ...suggestion,
+          purchase_count: pattern.purchaseCount,
+          purchase_interval_days: pattern.purchaseIntervalDays ?? undefined,
+          average_purchase_qty: pattern.averagePurchase,
+          recommended_action: pattern.action,
+          confidence: pattern.confidence,
+          reason: pattern.reason,
+          perishability: pattern.perishable ? 'perecivel' as const : 'conservavel' as const,
+          suggested_min: pattern.action === 'keep' ? suggestion.suggested_min : pattern.suggestedMin,
+          suggested_max: pattern.action === 'keep' ? suggestion.suggested_max : pattern.suggestedMax,
+        }
+      })
+      setSuggestions(enriched)
     } catch (caught) {
       setError(traduzirErro(caught, 'Não foi possível calcular sugestões.'))
     } finally {
@@ -99,13 +167,38 @@ export function ProductsPage() {
   }
 
   const acceptAllSuggestions = async () => {
-    for (const suggestion of suggestions) await acceptSuggestion(suggestion)
+    for (const suggestion of suggestions) {
+      if (suggestion.recommended_action === 'keep') continue
+      await acceptSuggestion(suggestion)
+    }
   }
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!activeCompany) return
     setError('')
+    const cleanSku = sku.trim().toLowerCase()
+    if (cleanSku) {
+      const skuConflict = products.find((product) =>
+        product.id !== editingId
+        && product.sku?.trim().toLowerCase() === cleanSku,
+      )
+      if (skuConflict) {
+        setError(`O código/SKU "${sku.trim()}" já pertence ao produto "${skuConflict.name}". Use um código diferente para esta embalagem ou variante.`)
+        return
+      }
+    }
+    const variantConflict = products.find((product) =>
+      product.id !== editingId
+      && product.name.trim().toLowerCase() === name.trim().toLowerCase()
+      && product.unit === unit
+      && Number(product.volume_ml ?? 0) === Number(volumeMl ?? 0)
+      && Number(product.dose_ml ?? 0) === Number(doseMl ?? 0),
+    )
+    if (variantConflict) {
+      setError(`Esta mesma variante já existe: ${variantConflict.name}, ${variantConflict.unit}${variantConflict.volume_ml ? `, ${variantConflict.volume_ml} ml` : ''}. Altere o tamanho, volume ou código para cadastrar uma variante diferente.`)
+      return
+    }
     const stockValidation = validateStockRange(minStock, maxStock)
     if (stockValidation) {
       setError(stockValidation)
@@ -117,6 +210,10 @@ export function ProductsPage() {
     }
     if (doseMl !== null && volumeMl !== null && doseMl > volumeMl) {
       setError('A dose não pode ser maior que o volume da unidade.')
+      return
+    }
+    if (weightG !== null && weightG <= 0) {
+      setError('O peso da unidade deve ser maior que zero.')
       return
     }
     try {
@@ -142,13 +239,14 @@ export function ProductsPage() {
         max_stock: maxStock,
         volume_ml: volumeMl,
         dose_ml: doseMl,
+        weight_g: weightG,
         photo_path: nextPhotoPath,
         active: true,
       }, canManage ? unitCost : undefined)
       reset()
       await load()
     } catch (caught) {
-      setError(friendlySupabaseError(caught))
+      setError(traduzirErro(caught, 'Não foi possível salvar o produto. Confira os dados e tente novamente.'))
     }
   }
 
@@ -158,6 +256,7 @@ export function ProductsPage() {
     setMaxStock(product.max_stock === null ? null : Number(product.max_stock))
     setVolumeMl(product.volume_ml === null ? null : Number(product.volume_ml))
     setDoseMl(product.dose_ml === null ? null : Number(product.dose_ml))
+    setWeightG(product.weight_g == null ? null : Number(product.weight_g))
     setPhotoPath(product.photo_path); setPhotoPreview('')
     const cost = costs.find((item) => item.product_id === product.id)
     setUnitCost(cost ? Number(cost.unit_cost) : 0)
@@ -179,10 +278,28 @@ export function ProductsPage() {
     && (!categoryFilter || product.category_id === categoryFilter)
     && (!search || `${product.name} ${product.sku ?? ''}`.toLowerCase().includes(search.toLowerCase())),
   )
+  const groupedProducts = categories
+    .map((category) => ({
+      category,
+      items: filtered.filter((product) => product.category_id === category.id),
+    }))
+    .filter((group) => group.items.length > 0)
+  const uncategorized = filtered.filter((product) => !product.category_id)
 
   return (
     <Container>
       <h1>Produtos</h1>
+      <ContextHelp
+        title="O que cadastrar em Produtos?"
+        description="Esta página é o catálogo de tudo que a empresa controla: bebidas, carnes, peixes, frutas, verduras, porções e outros insumos."
+        steps={[
+          'Informe nome, código/SKU, categoria e unidade.',
+          'Defina mínimo e máximo para saber quando repor.',
+          'Use volume e dose para bebidas ou peso por porção para insumos.',
+          'Cadastre custo para lista de compras e relatórios financeiros.',
+        ]}
+        result="Cada cadastro vira uma referência única para movimentações, inventários, vendas e compras."
+      />
       {canManage && <button className="secondary-button" type="button" onClick={() => navigate('/produtos/importar')}>Importar planilha</button>}
       {canManage && <ActionButton className="secondary-button" busyLabel="Calculando..." onAction={openSuggestions}>Sugerir mínimo e máximo</ActionButton>}
       {canManage && <p className="field-help">Usa as movimentações dos últimos 90 dias para sugerir níveis de estoque. Revise as sugestões antes de aplicá-las.</p>}
@@ -197,9 +314,34 @@ export function ProductsPage() {
               <div className="member-list">
                 {suggestions.map((suggestion) => (
                   <article className="member-row" key={`${suggestion.product_id}-${suggestion.environment_id}`}>
-                    <div><strong>{suggestion.product_name}</strong><span>{suggestion.environment_name} • atual {suggestion.current_min ?? '-'} / {suggestion.current_max ?? '-'} • sugerido {suggestion.suggested_min} / {suggestion.suggested_max}</span></div>
+                    <div>
+                      <strong>{suggestion.product_name}</strong>
+                      <span>
+                        {suggestion.environment_name} • atual {suggestion.current_min ?? '-'} / {suggestion.current_max ?? '-'} • sugerido {suggestion.suggested_min} / {suggestion.suggested_max}
+                      </span>
+                      <small>
+                        {suggestion.purchase_count ?? 0} compra(s) registradas
+                        {suggestion.purchase_interval_days ? ` • intervalo médio de ${suggestion.purchase_interval_days} dia(s)` : ''}
+                        {' • '}
+                        {suggestion.perishability === 'perecivel' ? 'Item perecível' : 'Item de boa conservação'}
+                        {' • confiança ' + (suggestion.confidence ?? 'baixa')}
+                      </small>
+                      {suggestion.reason && <p className="field-help">{suggestion.reason}</p>}
+                    </div>
                     <div className="member-actions">
-                      <ActionButton className="primary-button" busyLabel="Aplicando..." onAction={() => acceptSuggestion(suggestion)}>Aceitar</ActionButton>
+                      <ActionButton
+                        className="primary-button"
+                        busyLabel="Aplicando..."
+                        disabled={suggestion.recommended_action === 'keep'}
+                        confirmMessage={`Aplicar os níveis sugeridos para "${suggestion.product_name}" no ambiente ${suggestion.environment_name}?`}
+                        onAction={() => acceptSuggestion(suggestion)}
+                      >
+                        {suggestion.recommended_action === 'keep'
+                          ? suggestion.perishability === 'perecivel'
+                            ? 'Perecível: manter ou revisar'
+                            : 'Manter níveis atuais'
+                          : 'Aceitar'}
+                      </ActionButton>
                       <button className="secondary-button" type="button" onClick={() => setSuggestions((current) => current.filter((item) => item !== suggestion))}>Ignorar</button>
                     </div>
                   </article>
@@ -212,7 +354,12 @@ export function ProductsPage() {
               <h2>Categorias</h2>
               <div className="form-grid">
                 <label>Categoria<input value={categoryName} onChange={(event) => setCategoryName(event.target.value)} placeholder="Ex.: Destilados" /></label>
-                <ActionButton className="primary-button" busyLabel="Salvando..." disabled={!categoryName.trim()} onAction={async () => {
+                <ActionButton
+                  className="primary-button"
+                  busyLabel="Salvando..."
+                  disabled={!categoryName.trim()}
+                  confirmMessage={categoryEditingId ? `Confirmar a alteração da categoria "${categoryName.trim()}"?` : `Criar a categoria "${categoryName.trim()}"?`}
+                  onAction={async () => {
                   if (categoryEditingId) await updateCategory(categoryEditingId, categoryName)
                   else if (activeCompany) await saveCategory(activeCompany.id, categoryName)
                   setCategoryName('')
@@ -255,7 +402,42 @@ export function ProductsPage() {
         <Card>
           <h2>{editingId ? 'Editar produto' : 'Novo produto'}</h2>
           <form className="form-stack" onSubmit={(event) => event.preventDefault()}>
-            <label>Nome<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Vodka Premium 1 L" required /></label>
+            <label>Nome
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Ex.: Smirnoff, Heineken ou picanha"
+                list="product-catalog-suggestions"
+                autoComplete="off"
+                required
+              />
+              <datalist id="product-catalog-suggestions">
+                {catalogSuggestions.map((suggestion) => (
+                  <option
+                    key={`${suggestion.name}-${suggestion.unit}-${suggestion.volumeMl ?? ''}-${suggestion.doseMl ?? ''}`}
+                    value={suggestion.name}
+                  />
+                ))}
+              </datalist>
+            </label>
+            {catalogSuggestions.length > 0 && (
+              <div className="product-catalog-suggestions" aria-label="Sugestões inteligentes">
+                <span>Sugestões para o nome informado</span>
+                <div>
+                  {catalogSuggestions.map((suggestion) => (
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      key={`${suggestion.name}-${suggestion.unit}-${suggestion.volumeMl ?? ''}-${suggestion.doseMl ?? ''}`}
+                      onClick={() => applyCatalogSuggestion(suggestion)}
+                    >
+                      <strong>{suggestion.name}</strong>
+                      <small>{suggestion.category} • {suggestion.unit}{suggestion.volumeMl ? ` • ${suggestion.volumeMl} ml` : ''}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <label>Código/SKU
               <input value={sku} onChange={(event) => setSku(event.target.value)} placeholder="Ex.: VOD-001" aria-describedby="product-sku-help" />
               <span className="field-help" id="product-sku-help">Código próprio para identificar e localizar o produto.</span>
@@ -272,7 +454,25 @@ export function ProductsPage() {
             </label>
             <label>Unidade
               <select value={unit} onChange={(event) => setUnit(event.target.value as typeof unit)}>
-                <option value="un">Unidade</option><option value="kg">kg</option><option value="g">g</option><option value="l">l</option><option value="ml">ml</option><option value="cx">Caixa</option><option value="pct">Pacote</option>
+                <option value="un">Unidade</option>
+                <option value="garrafa">Garrafa</option>
+                <option value="lata">Lata</option>
+                <option value="maço">Maço</option>
+                <option value="porcao">Porção</option>
+                <option value="duzia">Dúzia</option>
+                <option value="bandeja">Bandeja</option>
+                <option value="pacote">Pacote</option>
+                <option value="saco">Saco</option>
+                <option value="ramo">Ramo</option>
+                <option value="peca">Peça</option>
+                <option value="fardo">Fardo</option>
+                <option value="frasco">Frasco</option>
+                <option value="kg">kg</option>
+                <option value="g">g</option>
+                <option value="l">l</option>
+                <option value="ml">ml</option>
+                <option value="cx">Caixa</option>
+                <option value="pct">Pacote</option>
               </select>
             </label>
             <label>Estoque mínimo
@@ -292,6 +492,12 @@ export function ProductsPage() {
               <span className="field-help" id="dose-help">Quantidade servida por dose. Informe também o volume para calcular equivalências em doses.</span>
             </label>
             {volumeMl !== null && doseMl !== null && doseMl > 0 && <p>Doses por unidade: {Math.floor(volumeMl / doseMl)}</p>}
+            {['kg','g','porcao','duzia','bandeja','pacote','saco','ramo','peca','fardo'].includes(unit) && (
+              <label>Peso da unidade (g)
+                <input type="number" min="0" step="1" value={weightG ?? ''} onChange={(event) => setWeightG(event.target.value === '' ? null : Number(event.target.value))} placeholder="Ex.: 180" aria-describedby="weight-help" />
+                <span className="field-help" id="weight-help">Peso aproximado de uma porção, peça, ramo ou embalagem.</span>
+              </label>
+            )}
             {canManage && (
               <label>Custo unitário (R$)
                 <input type="number" min="0" step="0.01" value={unitCost} onChange={(event) => setUnitCost(Number(event.target.value))} placeholder="Ex.: 89,90" aria-describedby="unit-cost-help" />
@@ -300,31 +506,70 @@ export function ProductsPage() {
             )}
             <PhotoPicker shape="square" label="Foto do produto" onConfirm={(blob, previewUrl) => { setPhotoBlob(blob); setPhotoPreview(previewUrl) }} />
             {(photoPreview || photoPath) && <Avatar name={name} uploadedUrl={photoPreview || undefined} storageBucket="company-photos" storagePath={photoPreview ? null : photoPath} shape="square" size={96} companyLogoFallback />}
-            <ActionButton className="primary-button" busyLabel="Salvando..." onAction={() => submit({ preventDefault: () => undefined } as FormEvent)}>{editingId ? 'Salvar produto' : 'Criar produto'}</ActionButton>
+            <ActionButton
+              className="primary-button"
+              busyLabel="Salvando..."
+              confirmMessage={editingId ? `Confirmar as alterações do produto "${name.trim()}"?` : `Cadastrar o novo produto "${name.trim()}"?`}
+              onAction={() => submit({ preventDefault: () => undefined } as FormEvent)}
+            >
+              {editingId ? 'Salvar produto' : 'Criar produto'}
+            </ActionButton>
           </form>
         </Card>
       )}
       <Card>
         {filtered.length === 0 && <p>Nenhum produto cadastrado ainda. Cadastre o primeiro produto no formulário acima.</p>}
-        <div className="member-list">
-          {filtered.map((product) => {
-            const cost = costs.find((item) => item.product_id === product.id)
-            return (
-              <article className="member-row" key={product.id}>
-                <div className="member-identity">
-                  <Avatar name={product.name} storageBucket="company-photos" storagePath={product.photo_path} shape="square" size={48} companyLogoFallback />
-                  <span><strong>{product.name}</strong><small>{product.sku || 'Sem código'} • {product.unit}{canManage && cost ? ` • ${formatBRL(Number(cost.unit_cost))}` : ''}</small></span>
-                </div>
-                {canManage && (
-                  <div className="member-actions">
-                    <button className="secondary-button" type="button" onClick={() => edit(product)}>Editar</button>
-                    <ActionButton className="danger-button" busyLabel="Alterando..." confirmMessage={product.active ? 'Desativar este produto?' : undefined} onAction={() => toggleActive(product)}>{product.active ? 'Desativar' : 'Reativar'}</ActionButton>
-                  </div>
-                )}
-              </article>
-            )
-          })}
-        </div>
+        {[
+          ...groupedProducts,
+          ...(uncategorized.length > 0 ? [{ category: { id: 'uncategorized', name: 'Sem categoria', active: true }, items: uncategorized }] : []),
+        ].map((group) => (
+          <section className="product-category-group" key={group.category.id}>
+            <header className="product-category-heading">
+              <div>
+                <h2>{group.category.name}</h2>
+                <span>{group.items.filter((item) => item.active).length} ativo(s) • {group.items.filter((item) => !item.active).length} inativo(s)</span>
+              </div>
+            </header>
+            <div className="product-management-list">
+              {group.items.map((product) => {
+                const cost = costs.find((item) => item.product_id === product.id)
+                const measurement = product.volume_ml
+                  ? `${product.volume_ml} ml`
+                  : product.unit === 'kg' || product.unit === 'g'
+                    ? product.unit
+                    : ''
+                return (
+                  <article className={`product-management-row${product.active ? '' : ' is-inactive'}`} key={product.id}>
+                    <div className="member-identity">
+                      <Avatar name={product.name} storageBucket="company-photos" storagePath={product.photo_path} shape="square" size={48} companyLogoFallback />
+                      <span>
+                        <strong>{product.name}</strong>
+                        <small>{product.sku || 'Sem código'} • {product.unit}{measurement ? ` • ${measurement}` : ''}</small>
+                      </span>
+                    </div>
+                    <div className="product-management-details">
+                      {canManage && cost && <span>Custo <strong>{formatBRL(Number(cost.unit_cost))}</strong></span>}
+                      <span>{product.active ? 'Ativo' : 'Inativo'}</span>
+                    </div>
+                    {canManage && (
+                      <div className="member-actions">
+                        <button className="secondary-button" type="button" onClick={() => edit(product)}>Editar</button>
+                        <ActionButton
+                          className={product.active ? 'danger-button' : 'secondary-button'}
+                          busyLabel="Alterando..."
+                          confirmMessage={product.active ? `Inativar "${product.name}"?` : undefined}
+                          onAction={() => toggleActive(product)}
+                        >
+                          {product.active ? 'Inativar' : 'Reativar'}
+                        </ActionButton>
+                      </div>
+                    )}
+                  </article>
+                )
+              })}
+            </div>
+          </section>
+        ))}
       </Card>
     </Container>
   )

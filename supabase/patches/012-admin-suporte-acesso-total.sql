@@ -64,7 +64,14 @@ begin
   returning id into v_movement_id;
   insert into public.audit_log(user_id,company_id,action,data)
   values(auth.uid(),p_company_id,'movement_registered',
-    jsonb_build_object('movement_id',v_movement_id,'type',p_type,'quantity',p_quantity,'support',coalesce(public.is_admin(),false)));
+    jsonb_build_object(
+      'movement_id',v_movement_id,
+      'product_id',p_product_id,
+      'environment_id',p_environment_id,
+      'type',p_type,
+      'quantity',p_quantity,
+      'support',coalesce(public.is_admin(),false)
+    ));
   return v_movement_id;
 end;
 $$;

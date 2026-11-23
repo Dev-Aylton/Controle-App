@@ -37,3 +37,11 @@ export async function getMyPendingLossReasons(companyId: string): Promise<Pendin
   if (result.error) throw new Error(friendlySupabaseError(result.error))
   return (result.data ?? []) as PendingLossMovement[]
 }
+
+export async function seedLossReasons(companyId: string): Promise<number> {
+  const supabase = tryGetSupabaseClient()
+  if (!supabase) throw new Error('Supabase não configurado.')
+  const result = await supabase.rpc('seed_loss_reasons', { p_company_id: companyId })
+  if (result.error) throw new Error(friendlySupabaseError(result.error))
+  return Number(result.data ?? 0)
+}

@@ -44,7 +44,7 @@ create table if not exists public.products (
   active boolean not null default true,
   created_at timestamptz not null default timezone('utc', now()),
   created_by uuid references auth.users(id),
-  constraint products_unit_check check (unit in ('un','kg','g','l','ml','cx','pct')),
+  constraint products_unit_check check (unit in ('un','kg','g','l','ml','cx','pct','garrafa','lata','maço','porcao','duzia','bandeja','pacote','saco')),
   constraint products_min_stock_check check (min_stock >= 0)
 );
 

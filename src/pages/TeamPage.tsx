@@ -3,9 +3,9 @@ import { useCompanies } from '../features/company/company-context'
 import { useAuth } from '../features/auth/auth-context'
 import { tryGetSupabaseClient } from '../lib/supabase'
 import type { CompanyRole } from '../lib/database.types'
-import { friendlySupabaseError } from '../lib/errors'
+import { friendlySupabaseError, traduzirErro } from '../lib/errors'
 import { canDeactivate, canInvite, canPromote, canViewCompanyCode } from '../lib/uiPermissions'
-import { Container, Card, Avatar, ActionButton } from '../components'
+import { Container, Card, Avatar, ActionButton, ContextHelp } from '../components'
 import { buildTeamMemberViews } from './teamRules'
 import { getTeamMembers, type TeamMember } from '../services/team'
 
@@ -101,7 +101,7 @@ export function TeamPage() {
       setMessage('Convite criado.')
       setInviteEmail('')
     } catch (caught) {
-      setError(friendlySupabaseError(caught))
+      setError(traduzirErro(caught, 'Não foi possível criar o convite. Confira o e-mail e tente novamente.'))
     }
   }
 
@@ -114,7 +114,7 @@ export function TeamPage() {
       setMessage('Membro promovido a gerente.')
       await load()
     } catch (caught) {
-      setError(friendlySupabaseError(caught))
+      setError(traduzirErro(caught, 'Não foi possível promover o membro. Tente novamente.'))
     }
   }
 
@@ -128,7 +128,7 @@ export function TeamPage() {
       await refresh()
       await load()
     } catch (caught) {
-      setError(friendlySupabaseError(caught))
+      setError(traduzirErro(caught, 'Não foi possível desativar o membro. Tente novamente.'))
     }
   }
 
@@ -141,7 +141,7 @@ export function TeamPage() {
       setCode(data ?? '')
       setMessage('Código da empresa trocado.')
     } catch (caught) {
-      setError(friendlySupabaseError(caught))
+      setError(traduzirErro(caught, 'Não foi possível trocar o código da empresa. Tente novamente.'))
     }
   }
 
@@ -166,6 +166,17 @@ export function TeamPage() {
   return (
     <Container>
       <h1>Equipe — {activeCompany.name}</h1>
+      <ContextHelp
+        title="Como funcionam os níveis da equipe?"
+        description="Permissões definem quem pode visualizar, lançar ou administrar informações da empresa."
+        steps={[
+          'Funcionário: opera atividades autorizadas pelo seu vínculo.',
+          'Gerente: gerencia estoque, preços, vendas, compras e contagens.',
+          'Proprietário: administra a empresa e sua equipe.',
+          'Administrador do app: atua como suporte e suas ações ficam identificadas.',
+        ]}
+        result="Convites e código só devem ser compartilhados com pessoas autorizadas."
+      />
       {error && <p className="form-error" role="alert">{error}</p>}
       {message && <p className="form-success" role="status">{message}</p>}
       <Card>
@@ -237,7 +248,7 @@ export function TeamPage() {
                 </div>
                 <div className="member-actions">
                   {member.membershipId !== 'app-admin' && member.active && targetRole === 'employee' && canPromote(role, isAdmin) && (
-                    <ActionButton className="secondary-button" busyLabel="Promovendo..." onAction={() => promote(member.membershipId)}>Promover</ActionButton>
+                    <ActionButton className="secondary-button" busyLabel="Promovendo..." confirmMessage={`Promover ${member.name} a gerente? Essa alteração amplia as permissões de gestão.`} onAction={() => promote(member.membershipId)}>Promover</ActionButton>
                   )}
                   {deactivateAllowed && (
                     <ActionButton className="danger-button" busyLabel="Desativando..." confirmMessage="Desativar este membro?" onAction={() => deactivate(member.membershipId)}>Desativar</ActionButton>

@@ -275,11 +275,16 @@ suite('RLS Etapa 1', () => {
 
   it('proprietário promove funcionário ativo, gerente e funcionário não promovem', async () => {
     const owner = clientByName.get('owner-a')
-    const target = await admin.from('memberships').select('id').eq('company_id', companyA).eq('role', 'employee').limit(1).maybeSingle()
+    const employeeToPromote = createdUsers.get('employee-promote')
+    const employeeToRemain = createdUsers.get('employee-promote-manager')
+    if (!employeeToPromote || !employeeToRemain) throw new Error('Funcionários de promoção não foram preparados.')
+    const target = await admin.from('memberships').select('id').eq('company_id', companyA).eq('user_id', employeeToPromote.id).maybeSingle()
+    expect(target.data?.id, 'membership do funcionário a promover não foi preparada').toBeTruthy()
     const promoted = await owner!.rpc('promote_to_manager', { p_membership_id: target.data?.id })
     expect(promoted.error).toBeNull()
     const manager = clientByName.get('manager-a')
-    const second = await admin.from('memberships').select('id').eq('company_id', companyA).eq('role', 'employee').limit(1).maybeSingle()
+    const second = await admin.from('memberships').select('id').eq('company_id', companyA).eq('user_id', employeeToRemain.id).maybeSingle()
+    expect(second.data?.id, 'membership do funcionário de controle não foi preparada').toBeTruthy()
     expect((await manager!.rpc('promote_to_manager', { p_membership_id: second.data?.id })).error).not.toBeNull()
     const employee = clientByName.get('employee-a')
     expect((await employee!.rpc('promote_to_manager', { p_membership_id: second.data?.id })).error).not.toBeNull()

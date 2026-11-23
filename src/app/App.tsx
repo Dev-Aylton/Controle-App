@@ -27,12 +27,13 @@ import { OfflinePage } from '../pages/OfflinePage'
 import { ConfirmProvider } from '../components/ConfirmDialog'
 import { AccountReactivationPage } from '../pages/AccountReactivationPage'
 import { PrivacyPolicyPage } from '../features/privacy/PrivacyPolicyPage'
+import { ResetPasswordPage } from '../pages/ResetPasswordPage'
 
 function AppContent() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/redefinir-senha" element={<LoginPage />} />
+      <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
       <Route path="/privacidade" element={<PrivacyPolicyPage />} />
       <Route path="/reativar-conta" element={<AccountReactivationPage />} />
       <Route path="*" element={
