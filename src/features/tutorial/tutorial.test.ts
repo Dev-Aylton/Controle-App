@@ -28,6 +28,8 @@ describe('tutorial por cargo', () => {
     expect(text).toContain('Seu papel como gestor')
     expect(text).toContain('Ciclo diário entre ambientes')
     expect(text).toContain('compras diretas')
+    const steps = getTutorialSteps('manager', false)
+    expect(steps.some((step) => step.route === '/movimentacoes')).toBe(true)
   })
   it('segue sem localStorage', () => {
     expect(() => dismissTutorial(null, 'employee')).not.toThrow()

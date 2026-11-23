@@ -3,9 +3,14 @@ import { NavLink } from 'react-router-dom'
 import type { CompanyRole } from '../../lib/database.types'
 import { getTutorialSteps } from './tutorial'
 
-type Props = { role: CompanyRole | null; isAdmin: boolean; onClose: () => void }
+type Props = {
+  role: CompanyRole | null
+  isAdmin: boolean
+  onClose: () => void
+  onNavigate?: () => void
+}
 
-export function TutorialModal({ role, isAdmin, onClose }: Props) {
+export function TutorialModal({ role, isAdmin, onClose, onNavigate }: Props) {
   const [index, setIndex] = useState(0)
   const panelRef = useRef<HTMLDivElement>(null)
   const steps = getTutorialSteps(role, isAdmin)
@@ -64,7 +69,16 @@ export function TutorialModal({ role, isAdmin, onClose }: Props) {
               </ul>
             )}
             {current.route && current.routeLabel && (
-              <NavLink className="tutorial-route-link" to={current.route} onClick={onClose}>{current.routeLabel}</NavLink>
+              <NavLink
+                className="tutorial-route-link"
+                to={current.route}
+                onClick={() => {
+                  onNavigate?.()
+                  onClose()
+                }}
+              >
+                {current.routeLabel}
+              </NavLink>
             )}
           </div>
           <footer className="tutorial-actions">

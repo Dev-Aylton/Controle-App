@@ -228,7 +228,14 @@ export function AccountDrawer({ open, online, pendingCount, onClose }: Props) {
         </section>
       </aside>
       {diagnosisOpen && <DiagnosisModal pendingCount={pendingCount} onClose={() => setDiagnosisOpen(false)} />}
-      {tutorialOpen && <TutorialModal role={role} isAdmin={isAdmin} onClose={() => setTutorialOpen(false)} />}
+      {tutorialOpen && (
+        <TutorialModal
+          role={role}
+          isAdmin={isAdmin}
+          onNavigate={onClose}
+          onClose={() => setTutorialOpen(false)}
+        />
+      )}
       {safeSignOut.dialog}
     </div>
   )
