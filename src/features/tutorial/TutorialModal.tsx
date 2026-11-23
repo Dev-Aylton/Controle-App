@@ -13,6 +13,7 @@ type Props = {
 export function TutorialModal({ role, isAdmin, onClose, onNavigate }: Props) {
   const [index, setIndex] = useState(0)
   const panelRef = useRef<HTMLDivElement>(null)
+  const topicListRef = useRef<HTMLElement>(null)
   const topicRefs = useRef<Array<HTMLButtonElement | null>>([])
   const stepCopyRef = useRef<HTMLDivElement>(null)
   const steps = getTutorialSteps(role, isAdmin)
@@ -27,10 +28,13 @@ export function TutorialModal({ role, isAdmin, onClose, onNavigate }: Props) {
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose, steps.length])
   useEffect(() => {
-    topicRefs.current[index]?.scrollIntoView({
+    const list = topicListRef.current
+    const topic = topicRefs.current[index]
+    if (!list || !topic) return
+    const targetLeft = topic.offsetLeft - (list.clientWidth - topic.offsetWidth) / 2
+    list.scrollTo({
+      left: Math.max(0, targetLeft),
       behavior: 'smooth',
-      block: 'nearest',
-      inline: 'center',
     })
   }, [index])
   useEffect(() => {
@@ -50,7 +54,7 @@ export function TutorialModal({ role, isAdmin, onClose, onNavigate }: Props) {
             </div>
             <button className="tutorial-close-icon" type="button" onClick={onClose} aria-label="Fechar tutorial">×</button>
           </div>
-          <nav className="tutorial-topic-list">
+          <nav className="tutorial-topic-list" ref={topicListRef}>
             {steps.map((step, topicIndex) => (
               <button
                 key={step.title}
