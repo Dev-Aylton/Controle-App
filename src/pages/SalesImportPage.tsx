@@ -294,7 +294,7 @@ export function SalesImportPage() {
     <Container>
       <h1>Importar vendas</h1>
       <ContextHelp
-        title="Para que servir a importação de vendas?"
+        title="Para que serve a importação de vendas?"
         description="Esta tela transforma um relatório de vendas em descontos reais do estoque e em indicadores financeiros."
         steps={[
           'Selecione o ambiente onde a venda ocorreu.',
