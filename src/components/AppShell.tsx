@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useBreakpoint } from '../hooks/useBreakpoint'
-import { NAVIGATION_ITEMS } from './navigation'
+import { getNavigationGroups } from './navigation'
 import { useCompanies } from '../features/company/company-context'
 import { useAuth } from '../features/auth/auth-context'
 import { Avatar } from './Avatar'
@@ -256,21 +256,7 @@ export function AppShell({ children }: AppShellProps) {
   )
 
 
-  const visibleItems = NAVIGATION_ITEMS.filter((item) => {
-    if ([
-      '/equipe', '/alertas', '/relatorios', '/auditoria', '/vendas/importar', '/vendas/precos',
-    ].includes(item.path)) {
-      return canManageCompany(role, isAdmin)
-    }
-    return true
-  }).sort((left, right) => {
-    const priority = role === 'employee' && !isAdmin
-      ? ['/', '/movimentacoes', '/ambientes', '/produtos', '/estoque/saldo', '/inventario', '/perfil']
-      : ['/', '/movimentacoes', '/estoque/saldo', '/inventario', '/produtos', '/compras', '/vendas/importar', '/ambientes', '/equipe', '/perfil']
-    const leftIndex = priority.indexOf(left.path)
-    const rightIndex = priority.indexOf(right.path)
-    return (leftIndex === -1 ? 999 : leftIndex) - (rightIndex === -1 ? 999 : rightIndex)
-  })
+  const navigationGroups = getNavigationGroups(role, isAdmin)
   const mobileItems = getMobileNavItems(role, isAdmin)
 
   if (layout === 'mobile') {
@@ -374,11 +360,16 @@ export function AppShell({ children }: AppShellProps) {
                 <span><strong>Minha conta</strong><small>{isAdmin ? 'Administrador' : role === 'owner' ? 'Proprietário' : role === 'manager' ? 'Gerente' : role === 'employee' ? 'Funcionário' : 'Sem vínculo'}</small></span>
               </button>
               <nav className="mobile-sidebar-nav" aria-label="Navegação lateral móvel">
-                {visibleItems.map((item) => (
-                  <NavLink key={item.path} to={item.path} onClick={() => setMobileMenuOpen(false)}>
-                    <span className="nav-icon" aria-hidden="true"><NavigationIcon label={item.label} /></span>
-                    <span>{item.label}</span>
-                  </NavLink>
+                {navigationGroups.map((group) => (
+                  <section className="sidebar-nav-group" key={group.label}>
+                    <strong>{group.label}</strong>
+                    {group.items.map((item) => (
+                      <NavLink key={item.path} to={item.path} onClick={() => setMobileMenuOpen(false)}>
+                        <span className="nav-icon" aria-hidden="true"><NavigationIcon label={item.label} /></span>
+                        <span>{item.label}</span>
+                      </NavLink>
+                    ))}
+                  </section>
                 ))}
               </nav>
             </aside>
@@ -413,12 +404,16 @@ export function AppShell({ children }: AppShellProps) {
           </span>
         </NavLink>
         <nav className="side-nav">
-          <span className="side-nav-heading" aria-hidden="true">Menu principal</span>
-          {visibleItems.map((item) => (
-            <NavLink key={item.path} to={item.path} title={item.label} className={({ isActive }) => isActive ? 'active' : ''}>
-              <span className="nav-icon" aria-hidden="true"><NavigationIcon label={item.label} /></span>
-              <span className="nav-label">{item.label}</span>
-            </NavLink>
+          {navigationGroups.map((navGroup) => (
+            <section className="sidebar-nav-group" key={navGroup.label}>
+              <span className="side-nav-heading">{navGroup.label}</span>
+              {navGroup.items.map((item) => (
+                <NavLink key={item.path} to={item.path} title={item.label} className={({ isActive }) => isActive ? 'active' : ''}>
+                  <span className="nav-icon" aria-hidden="true"><NavigationIcon label={item.label} /></span>
+                  <span className="nav-label">{item.label}</span>
+                </NavLink>
+              ))}
+            </section>
           ))}
         </nav>
       </aside>

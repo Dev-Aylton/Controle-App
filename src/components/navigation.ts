@@ -1,3 +1,5 @@
+import type { CompanyRole } from '../lib/database.types'
+
 export const NAVIGATION_ITEMS = [
   { label: 'Início', shortLabel: 'Início', path: '/', icon: 'H' },
   { label: 'Empresa', shortLabel: 'Empresa', path: '/empresa', icon: 'E' },
@@ -16,3 +18,44 @@ export const NAVIGATION_ITEMS = [
   { label: 'Meu perfil', shortLabel: 'Perfil', path: '/perfil', icon: 'P' },
   { label: 'Suporte', shortLabel: 'Suporte', path: '/suporte', icon: '?' },
 ] as const
+
+export type NavigationItem = typeof NAVIGATION_ITEMS[number]
+export type NavigationGroup = {
+  label: string
+  items: NavigationItem[]
+}
+
+const byPath = new Map(NAVIGATION_ITEMS.map((item) => [item.path, item]))
+
+function group(label: string, paths: string[]): NavigationGroup {
+  return {
+    label,
+    items: paths.map((path) => byPath.get(path as NavigationItem['path'])).filter((item): item is NavigationItem => Boolean(item)),
+  }
+}
+
+export function getNavigationGroups(role: CompanyRole | null, isAdmin: boolean): NavigationGroup[] {
+  if (role === 'employee' && !isAdmin) {
+    return [
+      group('Meu trabalho', ['/', '/movimentacoes', '/estoque/saldo', '/inventario', '/compras']),
+      group('Consulta', ['/produtos', '/ambientes']),
+      group('Conta e ajuda', ['/perfil', '/suporte']),
+    ]
+  }
+
+  if (!isAdmin && role !== 'owner' && role !== 'manager') {
+    return [
+      group('Primeiros passos', ['/', '/empresa']),
+      group('Conta e ajuda', ['/perfil', '/suporte']),
+    ]
+  }
+
+  return [
+    group('Visão geral', ['/', '/alertas']),
+    group('Operação diária', ['/movimentacoes', '/estoque/saldo', '/inventario', '/compras']),
+    group('Cadastros', ['/produtos', '/ambientes']),
+    group('Vendas', ['/vendas/importar', '/vendas/precos']),
+    group('Gestão', ['/relatorios', '/auditoria', '/equipe', '/empresa']),
+    group('Conta e ajuda', ['/perfil', '/suporte']),
+  ]
+}
