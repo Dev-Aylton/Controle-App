@@ -715,7 +715,7 @@ export function InventoryPage() {
             </label>
             <label>Motivo<input value={zeroReason} onChange={(event) => setZeroReason(event.target.value)} placeholder="Ex.: acerto físico de contagem" /></label>
           </div>
-          <ActionButton className="danger-button" disabled={!environmentId || !zeroReason.trim()} busyLabel="Zerando..." confirmMessage="Confirma zerar o estoque selecionado?" onAction={zero}>Confirmar zeragem</ActionButton>
+          <ActionButton className="danger-button" disabled={!environmentId || !zeroReason.trim()} disabledReason={!environmentId ? 'Selecione o ambiente' : 'Informe o motivo da zeragem'} busyLabel="Zerando..." confirmMessage="Confirma zerar o estoque selecionado?" onAction={zero}>Confirmar zeragem</ActionButton>
         </Card>
       )}
       <Card>
@@ -726,7 +726,7 @@ export function InventoryPage() {
             {environments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
         </label>
-        <ActionButton className="primary-button" onAction={open} disabled={loading || !environmentId} busyLabel="Abrindo...">Abrir sessão</ActionButton>
+        <ActionButton className="primary-button" onAction={open} disabled={loading || !environmentId} disabledReason={loading ? 'Aguarde a operação atual' : 'Selecione o ambiente'} busyLabel="Abrindo...">Abrir sessão</ActionButton>
       </Card>
       {sessionId && (
         <Card>

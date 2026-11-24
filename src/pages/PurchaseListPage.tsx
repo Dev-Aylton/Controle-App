@@ -576,7 +576,7 @@ export function PurchaseListPage() {
                 </label>
                 <div className="member-actions">
                   {supplierEditingId && <button className="secondary-button" type="button" onClick={resetSupplierEditor}>Cancelar edição</button>}
-                  <ActionButton className="primary-button" busyLabel="Salvando..." disabled={!supplierName.trim()} onAction={submitSupplier}>{supplierEditingId ? 'Salvar fornecedor' : 'Cadastrar fornecedor'}</ActionButton>
+                  <ActionButton className="primary-button" busyLabel="Salvando..." disabled={!supplierName.trim()} disabledReason="Informe o nome do fornecedor" onAction={submitSupplier}>{supplierEditingId ? 'Salvar fornecedor' : 'Cadastrar fornecedor'}</ActionButton>
                 </div>
               </div>
               <div className="supplier-list">
@@ -636,7 +636,7 @@ export function PurchaseListPage() {
                     <input type="number" min="0.001" step="0.001" value={unitsPerPurchase ?? ''} onChange={(event) => setUnitsPerPurchase(event.target.value === '' ? null : Number(event.target.value))} placeholder="Ex.: 12 unidades por caixa" />
                   </label>
                 </div>
-                <ActionButton className="primary-button" busyLabel="Registrando..." disabled={!priceProductId || !priceSupplierId || supplierUnitPrice == null} onAction={submitSupplierPrice}>Registrar preço pago</ActionButton>
+                <ActionButton className="primary-button" busyLabel="Registrando..." disabled={!priceProductId || !priceSupplierId || supplierUnitPrice == null} disabledReason="Selecione produto e fornecedor e informe o preço" onAction={submitSupplierPrice}>Registrar preço pago</ActionButton>
                 {supplierPrices.filter((price) => !priceProductId || price.productId === priceProductId).length > 0 && (
                   <div className="supplier-price-history">
                     <h4>Histórico de preços</h4>
@@ -673,7 +673,15 @@ export function PurchaseListPage() {
             <input type="number" min="0.001" step="0.001" value={requestQuantity} onChange={(event) => setRequestQuantity(Number(event.target.value))} />
           </label>
         </div>
-        <button className="secondary-button" type="button" disabled={!requestProductId} onClick={addRequestItem}>Adicionar à solicitação</button>
+        <ActionButton
+          className="secondary-button"
+          disabled={!requestProductId || !requestDestinationId}
+          disabledReason={!requestDestinationId ? 'Selecione o ambiente de destino' : 'Selecione um produto'}
+          onAction={addRequestItem}
+          busyLabel="Adicionando..."
+        >
+          Adicionar à solicitação
+        </ActionButton>
         {requestItems.length > 0 && (
           <div className="member-list">
             {requestItems.map((item) => {
@@ -690,7 +698,15 @@ export function PurchaseListPage() {
         <label>Observação
           <input value={requestNote} onChange={(event) => setRequestNote(event.target.value)} placeholder="Ex.: preparar o bar para o turno da noite" />
         </label>
-        <ActionButton className="primary-button" busyLabel="Enviando..." disabled={!requestDestinationId || requestItems.length === 0} onAction={submitRequest}>Enviar solicitação</ActionButton>
+        <ActionButton
+          className="primary-button"
+          busyLabel="Enviando..."
+          disabled={!requestDestinationId || requestItems.length === 0}
+          disabledReason={!requestDestinationId ? 'Selecione o ambiente de destino' : 'Adicione ao menos um produto à solicitação'}
+          onAction={submitRequest}
+        >
+          Enviar solicitação
+        </ActionButton>
       </Card>
       <Card>
         <h2>Solicitações de reposição</h2>
@@ -1056,14 +1072,15 @@ export function PurchaseListPage() {
                     Próxima etapa
                   </button>
                 ) : (
-                  <button
+                  <ActionButton
                     className="primary-button"
-                    type="button"
                     disabled={!validatePurchaseDraft(draftItems).valid}
-                    onClick={() => void downloadPdf()}
+                    disabledReason={validatePurchaseDraft(draftItems).message ?? 'Revise os itens da lista'}
+                    onAction={downloadPdf}
+                    busyLabel="Gerando PDF..."
                   >
                     Confirmar e gerar PDF
-                  </button>
+                  </ActionButton>
                 )}
               </div>
             </footer>

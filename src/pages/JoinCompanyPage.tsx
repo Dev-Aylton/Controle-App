@@ -53,7 +53,7 @@ export function JoinCompanyPage() {
               <input value={code} onChange={(event) => setCode(event.target.value.toUpperCase().replace(/\s/g, '').replace(/(.{5})(.{5})/, '$1-$2'))} placeholder="XXXXX-XXXXX" required />
             </label>
             {error && <p className="form-error" role="alert">{error}</p>}
-            <ActionButton className="primary-button" disabled={loading || code.trim().length < 5} busyLabel="Entrando..." onAction={() => submit({ preventDefault: () => undefined } as FormEvent)}>Entrar na empresa</ActionButton>
+            <ActionButton className="primary-button" disabled={loading || code.trim().length < 5} disabledReason={loading ? 'Aguarde a validação do código' : 'Digite o código completo da empresa'} busyLabel="Entrando..." onAction={() => submit({ preventDefault: () => undefined } as FormEvent)}>Entrar na empresa</ActionButton>
           </form>
         )}
       </Card>

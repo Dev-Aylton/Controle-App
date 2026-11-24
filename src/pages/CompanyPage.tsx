@@ -225,7 +225,7 @@ export function CompanyPage() {
               />
         {error && <p className="form-error" role="alert">{error}</p>}
         {message && <p className="form-success" role="status">{message}</p>}
-              <ActionButton className="primary-button" disabled={!createName.trim()} busyLabel="Criando..." onAction={createCompany}>Criar empresa</ActionButton>
+              <ActionButton className="primary-button" disabled={!createName.trim()} disabledReason="Informe o nome da empresa" busyLabel="Criando..." onAction={createCompany}>Criar empresa</ActionButton>
             </form>
           </Card>
         ) : (
@@ -298,6 +298,7 @@ export function CompanyPage() {
                 className="danger-button"
                 busyLabel="Suspendendo..."
                 disabled={!suspensionReason.trim()}
+                disabledReason="Informe o motivo da suspensão"
                 confirmMessage={`Suspender a empresa "${activeCompany.name}"? Todos os membros perderão acesso às operações até a reativação.`}
                 requireText={activeCompany.name}
                 onAction={suspendCompany}

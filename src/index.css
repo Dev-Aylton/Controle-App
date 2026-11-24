@@ -1831,6 +1831,11 @@ button:not(:disabled):active {
   transform:translateY(0);
 }
 button:disabled { cursor:not-allowed; }
+button[aria-disabled="true"]:not(:disabled) {
+  cursor:help;
+  opacity:.66;
+  filter:saturate(.7);
+}
 button.primary-button:hover,
 button.secondary-button:hover,
 button.danger-button:hover,

@@ -393,6 +393,7 @@ export function ProductImportPage() {
               || reviewedCount !== sourceRows.length
               || sourceRows.some((row) => !row.valid && !excludedLines.has(row.line))
             }
+            disabledReason={validCount === 0 ? 'Nenhuma linha válida para importar' : 'Revise ou exclua todas as linhas pendentes'}
             busyLabel="Importando..."
             confirmMessage={`Confirmar a importação revisada de ${validCount} produto(s)? Linhas aprovadas serão criadas ou atualizadas conforme suas decisões.`}
             onAction={importRows}

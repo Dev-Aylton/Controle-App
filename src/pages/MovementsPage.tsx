@@ -636,6 +636,7 @@ export function MovementsPage() {
               className="primary-button"
               busyLabel="Aplicando..."
               disabled={manualBatchPreview.length === 0}
+              disabledReason="Revise a prévia antes de confirmar o lote"
               onAction={applyManualBatch}
             >
               Confirmar todas as movimentações
@@ -657,10 +658,10 @@ export function MovementsPage() {
               </select>
             </label>
             <div>
-              <ActionButton className="secondary-button" busyLabel="Gerando..." disabled={!batchEnvironmentId} onAction={downloadEntryTemplate}>
+              <ActionButton className="secondary-button" busyLabel="Gerando..." disabled={!batchEnvironmentId} disabledReason="Selecione o ambiente de entrada" onAction={downloadEntryTemplate}>
                 Baixar modelo XLSX de entradas
               </ActionButton>
-              <ActionButton className="secondary-button" busyLabel="Gerando..." disabled={!batchEnvironmentId} onAction={downloadEntryCsvTemplate}>
+              <ActionButton className="secondary-button" busyLabel="Gerando..." disabled={!batchEnvironmentId} disabledReason="Selecione o ambiente de entrada" onAction={downloadEntryCsvTemplate}>
                 Baixar modelo CSV
               </ActionButton>
             </div>
@@ -689,6 +690,7 @@ export function MovementsPage() {
                 className="primary-button"
                 busyLabel="Aplicando..."
                 disabled={batchPreview.some((row) => !row.valid || !row.productId)}
+                disabledReason="Corrija todas as linhas da prévia antes de aplicar"
                 onAction={applyEntryFile}
               >
                 Aplicar entradas no estoque
