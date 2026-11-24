@@ -10,6 +10,37 @@ export type TeamMemberView = {
   active: boolean
   avatarUrl: string | null
   avatarKey: string | null
+  deactivatedAt: string | null
+  deactivatedReason: string | null
+}
+
+export type TeamMemberFilter = {
+  search: string
+  role: 'todos' | CompanyRole
+  status: 'todos' | 'ativos' | 'inativos'
+}
+
+export function filterTeamMemberViews(members: TeamMemberView[], filter: TeamMemberFilter) {
+  const search = filter.search.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  return members.filter((member) => {
+    const memberText = `${member.name} ${member.email ?? ''}`.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+    const roleMatches = filter.role === 'todos' || member.role === filter.role
+    const statusMatches = filter.status === 'todos'
+      || (filter.status === 'ativos' && member.active)
+      || (filter.status === 'inativos' && !member.active)
+    return (!search || memberText.includes(search)) && roleMatches && statusMatches
+  })
+}
+
+export function getTeamRoleLabel(role: CompanyRole) {
+  const labels: Record<CompanyRole, string> = {
+    owner: 'Proprietário',
+    manager: 'Gerente',
+    employee: 'Funcionário',
+  }
+  return labels[role]
 }
 
 type BuildTeamMemberViewsInput = {
@@ -32,6 +63,8 @@ export function buildTeamMemberViews(input: BuildTeamMemberViewsInput): TeamMemb
       active: member.active,
       avatarUrl: null,
       avatarKey: null,
+      deactivatedAt: member.deactivatedAt ?? null,
+      deactivatedReason: member.deactivatedReason ?? null,
     }
   })
   if (
@@ -48,6 +81,8 @@ export function buildTeamMemberViews(input: BuildTeamMemberViewsInput): TeamMemb
       active: true,
       avatarUrl: null,
       avatarKey: null,
+      deactivatedAt: null,
+      deactivatedReason: null,
     })
   }
   return views

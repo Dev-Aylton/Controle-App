@@ -20,6 +20,7 @@ import { deleteCurrentAccount } from '../features/account/deleteAccount'
 import { useSafeSignOut } from '../features/account/useSafeSignOut'
 import { getOfflineQueueStatus } from '../features/offline/sync'
 import { getPrivacyPolicyLinkLabel, usePrivacyPolicyRelease } from '../features/privacy/privacyPolicyStatus'
+import { useProfilePhotoHidden } from '../features/account/useProfilePhotoHidden'
 
 type Props = { open: boolean; online: boolean; pendingCount: number; onClose: () => void }
 
@@ -38,6 +39,7 @@ export function AccountDrawer({ open, online, pendingCount, onClose }: Props) {
   const [deletePending, setDeletePending] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [tutorialOpen, setTutorialOpen] = useState(false)
+  const profilePhotoHidden = useProfilePhotoHidden(user?.id)
   const version = useState(getAppVersion)[0]
   const sevenClicks = useState(() => createSevenClickCounter(() => setDiagnosisOpen(true)))[0]
 
@@ -150,7 +152,7 @@ export function AccountDrawer({ open, online, pendingCount, onClose }: Props) {
         </header>
         <section className="account-drawer-section account-profile-card">
           <div className="member-identity">
-            <Avatar name={user?.user_metadata.full_name ?? user?.email} googleUrl={user?.user_metadata.avatar_url} size={64} />
+            <Avatar key={user?.id + String(user?.user_metadata.avatar_url ?? '') + String(profilePhotoHidden)} name={user?.user_metadata.full_name ?? user?.email} googleUrl={profilePhotoHidden ? null : user?.user_metadata.avatar_url} size={64} />
             <span>
               <strong>{user?.user_metadata.full_name ?? 'Usuário'}</strong>
               <small>{roleLabel}</small>
@@ -197,6 +199,7 @@ export function AccountDrawer({ open, online, pendingCount, onClose }: Props) {
           <h3 className="account-drawer-section-title">Ajuda e dados</h3>
           <div className="account-action-list">
             <button className="account-action-button" type="button" onClick={() => setTutorialOpen(true)}>Tutorial</button>
+            <NavLink className="account-action-link" to="/suporte" onClick={onClose}>Suporte com o administrador</NavLink>
             <NavLink className="account-action-link" to="/privacidade" onClick={onClose}>{getPrivacyPolicyLinkLabel(privacyPolicyRelease)}</NavLink>
             <a className="account-action-link" href={`mailto:desenvolvedor.aylton@gmail.com?subject=${encodeURIComponent('Problema no Controle-App')}&body=${encodeURIComponent(reportBody)}`}>Reportar problema</a>
             <a className="account-action-link" href="mailto:desenvolvedor.aylton@gmail.com">Entrar em contato</a>

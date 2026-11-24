@@ -6,10 +6,12 @@ import {
 import { tryGetSupabaseClient } from '../../lib/supabase'
 
 export type AppNotificationSeverity = 'critical' | 'warning' | 'info'
+export type AppNotificationCategory = 'estoque' | 'movimentacoes' | 'suporte' | 'sistema'
 
 export type AppNotification = {
   id: string
   severity: AppNotificationSeverity
+  category: AppNotificationCategory
   title: string
   description: string
   route: string
@@ -17,6 +19,19 @@ export type AppNotification = {
   read: boolean
   dismissed: boolean
   createdAt: string
+}
+
+export function sortNotificationsByPriority(notifications: AppNotification[]) {
+  const severityOrder: Record<AppNotificationSeverity, number> = {
+    critical: 0,
+    warning: 1,
+    info: 2,
+  }
+  return [...notifications].sort((left, right) =>
+    Number(left.read) - Number(right.read)
+    || severityOrder[left.severity] - severityOrder[right.severity]
+    || right.createdAt.localeCompare(left.createdAt),
+  )
 }
 
 function storageKey(companyId: string, userId: string) {
@@ -66,6 +81,7 @@ export async function getCompanyNotifications(companyId: string): Promise<Omit<A
         notifications.push({
           id: `divergence:${row.created_at}:${row.summary}`,
           severity: 'critical',
+          category: 'estoque',
           title: 'Divergência de estoque',
           description: row.summary,
           route: '/auditoria',
@@ -80,6 +96,7 @@ export async function getCompanyNotifications(companyId: string): Promise<Omit<A
     notifications.push({
       id: 'negative:summary',
       severity: 'critical',
+      category: 'estoque',
       title: `${negative.length} saldo(s) negativo(s)`,
       description: `${negative[0].product_name} em ${negative[0].environment_name} é o primeiro item da lista. Abra o saldo para revisar todos.`,
       route: '/estoque/saldo',
@@ -92,6 +109,7 @@ export async function getCompanyNotifications(companyId: string): Promise<Omit<A
     notifications.push({
       id: 'low:summary',
       severity: 'warning',
+      category: 'estoque',
       title: `${lowRows.length} produto(s) abaixo do mínimo`,
       description: `${lowRows[0].product_name} está em ${lowRows[0].environment_name}. Revise a lista consolidada antes de comprar ou transferir.`,
       route: '/compras',
@@ -103,6 +121,7 @@ export async function getCompanyNotifications(companyId: string): Promise<Omit<A
     notifications.push({
       id: 'loss:summary',
       severity: 'warning',
+      category: 'movimentacoes',
       title: `${pendingLosses.length} perda(s) sem motivo`,
       description: `${pendingLosses[0].product_name} em ${pendingLosses[0].environment_name} aguarda classificação. Revise todas as pendências juntas.`,
       route: '/movimentacoes',

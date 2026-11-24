@@ -14,6 +14,7 @@ import { traduzirErro } from '../lib/errors'
 import { searchProductCatalog, type ProductCatalogSuggestion } from '../features/products/productCatalog'
 import { getStockBalance } from '../services/movements'
 import { listProductEnvironmentPricing } from '../features/sales/salesService'
+import { formatBrazilianCurrencyInput, parseBrazilianCurrency } from '../features/management/currency'
 
 type Product = Tables<'products'>
 type Category = Tables<'product_categories'>
@@ -701,7 +702,14 @@ export function ProductsPage() {
             )}
             {canManage && (
               <label>Custo unitário (R$)
-                <input type="number" min="0" step="0.01" value={unitCost} onChange={(event) => setUnitCost(Number(event.target.value))} placeholder="Ex.: 89,90" aria-describedby="unit-cost-help" />
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={formatBrazilianCurrencyInput(unitCost)}
+                  onChange={(event) => setUnitCost(parseBrazilianCurrency(event.target.value) ?? 0)}
+                  placeholder="R$ 89,90"
+                  aria-describedby="unit-cost-help"
+                />
                 <span className="field-help" id="unit-cost-help">Usado para estimar o valor do estoque e das compras.</span>
               </label>
             )}

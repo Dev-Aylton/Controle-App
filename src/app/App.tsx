@@ -1,37 +1,41 @@
-import { HomePage } from '../pages/HomePage'
+import { lazy, Suspense } from 'react'
 import { AppShell } from '../components/AppShell'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from '../features/auth/AuthContext'
 import { CompanyProvider } from '../features/company/CompanyContext'
 import { ManagementRoute, ProtectedRoute } from '../features/auth/ProtectedRoute'
-import { LoginPage } from '../pages/LoginPage'
-import { JoinCompanyPage } from '../pages/JoinCompanyPage'
-import { CompanyPage } from '../pages/CompanyPage'
-import { TeamPage } from '../pages/TeamPage'
-import { ProfilePage } from '../pages/ProfilePage'
-import { MovementsPage } from '../pages/MovementsPage'
-import { StockPage } from '../pages/StockPage'
-import { InventoryPage } from '../pages/InventoryPage'
-import { EnvironmentsPage } from '../pages/EnvironmentsPage'
-import { ProductsPage } from '../pages/ProductsPage'
-import { ProductImportPage } from '../pages/ProductImportPage'
-import { AlertsPage } from '../pages/AlertsPage'
-import { PurchaseListPage } from '../pages/PurchaseListPage'
-import { ReportPage } from '../pages/ReportPage'
-import { AuditPage } from '../pages/AuditPage'
-import { SalesImportPage } from '../pages/SalesImportPage'
-import { SalesPricesPage } from '../pages/SalesPricesPage'
 import { DemoPage } from '../pages/DemoPage'
-import { NotFoundPage } from '../pages/NotFoundPage'
-import { OfflinePage } from '../pages/OfflinePage'
 import { ConfirmProvider } from '../components/ConfirmDialog'
-import { AccountReactivationPage } from '../pages/AccountReactivationPage'
-import { PrivacyPolicyPage } from '../features/privacy/PrivacyPolicyPage'
-import { ResetPasswordPage } from '../pages/ResetPasswordPage'
+
+const HomePage = lazy(() => import('../pages/HomePage').then((module) => ({ default: module.HomePage })))
+const LoginPage = lazy(() => import('../pages/LoginPage').then((module) => ({ default: module.LoginPage })))
+const JoinCompanyPage = lazy(() => import('../pages/JoinCompanyPage').then((module) => ({ default: module.JoinCompanyPage })))
+const CompanyPage = lazy(() => import('../pages/CompanyPage').then((module) => ({ default: module.CompanyPage })))
+const TeamPage = lazy(() => import('../pages/TeamPage').then((module) => ({ default: module.TeamPage })))
+const ProfilePage = lazy(() => import('../pages/ProfilePage').then((module) => ({ default: module.ProfilePage })))
+const MovementsPage = lazy(() => import('../pages/MovementsPage').then((module) => ({ default: module.MovementsPage })))
+const StockPage = lazy(() => import('../pages/StockPage').then((module) => ({ default: module.StockPage })))
+const InventoryPage = lazy(() => import('../pages/InventoryPage').then((module) => ({ default: module.InventoryPage })))
+const EnvironmentsPage = lazy(() => import('../pages/EnvironmentsPage').then((module) => ({ default: module.EnvironmentsPage })))
+const ProductsPage = lazy(() => import('../pages/ProductsPage').then((module) => ({ default: module.ProductsPage })))
+const ProductImportPage = lazy(() => import('../pages/ProductImportPage').then((module) => ({ default: module.ProductImportPage })))
+const AlertsPage = lazy(() => import('../pages/AlertsPage').then((module) => ({ default: module.AlertsPage })))
+const PurchaseListPage = lazy(() => import('../pages/PurchaseListPage').then((module) => ({ default: module.PurchaseListPage })))
+const ReportPage = lazy(() => import('../pages/ReportPage').then((module) => ({ default: module.ReportPage })))
+const AuditPage = lazy(() => import('../pages/AuditPage').then((module) => ({ default: module.AuditPage })))
+const SalesImportPage = lazy(() => import('../pages/SalesImportPage').then((module) => ({ default: module.SalesImportPage })))
+const SalesPricesPage = lazy(() => import('../pages/SalesPricesPage').then((module) => ({ default: module.SalesPricesPage })))
+const NotFoundPage = lazy(() => import('../pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage })))
+const OfflinePage = lazy(() => import('../pages/OfflinePage').then((module) => ({ default: module.OfflinePage })))
+const AccountReactivationPage = lazy(() => import('../pages/AccountReactivationPage').then((module) => ({ default: module.AccountReactivationPage })))
+const PrivacyPolicyPage = lazy(() => import('../features/privacy/PrivacyPolicyPage').then((module) => ({ default: module.PrivacyPolicyPage })))
+const ResetPasswordPage = lazy(() => import('../pages/ResetPasswordPage').then((module) => ({ default: module.ResetPasswordPage })))
+const SupportPage = lazy(() => import('../pages/SupportPage').then((module) => ({ default: module.SupportPage })))
 
 function AppContent() {
   return (
-    <Routes>
+    <Suspense fallback={<main className="page-state">Carregando tela...</main>}>
+      <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
       <Route path="/privacidade" element={<PrivacyPolicyPage />} />
@@ -45,14 +49,15 @@ function AppContent() {
               <Route path="/empresa" element={<CompanyPage />} />
               <Route path="/equipe" element={<TeamPage />} />
               <Route path="/perfil" element={<ProfilePage />} />
+              <Route path="/suporte" element={<SupportPage />} />
               <Route path="/ambientes" element={<EnvironmentsPage />} />
               <Route path="/produtos" element={<ProductsPage />} />
               <Route path="/produtos/importar" element={<ProductImportPage />} />
               <Route path="/movimentacoes" element={<MovementsPage />} />
-              <Route path="/estoque/saldo" element={<ManagementRoute><StockPage /></ManagementRoute>} />
+              <Route path="/estoque/saldo" element={<StockPage />} />
               <Route path="/inventario" element={<InventoryPage />} />
               <Route path="/alertas" element={<ManagementRoute><AlertsPage /></ManagementRoute>} />
-              <Route path="/compras" element={<ManagementRoute><PurchaseListPage /></ManagementRoute>} />
+              <Route path="/compras" element={<PurchaseListPage />} />
               <Route path="/relatorios" element={<ManagementRoute><ReportPage /></ManagementRoute>} />
               <Route path="/auditoria" element={<ManagementRoute><AuditPage /></ManagementRoute>} />
               <Route path="/vendas/importar" element={<ManagementRoute><SalesImportPage /></ManagementRoute>} />
@@ -64,7 +69,8 @@ function AppContent() {
           </AppShell>
         </ProtectedRoute>
       } />
-    </Routes>
+      </Routes>
+    </Suspense>
   )
 }
 

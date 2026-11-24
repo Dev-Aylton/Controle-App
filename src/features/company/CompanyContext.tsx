@@ -9,6 +9,34 @@ import { canSelectCompany } from './companyVisibility'
 
 type Membership = Tables<'memberships'>
 type Company = Tables<'companies'>
+const COMPANY_OFFLINE_CACHE_PREFIX = 'controle-app-company-cache:'
+
+function readCompanyOfflineCache(userId: string) {
+  try {
+    const raw = localStorage.getItem(`${COMPANY_OFFLINE_CACHE_PREFIX}${userId}`)
+    if (!raw) return null
+    return JSON.parse(raw) as {
+      memberships: Membership[]
+      companies: Company[]
+      isAdmin: boolean
+    }
+  } catch {
+    return null
+  }
+}
+
+function writeCompanyOfflineCache(
+  userId: string,
+  memberships: Membership[],
+  companies: Company[],
+  isAdmin: boolean,
+) {
+  localStorage.setItem(`${COMPANY_OFFLINE_CACHE_PREFIX}${userId}`, JSON.stringify({
+    memberships,
+    companies,
+    isAdmin,
+  }))
+}
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const { user, configured } = useAuth()
   const userId = user?.id ?? null
@@ -59,6 +87,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
           if (membershipsError) throw membershipsError
           setCompanies(adminCompanies ?? [])
           setMemberships(memberRows ?? [])
+          writeCompanyOfflineCache(userId, memberRows ?? [], adminCompanies ?? [], true)
         } else {
           const { data: memberRows, error: membershipsError } = await supabase
             .from('memberships')
@@ -91,18 +120,34 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
             const { data: companyRows, error: companiesError } = await supabase
               .from('companies')
               .select('*')
+              .eq('active', true)
               .in('id', ids)
             if (companiesError) throw companiesError
             setCompanies(companyRows ?? [])
+            writeCompanyOfflineCache(userId, validEmployeeRows, companyRows ?? [], false)
           } else {
             setCompanies([])
+            writeCompanyOfflineCache(userId, validEmployeeRows, [], false)
           }
         }
         setValidatedUserId(userId)
       } catch (caught) {
+        if (!navigator.onLine) {
+          const cached = readCompanyOfflineCache(userId)
+          if (cached) {
+            setMemberships(cached.memberships)
+            setCompanies(cached.companies)
+            setIsAdmin(cached.isAdmin)
+            setValidatedUserId(userId)
+            setError(null)
+          } else {
+            setError('Não foi possível carregar as empresas deste aparelho. Conecte-se à internet antes de continuar.')
+          }
+        } else {
         setError(caught instanceof Error
           ? friendlySupabaseError(caught)
           : 'Não foi possível carregar empresas.')
+        }
       } finally {
         loaderRef.current.finish(userId)
         setLoading(false)

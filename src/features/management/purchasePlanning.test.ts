@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { planPurchaseRows } from './purchasePlanning'
+import { paginatePurchasePlans, planPurchaseRows } from './purchasePlanning'
 
 describe('planejamento consolidado de compras', () => {
   it('consolida ambientes e deduz quantidade transferível', () => {
@@ -38,5 +38,15 @@ describe('planejamento consolidado de compras', () => {
     ])
     expect(plan[0].transferable).toBe(0)
     expect(plan[0].purchaseQuantity).toBe(9)
+  })
+
+  it('pagina listas grandes em blocos sem perder itens', () => {
+    const items = Array.from({ length: 52 }, (_, index) => `item-${index + 1}`)
+    expect(paginatePurchasePlans(items, 1, 25)).toEqual({
+      page: 1,
+      pageCount: 3,
+      items: items.slice(0, 25),
+    })
+    expect(paginatePurchasePlans(items, 3, 25).items).toEqual(items.slice(50))
   })
 })

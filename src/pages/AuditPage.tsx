@@ -44,9 +44,12 @@ export function AuditPage() {
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [auditPage, setAuditPage] = useState(1)
+  const auditPageSize = 50
 
   const load = useCallback(async () => {
     if (!activeCompany) return
+    setAuditPage(1)
     setLoading(true)
     setError('')
     try {
@@ -80,6 +83,8 @@ export function AuditPage() {
   })
   const users = [...new Set(rows.map((row) => row.user_name).filter(Boolean))]
   const supportCount = filtered.filter((row) => row.acted_as_support).length
+  const auditPageCount = Math.max(1, Math.ceil(filtered.length / auditPageSize))
+  const visibleAuditRows = filtered.slice((auditPage - 1) * auditPageSize, auditPage * auditPageSize)
   const exportCsv = () => {
     downloadCsv(
       `${activeCompany?.name ?? 'empresa'}-auditoria-${from}-${to}.csv`,
@@ -118,16 +123,16 @@ export function AuditPage() {
       </div>
       <Card>
         <div className="audit-filter-grid">
-          <label>De<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
-          <label>Até<input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+          <label>De<input type="date" value={from} onChange={(event) => { setFrom(event.target.value); setAuditPage(1) }} /></label>
+          <label>Até<input type="date" value={to} onChange={(event) => { setTo(event.target.value); setAuditPage(1) }} /></label>
           <label>Usuário
-            <select value={userFilter} onChange={(event) => setUserFilter(event.target.value)}>
+            <select value={userFilter} onChange={(event) => { setUserFilter(event.target.value); setAuditPage(1) }}>
               <option value="">Todos</option>
               {users.map((user) => <option key={user} value={user}>{user}</option>)}
             </select>
           </label>
           <label>Tipo
-            <select value={action} onChange={(event) => setAction(event.target.value)}>
+            <select value={action} onChange={(event) => { setAction(event.target.value); setAuditPage(1) }}>
               <option value="">Todos</option>
               <option value="movement">Movimentações</option>
               <option value="inventory">Inventário</option>
@@ -140,7 +145,7 @@ export function AuditPage() {
             </select>
           </label>
           <label className="audit-search">Buscar
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Usuário, produto, ação ou ambiente" />
+            <input value={search} onChange={(event) => { setSearch(event.target.value); setAuditPage(1) }} placeholder="Usuário, produto, ação ou ambiente" />
           </label>
         </div>
         <div className="audit-filter-actions">
@@ -150,8 +155,9 @@ export function AuditPage() {
       </Card>
       {loading && <p className="page-state">Carregando auditoria...</p>}
       {!loading && <Card>{filtered.length === 0 ? <p>Nenhum registro corresponde aos filtros. Amplie o período ou limpe a busca.</p> : (
+        <>
         <div className="audit-timeline">
-          {filtered.map((row) => (
+          {visibleAuditRows.map((row) => (
             <article className="audit-record" key={`${row.action}-${row.created_at}-${row.user_name}-${row.summary}`}>
               <button type="button" className="audit-record-main" onClick={() => setSelected(selected?.created_at === row.created_at ? null : row)}>
                 <span className={`audit-record-mark ${row.acted_as_support ? 'support' : ''}`} aria-hidden="true"></span>
@@ -173,6 +179,12 @@ export function AuditPage() {
             </article>
           ))}
         </div>
+        <div className="pagination-controls" aria-label="Paginação da auditoria">
+          <button type="button" className="secondary-button" disabled={auditPage <= 1} onClick={() => setAuditPage((page) => Math.max(1, page - 1))}>Anterior</button>
+          <span>Página {auditPage} de {auditPageCount} • {filtered.length} registros</span>
+          <button type="button" className="secondary-button" disabled={auditPage >= auditPageCount} onClick={() => setAuditPage((page) => Math.min(auditPageCount, page + 1))}>Próxima</button>
+        </div>
+        </>
       )}</Card>}
     </Container>
   )

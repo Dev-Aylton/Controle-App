@@ -81,3 +81,14 @@ export function planPurchaseRows(rows: PurchasePlanningRow[]): PurchaseProductPl
     }
   }).sort((left, right) => left.productName.localeCompare(right.productName, 'pt-BR'))
 }
+
+export function paginatePurchasePlans<T>(items: T[], page: number, pageSize = 25) {
+  const safePageSize = Math.max(1, pageSize)
+  const pageCount = Math.max(1, Math.ceil(items.length / safePageSize))
+  const safePage = Math.min(Math.max(1, page), pageCount)
+  return {
+    page: safePage,
+    pageCount,
+    items: items.slice((safePage - 1) * safePageSize, safePage * safePageSize),
+  }
+}

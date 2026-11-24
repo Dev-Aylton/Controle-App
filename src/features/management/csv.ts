@@ -6,7 +6,7 @@ function formatCell(value: CsvCell): string {
   if (value === null) return ''
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) throw new Error('Não é possível exportar um número inválido.')
-    return numberFormat.format(value)
+    return numberFormat.format(value).replace(/[^0-9,.-]/g, '')
   }
   const safe = /^[\s]*[=+\-@]/u.test(value) ? `'${value}` : value
   return /[;"\r\n]/u.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseOfficialSalesRows, SALES_TEMPLATE_COLUMNS } from './salesTemplate'
+import { isOfficialSalesTemplateColumns, parseOfficialSalesRows, SALES_TEMPLATE_COLUMNS } from './salesTemplate'
 
 describe('modelo oficial de vendas', () => {
   it('usa as quatro colunas obrigatórias', () => {
@@ -42,5 +42,10 @@ describe('modelo oficial de vendas', () => {
       Quantidade: '2',
       Tipo: 'garrafa',
     }])[0].valid).toBe(false)
+  })
+
+  it('reconhece somente o conjunto completo de colunas oficiais', () => {
+    expect(isOfficialSalesTemplateColumns([...SALES_TEMPLATE_COLUMNS])).toBe(true)
+    expect(isOfficialSalesTemplateColumns(['Produto', 'Quantidade'])).toBe(false)
   })
 })

@@ -15,6 +15,7 @@ import { getMobileNavItems, getNavigationIconLabel } from './mobileNavigation'
 import iconLight from '../../docs/logos/opcao-a/icon-light.svg'
 import iconDark from '../../docs/logos/opcao-a/icon-dark.svg'
 import { NavigationIcon } from './NavigationIcon'
+import { BackToTop } from './BackToTop'
 import { PrivacyPolicyPrompt } from '../features/privacy/PrivacyPolicyPrompt'
 import { recordTechnicalError } from '../lib/diagnostics'
 import { getPrivacyPolicyLinkLabel, usePrivacyPolicyRelease } from '../features/privacy/privacyPolicyStatus'
@@ -25,6 +26,8 @@ import {
   saveNotificationState,
   type AppNotification,
 } from '../features/notifications/notificationCenter'
+import { getSupportUnreadCount } from '../features/support/supportService'
+import { useProfilePhotoHidden } from '../features/account/useProfilePhotoHidden'
 
 type AppShellProps = {
   children: ReactNode
@@ -45,6 +48,7 @@ export function AppShell({ children }: AppShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const mobileMenuRef = useRef<HTMLElement>(null)
   const [notifications, setNotifications] = useState<AppNotification[]>([])
+  const profilePhotoHidden = useProfilePhotoHidden(user?.id)
 
   useEffect(() => {
     let active = true
@@ -104,27 +108,48 @@ export function AppShell({ children }: AppShellProps) {
 
   useEffect(() => {
     let active = true
-    if (!activeCompany?.id || !user?.id || (!canManageCompany(role, isAdmin))) {
+    if (!user?.id) {
       queueMicrotask(() => {
         if (active) setNotifications([])
       })
       return () => { active = false }
     }
     queueMicrotask(() => {
-      void getCompanyNotifications(activeCompany.id)
-        .then((items) => {
+      void Promise.all([
+        activeCompany?.id && canManageCompany(role, isAdmin)
+          ? getCompanyNotifications(activeCompany.id)
+          : Promise.resolve([]),
+        getSupportUnreadCount(),
+      ])
+        .then(([items, supportUnread]) => {
           if (!active) return
-          const state = loadNotificationState(activeCompany.id, user.id)
+          const stateCompanyId = activeCompany?.id ?? 'global'
+          const state = loadNotificationState(stateCompanyId, user.id)
           const operational = items.map((item) => ({
             ...item,
             read: state.readIds.includes(item.id),
             dismissed: state.dismissedIds.includes(item.id),
           }))
           const next: AppNotification[] = []
+          if (supportUnread > 0) {
+            next.push({
+              id: 'support:unread',
+              severity: 'info',
+              category: 'suporte',
+              title: `${supportUnread} mensagem(ns) do suporte`,
+              description: 'Abra a conversa com o administrador para ler a resposta.',
+              route: '/suporte',
+              routeLabel: 'Abrir suporte',
+              read: state.readIds.includes('support:unread'),
+              dismissed: state.dismissedIds.includes('support:unread'),
+              createdAt: new Date().toISOString(),
+            })
+          }
           if (pendingCount > 0) {
             next.push({
               id: 'offline:pending',
               severity: 'info',
+              category: 'movimentacoes',
               title: 'Lançamentos pendentes',
               description: `${pendingCount} lançamento(s) aguardam conexão ou sincronização.`,
               route: '/movimentacoes',
@@ -138,6 +163,7 @@ export function AppShell({ children }: AppShellProps) {
             next.push({
               id: `version:${newVersion}`,
               severity: 'info',
+              category: 'sistema',
               title: 'Nova versão disponível',
               description: `A versão ${newVersion} pode ser instalada pela sua conta.`,
               route: '/',
@@ -282,7 +308,7 @@ export function AppShell({ children }: AppShellProps) {
             onDismissAll={dismissAllNotifications}
           />
           <button className="profile-button profile-link" type="button" onClick={() => setAccountOpen(true)} aria-label="Minha conta">
-            <Avatar name={user?.user_metadata.full_name ?? user?.email} googleUrl={user?.user_metadata.avatar_url} size={44} />
+            <Avatar key={user?.id + String(user?.user_metadata.avatar_url ?? '')} name={user?.user_metadata.full_name ?? user?.email} googleUrl={profilePhotoHidden ? null : user?.user_metadata.avatar_url} size={44} />
           </button>
         </header>
         <main className="app-content">
@@ -299,6 +325,7 @@ export function AppShell({ children }: AppShellProps) {
           {children}
           {footer}
         </main>
+        <BackToTop />
         <nav className="bottom-nav" aria-label="Navegação principal móvel">
           {mobileItems.map((item) => item.key === 'more'
             ? <button
@@ -343,7 +370,7 @@ export function AppShell({ children }: AppShellProps) {
                 <NavLink className="company-selector mobile-sidebar-company" to="/entrar-codigo" onClick={() => setMobileMenuOpen(false)}>Entrar com código</NavLink>
               )}
               <button className="mobile-sidebar-profile" type="button" onClick={() => { setMobileMenuOpen(false); setAccountOpen(true) }}>
-                <Avatar name={user?.user_metadata.full_name ?? user?.email} googleUrl={user?.user_metadata.avatar_url} size={44} />
+                <Avatar name={user?.user_metadata.full_name ?? user?.email} googleUrl={profilePhotoHidden ? null : user?.user_metadata.avatar_url} size={44} />
                 <span><strong>Minha conta</strong><small>{isAdmin ? 'Administrador' : role === 'owner' ? 'Proprietário' : role === 'manager' ? 'Gerente' : role === 'employee' ? 'Funcionário' : 'Sem vínculo'}</small></span>
               </button>
               <nav className="mobile-sidebar-nav" aria-label="Navegação lateral móvel">
@@ -417,11 +444,14 @@ export function AppShell({ children }: AppShellProps) {
           onDismissAll={dismissAllNotifications}
         />
         <button className="profile-button profile-link" type="button" onClick={() => setAccountOpen(true)} aria-label="Minha conta">
-          <Avatar name={user?.user_metadata.full_name ?? user?.email} googleUrl={user?.user_metadata.avatar_url} size={52} />
+          <Avatar key={user?.id + String(user?.user_metadata.avatar_url ?? '')} name={user?.user_metadata.full_name ?? user?.email} googleUrl={profilePhotoHidden ? null : user?.user_metadata.avatar_url} size={52} />
         </button>
       </header>
       <main className="app-content">
         {newVersion && <div className="update-toast" role="status">Nova versão disponível: v{newVersion}. Abra Minha conta para atualizar.</div>}
+        {isAdmin && activeCompany && (
+          <div className="app-error-banner" role="status">Modo suporte: suas ações ficam registradas.</div>
+        )}
         {appError && (
           <div className="app-error-banner" role="alert">
             <span>{appError}</span>
@@ -431,6 +461,7 @@ export function AppShell({ children }: AppShellProps) {
         {children}
         {footer}
       </main>
+      <BackToTop />
       <AccountDrawer open={accountOpen} online={online} pendingCount={pendingCount} onClose={() => setAccountOpen(false)} />
       <PrivacyPolicyPrompt />
     </div>

@@ -10,6 +10,7 @@ import { calculateDoseQuantity, calculatePortionQuantity, calculateWeightQuantit
 import { useCompanies } from '../company/company-context'
 import { getStockBalance } from '../../services/movements'
 import { calculateStockDivergence, formatStockDivergenceMessage } from '../management/divergenceDetection'
+import { formatBrazilianCurrencyInput, parseBrazilianCurrency } from '../management/currency'
 
 type Props = {
   companyId: string
@@ -62,12 +63,12 @@ export function MovementLaunchForm({ companyId, environments, products, onRegist
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    const effectiveTransfer = operationPreset !== 'normal' || type === 'transferencia'
     setError('')
     setLoading(true)
     try {
       if (!navigator.onLine) {
         if (!user?.id) throw new Error('Entre na sua conta antes de salvar um lançamento offline.')
+        if (type === 'perda') throw new Error('Perdas offline exigem conexão enquanto os motivos não estiverem disponíveis no aparelho.')
         const selectedProduct = products.find((product) => product.id === productId)
         const offlineQuantity = doseMode
           ? calculateDoseQuantity(selectedProduct?.volume_ml ?? null, selectedProduct?.dose_ml ?? null, doses)
@@ -77,14 +78,6 @@ export function MovementLaunchForm({ companyId, environments, products, onRegist
               ? calculateWeightQuantity(weightKg, selectedProduct?.unit ?? 'kg', selectedProduct?.weight_g ?? null)
               : quantity
         if (offlineQuantity === null) throw new Error('Produto sem volume ou dose cadastrados.')
-        if (!effectiveTransfer && type !== 'entrada') {
-          const balances = await getStockBalance(companyId, fromEnvironment)
-          const available = Number(balances.find((item) => item.product_id === productId)?.balance ?? 0)
-          const divergence = calculateStockDivergence(available, offlineQuantity, 'negative_withdrawal')
-          setDivergenceWarning(divergence
-            ? formatStockDivergenceMessage(divergence)
-            : '')
-        }
         const effectiveFrom = operationPreset === 'direct_purchase'
           ? toEnvironment
           : operationPreset === 'destination_return'
@@ -110,7 +103,7 @@ export function MovementLaunchForm({ companyId, environments, products, onRegist
           type: effectiveType,
           quantity: offlineQuantity,
           note: note || null,
-          lossReasonId: type === 'perda' ? lossReasonId || null : null,
+          lossReasonId: null,
           localCreatedAt: new Date().toISOString(),
         })
         setOfflineMessage('Salvo no aparelho, pendente de envio.')
@@ -219,7 +212,13 @@ export function MovementLaunchForm({ companyId, environments, products, onRegist
       )}
       {operationPreset === 'direct_purchase' && (
         <label>Custo unitário da compra direta (R$)
-          <input type="number" min="0" step="0.01" value={directPurchaseCost ?? ''} onChange={(event) => setDirectPurchaseCost(event.target.value === '' ? null : Number(event.target.value))} placeholder="Ex.: 3,50" />
+          <input
+            type="text"
+            inputMode="decimal"
+            value={directPurchaseCost == null ? '' : formatBrazilianCurrencyInput(directPurchaseCost)}
+            onChange={(event) => setDirectPurchaseCost(parseBrazilianCurrency(event.target.value))}
+            placeholder="R$ 3,50"
+          />
         </label>
       )}
       {operationPreset === 'destination_return' && (

@@ -2,7 +2,8 @@ import { useState, type ChangeEvent } from 'react'
 import { useCompanies } from '../features/company/company-context'
 import { canManageCompany } from '../lib/uiPermissions'
 import { tryGetSupabaseClient } from '../lib/supabase'
-import { parseProductsCsv, parseProductRows, type ParsedProductRow } from '../features/products/import/parseProductsCsv'
+import { parseProductRows, type ParsedProductRow } from '../features/products/import/parseProductsCsv'
+import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
 import { Container, Card, ActionButton, ContextHelp, PageGuide } from '../components'
 import { traduzirErro } from '../lib/errors'
@@ -23,6 +24,7 @@ export function ProductImportPage() {
   const [error, setError] = useState('')
   const [result, setResult] = useState('')
   const [resolvedRows, setResolvedRows] = useState<ResolvedImportRow[]>([])
+  const [excludedLines, setExcludedLines] = useState<Set<number>>(new Set())
 
   const loadFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -34,20 +36,32 @@ export function ProductImportPage() {
     const companyId = activeCompany.id
     setError('')
     setResult('')
+    setExcludedLines(new Set())
     try {
       if (/\.xlsx?$/.test(file.name.toLowerCase())) {
         const buffer = await file.arrayBuffer()
         const workbook = XLSX.read(buffer, { type: 'array' })
         const catalogRows: Record<string, unknown>[] = []
         for (const sheetName of workbook.SheetNames) {
-          if (/Resumo|Listas/i.test(sheetName)) continue
-          const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[sheetName], { defval: '' })
-          const hasCatalogHeader = rawRows.some((row) => Object.keys(row).some((key) =>
-            /produto|product|categoria|unidade|cod/i.test(key),
-          ))
-          if (hasCatalogHeader) catalogRows.push(...rawRows)
+          const sheet = workbook.Sheets[sheetName]
+          const matrix = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, { header: 1, defval: '' })
+          if (String(matrix[0]?.[0] ?? '').trim() !== 'Controle-App'
+            || String(matrix[1]?.[0] ?? '').trim() !== 'Modelo oficial de produtos') {
+            continue
+          }
+          const headerIndex = matrix.findIndex((row) =>
+            row.includes('nome')
+            && row.includes('codigo')
+            && row.includes('unidade'),
+          )
+          if (headerIndex < 0) continue
+          const header = matrix[headerIndex].map((cell) => String(cell ?? '').trim())
+          for (const row of matrix.slice(headerIndex + 1)) {
+            if (!row.some((cell) => String(cell ?? '').trim() !== '')) continue
+            catalogRows.push(Object.fromEntries(header.map((title, columnIndex) => [title, row[columnIndex] ?? ''])))
+          }
         }
-        if (catalogRows.length === 0) throw new Error('A planilha não contém uma aba reconhecível de produtos.')
+        if (catalogRows.length === 0) throw new Error('Este arquivo não contém uma tabela oficial de produtos do Controle-App.')
         const supabase = tryGetSupabaseClient()
         if (!supabase) throw new Error('Supabase não configurado.')
         const existingResult = await supabase
@@ -91,10 +105,26 @@ export function ProductImportPage() {
         const parsed = parseProductRows([...uniqueCatalogRows.values()], existingNames, existingSkus, existingVariants)
         setRows(parsed)
         setResolvedRows(prepareProductImportResolutions(parsed, existingProducts))
-      } else {
-        const buffer = await file.arrayBuffer()
-        let text = new TextDecoder('utf-8', { fatal: false }).decode(buffer)
-        if (text.includes('\uFFFD')) text = new TextDecoder('windows-1252').decode(buffer)
+      } else if (/\.csv$/i.test(file.name)) {
+        let text = new TextDecoder('utf-8', { fatal: false }).decode(await file.arrayBuffer())
+        if (text.includes('\uFFFD')) text = new TextDecoder('windows-1252').decode(await file.arrayBuffer())
+        text = text.replace(/^\uFEFF/, '')
+        if (!text.includes('Modelo oficial de produtos')) {
+          throw new Error('Use somente o modelo CSV oficial gerado pelo Controle-App.')
+        }
+        const lines = text.split(/\r?\n/)
+        const headerIndex = lines.findIndex((line) => {
+          const normalized = line.toLowerCase()
+          return normalized.includes('nome') && normalized.includes('codigo') && normalized.includes('unidade')
+        })
+        if (headerIndex < 0) throw new Error('O cabeçalho oficial de produtos não foi encontrado.')
+        const tableText = lines.slice(headerIndex).join('\n')
+        const table = Papa.parse<Record<string, unknown>>(tableText, {
+          header: true,
+          skipEmptyLines: true,
+          delimiter: tableText.includes(';') ? ';' : ',',
+        })
+        if (table.errors.length > 0) throw new Error('Não foi possível interpretar o modelo CSV de produtos.')
         const supabase = tryGetSupabaseClient()
         if (!supabase) throw new Error('Supabase não configurado.')
         const existingResult = await supabase
@@ -103,19 +133,15 @@ export function ProductImportPage() {
           .eq('company_id', companyId)
           .eq('active', true)
         if (existingResult.error) throw existingResult.error
-        const parsed = parseProductsCsv(
-          text,
-          (existingResult.data ?? []).map((item) => item.name),
-          (existingResult.data ?? []).map((item) => item.sku ?? ''),
-          (existingResult.data ?? []).map((item) => ({
-            name: item.name,
-            unit: item.unit,
-            volumeMl: item.volume_ml,
-            doseMl: item.dose_ml,
-          })),
-        )
-        setRows(parsed)
-        setResolvedRows(prepareProductImportResolutions(parsed, (existingResult.data ?? []).map((item) => ({
+        const existingNames = (existingResult.data ?? []).map((item) => item.name)
+        const existingSkus = (existingResult.data ?? []).map((item) => item.sku ?? '')
+        const existingVariants = (existingResult.data ?? []).map((item) => ({
+          name: item.name,
+          unit: item.unit,
+          volumeMl: item.volume_ml,
+          doseMl: item.dose_ml,
+        }))
+        const existingProducts: ImportExistingProduct[] = (existingResult.data ?? []).map((item) => ({
           id: item.id,
           name: item.name,
           sku: item.sku,
@@ -123,7 +149,12 @@ export function ProductImportPage() {
           volumeMl: item.volume_ml,
           doseMl: item.dose_ml,
           weightG: item.weight_g ?? null,
-        }))))
+        }))
+        const parsed = parseProductRows(table.data, existingNames, existingSkus, existingVariants)
+        setRows(parsed)
+        setResolvedRows(prepareProductImportResolutions(parsed, existingProducts))
+      } else {
+        throw new Error('Use um modelo XLSX ou CSV oficial gerado pelo Controle-App.')
       }
     } catch (caught) {
       setError(traduzirErro(caught, 'Não foi possível ler o arquivo.'))
@@ -147,8 +178,15 @@ export function ProductImportPage() {
       reviewed: false,
       matches: [],
     } satisfies ParsedProductRow & ProductImportResolution))
+    const invalidUnresolved = sourceRows.filter((row) =>
+      !row.valid && !excludedLines.has(row.line),
+    )
+    if (invalidUnresolved.length > 0) {
+      setError(`Corrija ou remova explicitamente ${invalidUnresolved.length} linha(s) inválida(s) antes de importar.`)
+      return
+    }
     const unresolved = sourceRows.filter((row) =>
-      row.valid && (
+      row.valid && !excludedLines.has(row.line) && (
         row.action === null
         || (row.action === 'update' && !row.matchedProductId)
       )
@@ -157,7 +195,11 @@ export function ProductImportPage() {
       setError(`Revise ${unresolved.length} linha(s) antes de importar. Escolha atualizar um item existente ou cadastrar uma variante nova.`)
       return
     }
-    const valid = sourceRows.filter((row) => row.valid && row.action !== null)
+    const valid = sourceRows.filter((row) =>
+      row.valid
+      && !excludedLines.has(row.line)
+      && row.action !== null,
+    )
     const payload = valid.map((row) => ({
       import_action: row.action,
       existing_product_id: row.action === 'update' ? row.matchedProductId : null,
@@ -200,9 +242,12 @@ export function ProductImportPage() {
       reviewed: false,
       matches: [],
     } satisfies ParsedProductRow & ProductImportResolution))
-  const validCount = sourceRows.filter((row) => row.valid).length
+  const validCount = sourceRows.filter((row) =>
+    row.valid && !excludedLines.has(row.line),
+  ).length
   const reviewedCount = sourceRows.filter((row) =>
-    !row.valid || (row.action === 'create' || (row.action === 'update' && row.matchedProductId)),
+    excludedLines.has(row.line)
+    || (row.action === 'create' || (row.action === 'update' && row.matchedProductId)),
   ).length
 
   const chooseCreate = (line: number) => {
@@ -256,12 +301,12 @@ export function ProductImportPage() {
         <div className="member-actions">
           <a className="secondary-button" href={`${import.meta.env.BASE_URL}modelo-produtos.xlsx`} target="_blank" rel="noreferrer">Visualizar modelo XLSX</a>
           <a className="secondary-button" href={`${import.meta.env.BASE_URL}modelo-produtos.xlsx`} download="modelo-produtos.xlsx">Baixar modelo XLSX</a>
-          <a className="secondary-button" href={'data:text/csv;charset=utf-8,nome;codigo;tipo_categoria;unidade;volume_ml;peso;dose_ml;estoque_minimo;estoque_maximo;custo%0AVodka;P001;Vodka;garrafa;998;;50;2;10;89,90%0AEspetinho de carne;E001;Carnes e espetinhos;porcao;;; ;20;40;18,00'} download="modelo-produtos.csv">Baixar modelo CSV</a>
+          <a className="secondary-button" href={`${import.meta.env.BASE_URL}modelo-produtos.csv`} download="modelo-produtos.csv">Baixar modelo CSV</a>
         </div>
-        <label className="file-upload-label">Arquivo CSV ou XLSX
-          <input type="file" accept=".csv,.xlsx,.xls,text/csv" onChange={loadFile} />
+        <label className="file-upload-label">Modelo XLSX ou CSV oficial
+          <input type="file" accept=".xlsx,.xls,.csv,text/csv" onChange={loadFile} />
         </label>
-        <p className="field-help">Selecione um arquivo CSV ou XLSX para visualizar e importar os produtos. Colunas aceitas: nome, código, categoria, unidade, estoque mínimo, estoque máximo, volume (ml), dose (ml) e custo.</p>
+        <p className="field-help">Selecione um modelo oficial XLSX ou CSV gerado pelo Controle-App. O sistema compara nome, SKU, unidade e variante antes de permitir a importação.</p>
         {error && <p className="form-error" role="alert">{error}</p>}
         {result && <p className="form-success" role="status">{result}</p>}
       </Card>
@@ -285,7 +330,23 @@ export function ProductImportPage() {
                   <span>{row.valid ? 'Dados válidos' : 'Dados incompletos'}</span>
                 </header>
                 {!row.valid ? (
-                  <p className="form-error">{row.errors.join('; ')}</p>
+                  excludedLines.has(row.line) ? (
+                    <div>
+                      <p className="form-success">Linha removida explicitamente desta importação.</p>
+                      <button className="secondary-button" type="button" onClick={() => setExcludedLines((current) => {
+                        const next = new Set(current)
+                        next.delete(row.line)
+                        return next
+                      })}>Restaurar linha</button>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="form-error">{row.errors.join('; ')}</p>
+                      <button className="secondary-button" type="button" onClick={() => setExcludedLines((current) => new Set(current).add(row.line))}>
+                        Remover esta linha explicitamente
+                      </button>
+                    </div>
+                  )
                 ) : (
                   <>
                     <dl>
@@ -327,7 +388,11 @@ export function ProductImportPage() {
           </div>
           <ActionButton
             className="primary-button"
-            disabled={validCount === 0 || reviewedCount !== sourceRows.length}
+            disabled={
+              validCount === 0
+              || reviewedCount !== sourceRows.length
+              || sourceRows.some((row) => !row.valid && !excludedLines.has(row.line))
+            }
             busyLabel="Importando..."
             confirmMessage={`Confirmar a importação revisada de ${validCount} produto(s)? Linhas aprovadas serão criadas ou atualizadas conforme suas decisões.`}
             onAction={importRows}

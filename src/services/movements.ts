@@ -100,6 +100,47 @@ export async function applyInventoryCountBatch(
   return result.data
 }
 
+export async function applyMovementEntryBatch(
+  companyId: string,
+  environmentId: string,
+  entries: Array<{ product_id: string; quantity: number; note: string | null }>,
+  clientRequestId: string,
+) {
+  const supabase = tryGetSupabaseClient()
+  if (!supabase) throw new Error('Supabase não configurado.')
+  const result = await supabase.rpc('apply_movement_entry_batch', {
+    p_company_id: companyId,
+    p_environment_id: environmentId,
+    p_entries: entries,
+    p_client_request_id: clientRequestId,
+  })
+  if (result.error) throw new Error(friendlySupabaseError(result.error))
+  return result.data
+}
+
+export async function applyMovementBatch(
+  companyId: string,
+  entries: Array<{
+    product_id: string
+    environment_id: string
+    to_environment_id?: string
+    type: 'entrada' | 'saida' | 'perda' | 'transferencia'
+    quantity: number
+    note: string | null
+  }>,
+  clientRequestId: string,
+) {
+  const supabase = tryGetSupabaseClient()
+  if (!supabase) throw new Error('Supabase não configurado.')
+  const result = await supabase.rpc('apply_movement_batch', {
+    p_company_id: companyId,
+    p_entries: entries,
+    p_client_request_id: clientRequestId,
+  })
+  if (result.error) throw new Error(friendlySupabaseError(result.error))
+  return result.data
+}
+
 export async function finishInventory(sessionId: string) {
   const supabase = tryGetSupabaseClient()
   if (!supabase) throw new Error('Supabase não configurado.')

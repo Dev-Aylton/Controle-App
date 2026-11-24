@@ -4,6 +4,14 @@ export function canManageCompany(role: CompanyRole | null, isAdmin: boolean) {
   return isAdmin || role === 'owner' || role === 'manager'
 }
 
+export function canRequestPurchase(role: CompanyRole | null, isAdmin: boolean) {
+  return isAdmin || role === 'owner' || role === 'manager' || role === 'employee'
+}
+
+export function canReviewPurchase(role: CompanyRole | null, isAdmin: boolean) {
+  return isAdmin || role === 'owner' || role === 'manager'
+}
+
 export function canCreateProduct(role: CompanyRole | null, isAdmin: boolean) {
   return isAdmin || role === 'owner' || role === 'manager' || role === 'employee'
 }
@@ -33,6 +41,17 @@ export function canDeactivate(
   targetUserId: string,
 ) {
   if (callerUserId === targetUserId) return false
+  if (isAdmin) return true
+  if (callerRole === 'owner') return targetRole === 'manager' || targetRole === 'employee'
+  if (callerRole === 'manager') return targetRole === 'employee'
+  return false
+}
+
+export function canReactivate(
+  callerRole: CompanyRole | null,
+  isAdmin: boolean,
+  targetRole: CompanyRole,
+) {
   if (isAdmin) return true
   if (callerRole === 'owner') return targetRole === 'manager' || targetRole === 'employee'
   if (callerRole === 'manager') return targetRole === 'employee'

@@ -28,6 +28,7 @@ export function CompanyPage() {
   const [createPhone, setCreatePhone] = useState('')
   const [createLogoBlob, setCreateLogoBlob] = useState<Blob | null>(null)
   const [createLogoPreview, setCreateLogoPreview] = useState('')
+  const [suspensionReason, setSuspensionReason] = useState('')
   const [pendingLogoBlob, setPendingLogoBlob] = useState<Blob | null>(null)
   const [pendingLogoPreview, setPendingLogoPreview] = useState('')
   const canEdit = canManageCompany(role, isAdmin)
@@ -166,6 +167,40 @@ export function CompanyPage() {
     }
   }
 
+  const suspendCompany = async () => {
+    if (!supabase || !activeCompany) return
+    setError('')
+    setMessage('')
+    try {
+      const { error: suspendError } = await supabase.rpc('suspend_company', {
+        p_company_id: activeCompany.id,
+        p_reason: suspensionReason,
+      })
+      if (suspendError) throw suspendError
+      setSuspensionReason('')
+      setMessage('Empresa suspensa. Operações estão bloqueadas até a reativação.')
+      await refresh(true)
+    } catch (caught) {
+      setError(traduzirErro(caught, 'Não foi possível suspender a empresa.'))
+    }
+  }
+
+  const reactivateCompany = async () => {
+    if (!supabase || !activeCompany) return
+    setError('')
+    setMessage('')
+    try {
+      const { error: reactivateError } = await supabase.rpc('reactivate_company', {
+        p_company_id: activeCompany.id,
+      })
+      if (reactivateError) throw reactivateError
+      setMessage('Empresa reativada. Operações foram liberadas.')
+      await refresh(true)
+    } catch (caught) {
+      setError(traduzirErro(caught, 'Não foi possível reativar a empresa.'))
+    }
+  }
+
   if (!activeCompany) {
     return (
       <Container>
@@ -250,6 +285,43 @@ export function CompanyPage() {
           <div className="data-list"><p><strong>Nome:</strong> {name}</p><p><strong>Telefone:</strong> {phone || 'Não informado'}</p></div>
         )}
       </Card>
+      {isAdmin && (
+        <Card>
+          <h2>Status administrativo da empresa</h2>
+          {activeCompany.active ? (
+            <>
+              <p>Estado atual: <strong>Ativa</strong></p>
+              <label>Motivo da suspensão
+                <input value={suspensionReason} onChange={(event) => setSuspensionReason(event.target.value)} placeholder="Ex.: manutenção ou inadimplência" />
+              </label>
+              <ActionButton
+                className="danger-button"
+                busyLabel="Suspendendo..."
+                disabled={!suspensionReason.trim()}
+                confirmMessage={`Suspender a empresa "${activeCompany.name}"? Todos os membros perderão acesso às operações até a reativação.`}
+                requireText={activeCompany.name}
+                onAction={suspendCompany}
+              >
+                Suspender empresa
+              </ActionButton>
+            </>
+          ) : (
+            <>
+              <p>Estado atual: <strong>Suspensa</strong></p>
+              {activeCompany.suspended_reason && <p>Motivo: {activeCompany.suspended_reason}</p>}
+              {activeCompany.suspended_at && <p>Suspensa em: {new Date(activeCompany.suspended_at).toLocaleString('pt-BR')}</p>}
+              <ActionButton
+                className="primary-button"
+                busyLabel="Reativando..."
+                confirmMessage={`Reativar a empresa "${activeCompany.name}" e liberar as operações dos membros?`}
+                onAction={reactivateCompany}
+              >
+                Reativar empresa
+              </ActionButton>
+            </>
+          )}
+        </Card>
+      )}
     </Container>
   )
 }

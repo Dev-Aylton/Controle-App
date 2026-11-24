@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) setClaimError('Entrou no aplicativo, mas não foi possível verificar convites pendentes.')
     }
     const readAccountDeletionStatus = async () => {
+      if (!navigator.onLine) return []
       const { data, error } = await supabase.rpc('get_account_deletion_status')
       if (error) {
         setAccountDeletionStatusError('Não foi possível verificar o status da conta. Tente novamente.')
@@ -66,7 +67,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         await refreshAccountStatus(data.user.id)
       } catch (error) {
-        setAccountDeletionStatusError('Não foi possível verificar o status da conta. Tente novamente.')
+        if (navigator.onLine) {
+          setAccountDeletionStatusError('Não foi possível verificar o status da conta. Tente novamente.')
+        } else {
+          setAccountDeletionStatusError(null)
+        }
         recordTechnicalError('auth.accountDeletionStatus', error)
       } finally {
         setLoading(false)
@@ -93,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         await refreshAccountStatus(userId)
       } catch (error) {
-        recordTechnicalError('auth.accountDeletionStatus', error)
+        if (navigator.onLine) recordTechnicalError('auth.accountDeletionStatus', error)
       } finally {
         setLoading(false)
       }

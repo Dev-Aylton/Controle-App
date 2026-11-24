@@ -6,10 +6,13 @@ import { Container, Card, PhotoPicker, Avatar, ActionButton, ContextHelp, PageGu
 import { profileUploadErrorMessage } from '../lib/profileUploadError'
 import { recordTechnicalError } from '../lib/diagnostics'
 import { removeProfilePhoto } from '../features/account/profilePhoto'
+import { useCompanies } from '../features/company/company-context'
+import { markProfilePhotoHidden } from '../features/account/useProfilePhotoHidden'
 
 export function ProfilePage() {
   const { user } = useAuth()
   const supabase = tryGetSupabaseClient()
+  const { activeCompany, role, isAdmin } = useCompanies()
   const [name, setName] = useState('')
   const [avatarUrl, setAvatarUrl] = useState('')
   const [avatarKey, setAvatarKey] = useState('')
@@ -56,7 +59,7 @@ export function ProfilePage() {
           .update({ name, avatar_url: savedAvatarUrl || null })
           .eq('id', user.id)
         saveError = fallback.error
-        if (!saveError) setTechnicalError('avatar_key ainda não existe no banco; aplique o patch 004-avatar-key.sql.')
+        if (!saveError) setTechnicalError('Não foi possível confirmar a atualização completa da foto. Tente novamente.')
       }
       if (saveError) throw saveError
       setAvatarUrl(savedAvatarUrl)
@@ -80,9 +83,8 @@ export function ProfilePage() {
     setError('')
     setMessage('')
     setTechnicalError('')
-    let profileCleared = false
     try {
-      await removeProfilePhoto(user.id, avatarUrl, Boolean(user.user_metadata.avatar_url), {
+      const result = await removeProfilePhoto(user.id, avatarUrl, Boolean(user.user_metadata.avatar_url), {
         removeStorageObject: async (path) => {
           const { error: removeError } = await supabase.storage.from('profile-photos').remove([path])
           if (removeError) throw removeError
@@ -100,9 +102,8 @@ export function ProfilePage() {
             saveError = fallback.error
           }
           if (saveError) throw saveError
-          profileCleared = true
           setAvatarUrl('')
-          setAvatarKey('')
+          setAvatarKey('default-male')
           setUploadedBlob(null)
           setPhotoRemoved(true)
           if (uploadedPreview) URL.revokeObjectURL(uploadedPreview)
@@ -113,11 +114,15 @@ export function ProfilePage() {
           if (updateError) throw updateError
         },
       })
-      setMessage('Foto de perfil removida.')
+      markProfilePhotoHidden(user.id)
+      setMessage(result.storageRemoved
+        ? 'Foto de perfil removida.'
+        : 'Foto removida do perfil. O arquivo antigo permanece no armazenamento.')
+      if (!result.providerAvatarCleared) {
+        setError('A foto saiu do perfil. A limpeza no login do Google não foi concluída, mas não será exibida novamente neste aparelho.')
+      }
     } catch (caught) {
-      const friendlyMessage = profileCleared
-        ? 'A foto foi removida do perfil, mas não foi possível limpar a foto do provedor. Tente novamente.'
-        : profileUploadErrorMessage(caught) ?? friendlySupabaseError(caught)
+      const friendlyMessage = profileUploadErrorMessage(caught) ?? friendlySupabaseError(caught)
       setError(friendlyMessage)
       setTechnicalError(`${(caught as { message?: string }).message ?? String(caught)}`)
       recordTechnicalError('ProfilePage.removePhoto', caught)
@@ -144,6 +149,15 @@ export function ProfilePage() {
         ]}
         result="A equipe e a auditoria conseguem reconhecer o responsável por cada ação."
       />
+      <Card>
+        <h2>Informações da conta</h2>
+        <dl className="profile-summary">
+          <div><dt>E-mail</dt><dd>{user?.email ?? 'Não informado'}</dd></div>
+          <div><dt>Empresa ativa</dt><dd>{activeCompany?.name ?? 'Nenhuma empresa selecionada'}</dd></div>
+          <div><dt>Cargo</dt><dd>{isAdmin ? 'Administrador do app' : role === 'owner' ? 'Proprietário' : role === 'manager' ? 'Gerente' : role === 'employee' ? 'Funcionário' : 'Sem vínculo'}</dd></div>
+          <div><dt>Data da conta</dt><dd>{user?.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : 'Não disponível'}</dd></div>
+        </dl>
+      </Card>
       <Card>
         <form onSubmit={(event) => event.preventDefault()} className="form-stack">
           <label>Nome<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Seu nome de exibição" /></label>

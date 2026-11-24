@@ -10,6 +10,8 @@ import { traduzirErro } from '../lib/errors'
 import { canManageCompany } from '../lib/uiPermissions'
 import { Container, Card, ContextHelp, ActionButton, PageGuide } from '../components'
 import { calculateRecipeCost, calculateRecipeMargin, type SaleRecipe } from '../features/sales/saleRecipe'
+import { calculateAutomaticDosePrice } from '../features/sales/salesRules'
+import { formatBrazilianCurrencyInput, parseBrazilianCurrency } from '../features/management/currency'
 
 type Environment = { id: string; name: string }
 type EditablePricingField = 'unit_cost' | 'unit_price' | 'dose_price'
@@ -37,6 +39,13 @@ export function SalesPricesPage() {
   const [recipePrice, setRecipePrice] = useState(0)
   const [recipeProductId, setRecipeProductId] = useState('')
   const [recipeQuantity, setRecipeQuantity] = useState(1)
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [productSearch, setProductSearch] = useState('')
+  const [productPage, setProductPage] = useState(1)
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([])
+  const [categoryByProduct, setCategoryByProduct] = useState<Record<string, string>>({})
+  const [manualDoseOverrides, setManualDoseOverrides] = useState<Set<string>>(new Set())
+  const productPageSize = 25
 
   useEffect(() => {
     let cancelled = false
@@ -59,6 +68,14 @@ export function SalesPricesPage() {
         if (cancelled) return
         const nextEnvironments = result.data ?? []
         setEnvironments(nextEnvironments)
+        const [categoryResult, productResult] = await Promise.all([
+          supabase.from('product_categories').select('id,name').eq('company_id', activeCompany.id).eq('active', true).order('name'),
+          supabase.from('products').select('id,category_id').eq('company_id', activeCompany.id).eq('active', true),
+        ])
+        if (!cancelled) {
+          setCategories((categoryResult.data ?? []).map((item) => ({ id: item.id, name: item.name })))
+          setCategoryByProduct(Object.fromEntries((productResult.data ?? []).map((item) => [item.id, item.category_id ?? ''])))
+        }
         setEnvironmentsCompanyId(activeCompany.id)
         setEnvironmentId((current) => nextEnvironments.some((item) => item.id === current)
           ? current
@@ -94,7 +111,15 @@ export function SalesPricesPage() {
     setError('')
     try {
       const nextRows = await listProductEnvironmentPricing(activeCompany.id, environmentId)
-      if (requestId === pricingRequest.current) setRows(nextRows)
+      if (requestId === pricingRequest.current) {
+        setRows(nextRows.map((row) => {
+          if (row.dose_price != null || manualDoseOverrides.has(row.product_id)) return row
+          return {
+            ...row,
+            dose_price: calculateAutomaticDosePrice(row.unit_price, row.unit_cost ?? row.base_unit_cost, row.volume_ml, row.dose_ml),
+          }
+        }))
+      }
     } catch (caught) {
       if (requestId === pricingRequest.current) {
         setError(traduzirErro(caught, 'Não foi possível carregar custos e preços.'))
@@ -102,7 +127,7 @@ export function SalesPricesPage() {
     } finally {
       if (requestId === pricingRequest.current) setLoadingPrices(false)
     }
-  }, [activeCompany, environmentId, environments, environmentsCompanyId])
+  }, [activeCompany, environmentId, environments, environmentsCompanyId, manualDoseOverrides])
 
   useEffect(() => {
     queueMicrotask(() => { void loadPrices() })
@@ -110,9 +135,26 @@ export function SalesPricesPage() {
 
   const updateRow = (productId: string, field: EditablePricingField, value: string) => {
     const amount = readAmount(value)
-    setRows((current) => current.map((row) => row.product_id === productId
-      ? { ...row, [field]: amount }
-      : row))
+    setRows((current) => current.map((row) => {
+      if (row.product_id !== productId) return row
+      const next = { ...row, [field]: amount }
+      if (field === 'dose_price') {
+        setManualDoseOverrides((currentOverrides) => new Set(currentOverrides).add(productId))
+      }
+      if (field === 'unit_price' && !manualDoseOverrides.has(productId)) {
+        next.dose_price = calculateAutomaticDosePrice(amount, next.unit_cost ?? next.base_unit_cost, next.volume_ml, next.dose_ml)
+      }
+      if (field === 'unit_cost' && !manualDoseOverrides.has(productId) && next.unit_price == null) {
+        next.dose_price = calculateAutomaticDosePrice(null, amount, next.volume_ml, next.dose_ml)
+      }
+      return next
+    }))
+  }
+
+  const getDosePriceLabel = (row: ProductEnvironmentPricing) => {
+    if (manualDoseOverrides.has(row.product_id)) return 'Editado manualmente'
+    if (row.dose_price != null) return 'Calculado pelo app'
+    return 'Cadastre volume/dose'
   }
 
   const saveRow = async (row: ProductEnvironmentPricing) => {
@@ -134,6 +176,16 @@ export function SalesPricesPage() {
   if (!canManage) {
     return <Container><h1>Preços de venda</h1><Card><p>Acesso restrito a proprietários e gerentes.</p></Card></Container>
   }
+  const filteredRows = rows.filter((row) => {
+    const matchesCategory = !categoryFilter || categoryByProduct[row.product_id] === categoryFilter
+    const search = productSearch.trim().toLowerCase()
+    const matchesSearch = !search
+      || row.product_name.toLowerCase().includes(search)
+      || String(row.sku ?? '').toLowerCase().includes(search)
+    return matchesCategory && matchesSearch
+  })
+  const salesPricePageCount = Math.max(1, Math.ceil(filteredRows.length / productPageSize))
+  const visibleRows = filteredRows.slice((productPage - 1) * productPageSize, productPage * productPageSize)
 
   return (
     <Container>
@@ -158,16 +210,27 @@ export function SalesPricesPage() {
       <Card>
         <p>Defina o custo e os preços de cada produto neste ambiente. O custo é usado no custo da mercadoria vendida; preços por unidade ou dose calculam o faturamento das importações.</p>
         <p className="field-help">Se o custo do ambiente ficar em branco, será usado o custo base do produto. Para vender por dose, cadastre volume e dose no produto.</p>
-        <label>Ambiente
-          <select
-            value={environmentId}
-            onChange={(event) => setEnvironmentId(event.target.value)}
-            disabled={loadingEnvironments || environments.length === 0}
-          >
-            <option value="">Selecione</option>
-            {environments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
-        </label>
+        <div className="sales-pricing-toolbar">
+          <label>Ambiente
+            <select
+              value={environmentId}
+              onChange={(event) => { setEnvironmentId(event.target.value); setProductPage(1) }}
+              disabled={loadingEnvironments || environments.length === 0}
+            >
+              <option value="">Selecione</option>
+              {environments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </label>
+          <label>Categoria
+            <select value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setProductPage(1) }}>
+              <option value="">Todas</option>
+              {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            </select>
+          </label>
+          <label>Buscar produto
+            <input value={productSearch} onChange={(event) => { setProductSearch(event.target.value); setProductPage(1) }} placeholder="Nome ou código" />
+          </label>
+        </div>
       </Card>
       {error && <p className="form-error" role="alert">{error}</p>}
       {message && <p className="form-success" role="status">{message}</p>}
@@ -178,47 +241,46 @@ export function SalesPricesPage() {
       {!loadingPrices && environmentId && (
         <Card>
           {rows.length === 0 ? <p>Nenhum produto ativo cadastrado neste ambiente.</p> : (
+            <>
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr><th>Produto</th><th>Custo por unidade</th><th>Preço por unidade</th><th>Preço por dose</th><th>Ação</th></tr>
                 </thead>
                 <tbody>
-                  {rows.map((row) => (
+                  {visibleRows.map((row) => (
                     <tr key={row.product_id}>
                       <td><strong>{row.product_name}</strong><br /><small>{row.sku || 'Sem código'} • {row.unit}</small></td>
                       <td>
                         <input
-                          type="number"
-                          min="0"
-                          step="0.0001"
-                          value={row.unit_cost ?? ''}
-                          placeholder={row.base_unit_cost === null ? 'Não definido' : `Base: ${row.base_unit_cost}`}
+                          type="text"
+                          inputMode="decimal"
+                          value={row.unit_cost == null ? '' : formatBrazilianCurrencyInput(row.unit_cost)}
+                          placeholder={row.base_unit_cost === null ? 'R$ 0,00' : `Base: ${formatBrazilianCurrencyInput(row.base_unit_cost)}`}
                           aria-label={`Custo neste ambiente para ${row.product_name}`}
-                          onChange={(event) => updateRow(row.product_id, 'unit_cost', event.target.value)}
+                          onChange={(event) => updateRow(row.product_id, 'unit_cost', String(parseBrazilianCurrency(event.target.value) ?? ''))}
                         />
                       </td>
                       <td>
                         <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={row.unit_price ?? ''}
-                          placeholder="Não definido"
+                          type="text"
+                          inputMode="decimal"
+                          value={row.unit_price == null ? '' : formatBrazilianCurrencyInput(row.unit_price)}
+                          placeholder="R$ 0,00"
                           aria-label={`Preço por unidade para ${row.product_name}`}
-                          onChange={(event) => updateRow(row.product_id, 'unit_price', event.target.value)}
+                          onChange={(event) => updateRow(row.product_id, 'unit_price', String(parseBrazilianCurrency(event.target.value) ?? ''))}
                         />
                       </td>
                       <td>
                         <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={row.dose_price ?? ''}
-                          placeholder="Não definido"
+                          type="text"
+                          inputMode="decimal"
+                          value={row.dose_price == null ? '' : formatBrazilianCurrencyInput(row.dose_price)}
+                          placeholder="R$ 0,00"
                           aria-label={`Preço por dose para ${row.product_name}`}
-                          onChange={(event) => updateRow(row.product_id, 'dose_price', event.target.value)}
+                          onChange={(event) => updateRow(row.product_id, 'dose_price', String(parseBrazilianCurrency(event.target.value) ?? ''))}
                         />
+                        <small>{getDosePriceLabel(row)}</small>
                       </td>
                       <td>
                         <ActionButton
@@ -236,13 +298,21 @@ export function SalesPricesPage() {
                 </tbody>
               </table>
             </div>
+            {filteredRows.length > productPageSize && (
+              <div className="pagination-controls">
+                <button type="button" className="secondary-button" disabled={productPage <= 1} onClick={() => setProductPage((page) => Math.max(1, page - 1))}>Anterior</button>
+                <span>Página {productPage} de {salesPricePageCount}</span>
+                <button type="button" className="secondary-button" disabled={productPage >= salesPricePageCount} onClick={() => setProductPage((page) => Math.min(salesPricePageCount, page + 1))}>Próxima</button>
+              </div>
+            )}
+            </>
           )}
         </Card>
       )}
       {environmentId && (
         <Card>
-          <h2>Ficha técnica de prato ou drink</h2>
-          <p className="field-help">Cadastre aqui o que compõe uma venda comercial. O preço é separado do custo dos insumos e pode variar por ambiente.</p>
+          <h2>Ficha técnica opcional</h2>
+          <p className="field-help">Use somente quando precisar estimar o custo de uma receita ou drink. Esta tela não baixa insumos nem cria uma venda automaticamente.</p>
           <div className="form-grid">
             <label>Nome do item vendido
               <input value={recipeName} onChange={(event) => setRecipeName(event.target.value)} placeholder="Ex.: Caipirinha de limão" />
@@ -255,7 +325,13 @@ export function SalesPricesPage() {
               </select>
             </label>
             <label>Preço de venda
-              <input type="number" min="0" step="0.01" value={recipePrice} onChange={(event) => setRecipePrice(Number(event.target.value))} />
+              <input
+                type="text"
+                inputMode="decimal"
+                value={formatBrazilianCurrencyInput(recipePrice)}
+                placeholder="R$ 0,00"
+                onChange={(event) => setRecipePrice(parseBrazilianCurrency(event.target.value) ?? 0)}
+              />
             </label>
           </div>
           <div className="form-grid">
@@ -299,7 +375,7 @@ export function SalesPricesPage() {
               </div>
             )
           })()}
-          <p className="field-help">Os ingredientes serão cadastrados pela ficha técnica completa depois da aplicação do patch SQL no ambiente de teste. Até lá, esta prévia não altera estoque nem vendas.</p>
+          <p className="field-help">A ficha técnica registra os ingredientes e suas quantidades. Esta prévia não altera estoque nem vendas até a confirmação de uma operação relacionada.</p>
         </Card>
       )}
     </Container>

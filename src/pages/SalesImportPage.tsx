@@ -26,14 +26,13 @@ import {
 } from '../features/sales/salesService'
 import { normalizeExternalName } from '../features/sales/salesRules'
 import { traduzirErro } from '../lib/errors'
-import { downloadSalesTemplate, parseOfficialSalesRows, SALES_TEMPLATE_COLUMNS } from '../features/sales/salesTemplate'
+import { downloadSalesCsvTemplate, downloadSalesTemplate, isOfficialSalesTemplateColumns, parseOfficialSalesRows, SALES_TEMPLATE_COLUMNS } from '../features/sales/salesTemplate'
 import { calculateStockDivergence, formatStockDivergenceMessage } from '../features/management/divergenceDetection'
 import { getStockBalance } from '../services/movements'
+import { formatBrazilianCurrency } from '../features/management/currency'
 
 function formatCurrency(value: number | null) {
-  return value == null
-    ? 'Não disponível'
-    : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+  return value == null ? 'Não disponível' : formatBrazilianCurrency(value)
 }
 
 export function SalesImportPage() {
@@ -149,9 +148,14 @@ export function SalesImportPage() {
       setRawRows(rows)
       const names = rows[0] ? Object.keys(rows[0]) : []
       setColumns(names)
-      const isOfficialTemplate = SALES_TEMPLATE_COLUMNS.every((column) => names.includes(column))
+      const isOfficialTemplate = isOfficialSalesTemplateColumns(names)
       if (!isOfficialTemplate) {
-        setMessage('Arquivo externo detectado. Use preferencialmente o modelo oficial, pois nomes de coluna diferentes exigem revisão manual.')
+        setRawRows([])
+        setColumns([])
+        setError('Arquivo externo ou modelo incompatível. Use somente o modelo XLSX oficial gerado pelo Controle-App.')
+        setMessage('')
+        event.target.value = ''
+        return
       } else {
         setMessage('Modelo oficial reconhecido. As linhas serão validadas pelo SKU e pelo nome do produto.')
       }
@@ -345,6 +349,25 @@ export function SalesImportPage() {
             >
               Baixar modelo XLSX
             </button>
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={!activeCompany || !environmentId}
+              onClick={() => downloadSalesCsvTemplate(
+                activeCompany?.name ?? 'Empresa',
+                environments.find((item) => item.id === environmentId)?.name ?? 'Ambiente',
+                products.map((product) => ({
+                  id: product.id,
+                  name: product.name,
+                  sku: product.sku,
+                  unit: product.unit,
+                  volumeMl: product.volume_ml,
+                  doseMl: product.dose_ml,
+                })),
+              )}
+            >
+              Baixar modelo CSV
+            </button>
           </div>
           <div className="form-grid">
             <label>Ambiente
@@ -354,7 +377,7 @@ export function SalesImportPage() {
               </select>
             </label>
             <label>Rótulo / evento<input value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Ex.: Festa — 21/11" aria-describedby="sales-import-help" /></label>
-            <label>Arquivo CSV ou XLSX<input type="file" accept=".csv,.xlsx,.xls" onChange={(event) => void readFile(event)} /></label>
+            <label>Modelo XLSX ou CSV oficial<input type="file" accept=".xlsx,.xls,.csv,text/csv" onChange={(event) => void readFile(event)} /></label>
           </div>
           <p className="field-help" id="sales-import-help">O rótulo identifica esta importação no histórico. Depois de selecionar o arquivo, confira as colunas e gere uma prévia antes de confirmar.</p>
           {columns.length > 0 && (

@@ -8,6 +8,7 @@ import {
 import type { AlertFilter } from '../features/management/rules'
 import type { EnvironmentLowStock, LowStockAlert, NegativeBalance, PendingLoss } from '../features/management/types'
 import { traduzirErro } from '../lib/errors'
+import { NavLink } from 'react-router-dom'
 
 type Option = { id: string; name: string }
 
@@ -23,6 +24,9 @@ export function AlertsPage() {
   const [divergenceCount, setDivergenceCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [alertSearch, setAlertSearch] = useState('')
+  const [alertPage, setAlertPage] = useState(1)
+  const alertPageSize = 25
 
   const load = useCallback(async () => {
     if (!activeCompany) return
@@ -80,6 +84,22 @@ export function AlertsPage() {
   const negativeFiltered = negative.filter((row) => !environmentId || row.environment_id === environmentId)
   const pendingFiltered = pending.filter((row) => !environmentId || row.environment_id === environmentId)
   const noStock = environmentLow.filter((row) => row.balance === 0 && (!environmentId || row.environment_id === environmentId))
+  const matchesAlertSearch = (values: Array<string | number | null>) =>
+    values.some((value) => String(value ?? '').toLowerCase().includes(alertSearch.toLowerCase().trim()))
+  const belowVisible = belowFiltered.filter((row) => matchesAlertSearch([row.product_name, row.total_balance, row.min_stock])).slice((alertPage - 1) * alertPageSize, alertPage * alertPageSize)
+  const noStockVisible = noStock.filter((row) => matchesAlertSearch([row.product_name, row.environment_name])).slice((alertPage - 1) * alertPageSize, alertPage * alertPageSize)
+  const negativeVisible = negativeFiltered.filter((row) => matchesAlertSearch([row.product_name, row.environment_name, row.balance])).slice((alertPage - 1) * alertPageSize, alertPage * alertPageSize)
+  const pendingVisible = pendingFiltered.filter((row) => matchesAlertSearch([row.product_name, row.environment_name, row.quantity])).slice((alertPage - 1) * alertPageSize, alertPage * alertPageSize)
+  const alertResultCount = filter === 'abaixo'
+    ? belowFiltered.filter((row) => matchesAlertSearch([row.product_name, row.total_balance, row.min_stock])).length
+    : filter === 'sem_estoque'
+      ? noStock.filter((row) => matchesAlertSearch([row.product_name, row.environment_name])).length
+      : filter === 'negativo'
+        ? negativeFiltered.filter((row) => matchesAlertSearch([row.product_name, row.environment_name, row.balance])).length
+        : filter === 'perda'
+          ? pendingFiltered.filter((row) => matchesAlertSearch([row.product_name, row.environment_name, row.quantity])).length
+          : divergenceCount
+  const alertPageCount = Math.max(1, Math.ceil(alertResultCount / alertPageSize))
 
   return (
     <Container>
@@ -105,7 +125,7 @@ export function AlertsPage() {
       <Card>
         <div className="form-grid">
           <label>Aba
-            <select value={filter} onChange={(event) => setFilter(event.target.value as AlertFilter)}>
+            <select value={filter} onChange={(event) => { setFilter(event.target.value as AlertFilter); setAlertPage(1) }}>
               <option value="abaixo">Abaixo do mínimo</option>
               <option value="sem_estoque">Sem estoque</option>
               <option value="negativo">Saldo negativo</option>
@@ -114,10 +134,13 @@ export function AlertsPage() {
             </select>
           </label>
           <label>Ambiente
-            <select value={environmentId} onChange={(event) => setEnvironmentId(event.target.value)}>
+            <select value={environmentId} onChange={(event) => { setEnvironmentId(event.target.value); setAlertPage(1) }}>
               <option value="">Todos</option>
               {environments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
+          </label>
+          <label>Buscar
+            <input value={alertSearch} onChange={(event) => { setAlertSearch(event.target.value); setAlertPage(1) }} placeholder="Produto ou ambiente" />
           </label>
         </div>
       </Card>
@@ -126,23 +149,55 @@ export function AlertsPage() {
         <Card>
           {filter === 'abaixo' && (
             belowFiltered.length === 0 ? <p>Nenhum produto abaixo do mínimo. Continue acompanhando as movimentações.</p> :
-              belowFiltered.map((row) => <article className="member-row" key={row.product_id}><strong>{row.product_name}</strong><span>Saldo {row.total_balance} • mínimo {row.min_stock}</span></article>)
+              belowVisible.map((row) => (
+                <article className="member-row" key={row.product_id}>
+                  <div><strong>{row.product_name}</strong><span>Saldo {row.total_balance} • mínimo {row.min_stock}</span></div>
+                  <NavLink className="dashboard-action-button" to="/compras">Abrir lista de compras</NavLink>
+                </article>
+              ))
           )}
           {filter === 'sem_estoque' && (
             noStock.length === 0 ? <p>Nenhum produto sem estoque. Nenhuma ação é necessária agora.</p> :
-              noStock.map((row) => <article className="member-row" key={`${row.product_id}-${row.environment_id}`}><strong>{row.product_name}</strong><span>{row.environment_name} • saldo zero</span></article>)
+              noStockVisible.map((row) => (
+                <article className="member-row" key={`${row.product_id}-${row.environment_id}`}>
+                  <div><strong>{row.product_name}</strong><span>{row.environment_name} • saldo zero</span></div>
+                  <NavLink className="dashboard-action-button" to="/movimentacoes">Registrar entrada</NavLink>
+                </article>
+              ))
           )}
           {filter === 'negativo' && (
             negativeFiltered.length === 0 ? <p>Nenhum saldo negativo. Revise inventários somente quando necessário.</p> :
-              negativeFiltered.map((row) => <article className="member-row" key={`${row.product_id}-${row.environment_id}`}><strong>{row.product_name}</strong><span>{row.environment_name} • saldo {row.balance}</span></article>)
+              negativeVisible.map((row) => (
+                <article className="member-row" key={`${row.product_id}-${row.environment_id}`}>
+                  <div><strong>{row.product_name}</strong><span>{row.environment_name} • saldo {row.balance}</span></div>
+                  <NavLink className="dashboard-action-button" to="/inventario">Conferir inventário</NavLink>
+                </article>
+              ))
           )}
           {filter === 'perda' && (
             pendingFiltered.length === 0 ? <p>Nenhuma perda pendente. Todas as perdas registradas possuem motivo.</p> :
-              pendingFiltered.map((row) => <article className="member-row" key={row.movement_id}><strong>{row.product_name}</strong><span>{row.environment_name} • quantidade {row.quantity}</span></article>)
+              pendingVisible.map((row) => (
+                <article className="member-row" key={row.movement_id}>
+                  <div><strong>{row.product_name}</strong><span>{row.environment_name} • quantidade {row.quantity}</span></div>
+                  <NavLink className="dashboard-action-button" to="/movimentacoes">Informar motivo</NavLink>
+                </article>
+              ))
           )}
           {filter === 'divergencia' && (
             divergenceCount === 0 ? <p>Nenhuma divergência recente nos últimos 30 dias.</p> :
-              <p>{divergenceCount} produto(s) com ajuste de inventário nos últimos 30 dias.</p>
+              (
+                <article className="member-row">
+                  <div><strong>Divergências recentes</strong><span>{divergenceCount} produto(s) nos últimos 30 dias</span></div>
+                  <NavLink className="dashboard-action-button" to="/inventario">Revisar contagem</NavLink>
+                </article>
+              )
+          )}
+          {filter !== 'divergencia' && alertResultCount > 0 && (
+            <div className="pagination-controls" aria-label="Paginação dos alertas">
+              <button type="button" className="secondary-button" disabled={alertPage <= 1} onClick={() => setAlertPage((page) => Math.max(1, page - 1))}>Anterior</button>
+              <span>Página {alertPage} de {alertPageCount}</span>
+              <button type="button" className="secondary-button" disabled={alertPage >= alertPageCount} onClick={() => setAlertPage((page) => Math.min(alertPageCount, page + 1))}>Próxima</button>
+            </div>
           )}
         </Card>
       )}

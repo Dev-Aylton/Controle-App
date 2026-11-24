@@ -1,4 +1,10 @@
-import { LEGACY_UNASSIGNED_USER_ID, offlineDb, type QueuedMovement } from './db'
+import {
+  LEGACY_UNASSIGNED_USER_ID,
+  offlineDb,
+  type OfflineCatalogItem,
+  type OfflineMovementEnvironment,
+  type QueuedMovement,
+} from './db'
 import { registerMovement, registerTransfer } from '../../services/movements'
 import { traduzirErro } from '../../lib/errors'
 import { completePendingLossReason } from '../movements/lossReasons'
@@ -30,6 +36,80 @@ export async function getOfflineQueueStatus(userId?: string | null) {
 export async function getQueuedMovementsForUser(userId: string) {
   if (userId === LEGACY_UNASSIGNED_USER_ID) return []
   return offlineDb.queuedMovements.where('userId').equals(userId).toArray()
+}
+
+export async function cacheMovementCatalog(
+  userId: string,
+  companyId: string,
+  products: Array<{
+    id: string
+    name: string
+    unit: string
+    sku?: string | null
+    volume_ml?: number | null
+    dose_ml?: number | null
+    weight_g?: number | null
+  }>,
+  environments: Array<{ id: string; name: string }>,
+) {
+  await offlineDb.transaction('rw', offlineDb.catalog, offlineDb.movementEnvironments, async () => {
+    await offlineDb.catalog
+      .where('userId')
+      .equals(userId)
+      .filter((item) => item.companyId === companyId)
+      .delete()
+    await offlineDb.catalog.bulkPut(products.map((product): OfflineCatalogItem => ({
+      userId,
+      id: product.id,
+      companyId,
+      name: product.name,
+      unit: product.unit,
+      sku: product.sku ?? null,
+      volumeMl: product.volume_ml ?? null,
+      doseMl: product.dose_ml ?? null,
+      weightG: product.weight_g ?? null,
+      environments: '',
+    })))
+    await offlineDb.movementEnvironments
+      .where('companyId')
+      .equals(companyId)
+      .filter((item) => item.userId === userId)
+      .delete()
+    await offlineDb.movementEnvironments.bulkPut(environments.map((environment): OfflineMovementEnvironment => ({
+      userId,
+      companyId,
+      id: environment.id,
+      name: environment.name,
+    })))
+  })
+}
+
+export async function getCachedMovementCatalog(userId: string, companyId: string) {
+  const [catalog, environments] = await Promise.all([
+    offlineDb.catalog
+      .where('userId')
+      .equals(userId)
+      .filter((item) => item.companyId === companyId)
+      .toArray(),
+    offlineDb.movementEnvironments
+      .where('[userId+companyId+id]')
+      .between([userId, companyId, ''], [userId, companyId, '\uffff'])
+      .toArray(),
+  ])
+  return {
+    products: catalog.map((item) => ({
+      id: item.id,
+      name: item.name,
+      sku: item.sku ?? null,
+      unit: item.unit,
+      volume_ml: item.volumeMl ?? null,
+      dose_ml: item.doseMl ?? null,
+      weight_g: item.weightG ?? null,
+    })),
+    environments: environments
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .map((item) => ({ id: item.id, name: item.name })),
+  }
 }
 
 export function isPermissionFailure(message: string): boolean {

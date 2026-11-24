@@ -2,7 +2,16 @@ import 'fake-indexeddb/auto'
 import Dexie from 'dexie'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LEGACY_UNASSIGNED_USER_ID, offlineDb } from './db'
-import { enqueueMovement, getOfflineQueueStatus, getQueuedMovementsForUser, isPermissionFailure, syncQueuedMovements, transferResponseIsGroupId } from './sync'
+import {
+  cacheMovementCatalog,
+  enqueueMovement,
+  getCachedMovementCatalog,
+  getOfflineQueueStatus,
+  getQueuedMovementsForUser,
+  isPermissionFailure,
+  syncQueuedMovements,
+  transferResponseIsGroupId,
+} from './sync'
 import { registerMovement } from '../../services/movements'
 
 vi.mock('../../services/movements', () => ({
@@ -16,6 +25,7 @@ describe('fila offline', () => {
     vi.mocked(registerMovement).mockClear()
     await offlineDb.queuedMovements.clear()
     await offlineDb.catalog.clear()
+    await offlineDb.movementEnvironments.clear()
   })
 
   it('identifica erros que devem parar a fila', () => {
@@ -90,6 +100,46 @@ describe('fila offline', () => {
 
     expect(await getQueuedMovementsForUser('usuario-a')).toHaveLength(0)
     expect(await getOfflineQueueStatus('usuario-a')).toEqual({ userPending: 0, hasUnassignedPending: true })
+  })
+
+  it('mantém catálogo de movimentação isolado por usuário e empresa', async () => {
+    await cacheMovementCatalog(
+      'usuario-a',
+      'empresa-a',
+      [{
+        id: 'produto-a',
+        name: 'Cerveja',
+        unit: 'lata',
+        sku: 'CER-01',
+        volume_ml: 350,
+        dose_ml: null,
+        weight_g: null,
+      }],
+      [{ id: 'bar', name: 'Bar' }],
+    )
+    await cacheMovementCatalog(
+      'usuario-b',
+      'empresa-b',
+      [{ id: 'produto-b', name: 'Outro', unit: 'un' }],
+      [{ id: 'cozinha', name: 'Cozinha' }],
+    )
+
+    expect(await getCachedMovementCatalog('usuario-a', 'empresa-a')).toEqual({
+      products: [{
+        id: 'produto-a',
+        name: 'Cerveja',
+        sku: 'CER-01',
+        unit: 'lata',
+        volume_ml: 350,
+        dose_ml: null,
+        weight_g: null,
+      }],
+      environments: [{ id: 'bar', name: 'Bar' }],
+    })
+    expect(await getCachedMovementCatalog('usuario-b', 'empresa-a')).toEqual({
+      products: [],
+      environments: [],
+    })
   })
 
   it('migra as filas anteriores para o espaço não atribuído, sem escolher um usuário', async () => {

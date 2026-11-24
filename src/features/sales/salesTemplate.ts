@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx'
+import { downloadCsv } from '../management/csv'
 
 export type SalesTemplateProduct = {
   id: string
@@ -15,6 +16,10 @@ export const SALES_TEMPLATE_COLUMNS = [
   'Quantidade',
   'Tipo',
 ] as const
+
+export function isOfficialSalesTemplateColumns(columns: string[]) {
+  return SALES_TEMPLATE_COLUMNS.every((column) => columns.includes(column))
+}
 
 export function parseOfficialSalesRows(rawRows: Record<string, unknown>[]) {
   return rawRows.map((row, index) => {
@@ -54,6 +59,7 @@ export function downloadSalesTemplate(
   const instructionRows = [
     ['Controle-App', '', '', ''],
     ['Modelo oficial de vendas', '', '', ''],
+    ['Versão', '1.0', 'Tipo', 'Vendas'],
     ['Empresa', companyName, 'Ambiente', environmentName],
     ['Gerado em', dateText, 'Hora', timeText],
     ['Preencha uma linha por venda ou grupo de vendas.', '', '', ''],
@@ -85,6 +91,22 @@ export function downloadSalesTemplate(
     { hpt: 8 },
     { hpt: 34 },
   ]
+  const border = {
+    top: { style: 'thin', color: { rgb: 'C8D8D2' } },
+    bottom: { style: 'thin', color: { rgb: 'C8D8D2' } },
+    left: { style: 'thin', color: { rgb: 'C8D8D2' } },
+    right: { style: 'thin', color: { rgb: 'C8D8D2' } },
+  }
+  worksheet['A1'].s = { font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1F7A65' } }, alignment: { horizontal: 'center' } }
+  worksheet['A2'].s = { font: { bold: true, sz: 12, color: { rgb: '173A35' } }, alignment: { horizontal: 'center' } }
+  for (let column = 0; column < 4; column += 1) {
+    const header = XLSX.utils.encode_cell({ r: 7, c: column })
+    if (worksheet[header]) {
+      worksheet[header].s = { font: { bold: true, color: { rgb: '173A35' } }, fill: { fgColor: { rgb: 'E7F3EF' } }, border, alignment: { horizontal: 'center', vertical: 'center', wrapText: true } }
+    }
+  }
+  worksheet['!autofilter'] = { ref: 'A8:D38' }
+  worksheet['!freeze'] = { xSplit: 0, ySplit: 8, topLeftCell: 'A9', state: 'frozen' }
 
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Vendas')
@@ -108,5 +130,30 @@ export function downloadSalesTemplate(
   XLSX.writeFile(
     workbook,
     `modelo-vendas-${companyName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${now.toISOString().slice(0, 10)}.xlsx`,
+  )
+}
+
+export function downloadSalesCsvTemplate(
+  companyName: string,
+  environmentName: string,
+  products: SalesTemplateProduct[],
+) {
+  downloadCsv(
+    `modelo-vendas-${companyName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.csv`,
+    [
+      ['Controle-App', 'Modelo oficial de vendas'],
+      ['Versão', '1.0'],
+      ['Tipo', 'Vendas'],
+      ['Empresa', companyName, 'Ambiente', environmentName],
+      ['Preencha uma linha por venda ou grupo de vendas.', '', '', ''],
+      [],
+      [...SALES_TEMPLATE_COLUMNS],
+      ...products.map((product) => [
+        product.sku ?? '',
+        product.name,
+        '',
+        'unidade',
+      ]),
+    ],
   )
 }

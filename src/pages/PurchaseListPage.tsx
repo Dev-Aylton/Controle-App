@@ -1,12 +1,20 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useCompanies } from '../features/company/company-context'
+import { useAuth } from '../features/auth/auth-context'
 import { Container, Card, ActionButton, ContextHelp, PageGuide } from '../components'
 import { tryGetSupabaseClient } from '../lib/supabase'
 import { getPurchaseList } from '../features/management/management'
 import { downloadCsv } from '../features/management/csv'
 import { traduzirErro } from '../lib/errors'
 import type { PurchaseDraftItem } from '../features/management/purchaseListDraft'
-import { calculatePurchaseDraftEstimated, calculatePurchaseDraftTotal } from '../features/management/purchaseListDraft'
+import {
+  calculatePurchaseDraftEstimated,
+  calculatePurchaseDraftTotal,
+  clearPurchaseDraft,
+  loadPurchaseDraft,
+  savePurchaseDraft,
+  validatePurchaseDraft,
+} from '../features/management/purchaseListDraft'
 import { downloadBlankPurchaseListPdf, downloadPurchaseListPdf } from '../features/management/purchaseListPdf'
 import {
   createPurchaseRequest,
@@ -15,13 +23,16 @@ import {
   resolvePurchaseRequest,
   type PurchaseRequest,
 } from '../features/management/purchaseRequests'
-import { planPurchaseRows, type PurchaseProductPlan } from '../features/management/purchasePlanning'
+import { paginatePurchasePlans, planPurchaseRows, type PurchaseProductPlan } from '../features/management/purchasePlanning'
 import { useNavigate } from 'react-router-dom'
-import { listSuppliers, listSupplierPrices, saveSupplier, saveSupplierPrice, type Supplier, type SupplierPrice } from '../features/management/suppliers'
-import { formatBRL } from '../features/products/import/formatCurrency'
+import { getCheapestSupplierPrice, listSuppliers, listSupplierPrices, saveSupplier, saveSupplierPrice, type Supplier, type SupplierPrice } from '../features/management/suppliers'
+import { canReviewPurchase } from '../lib/uiPermissions'
+import { formatBrazilianCurrency, formatBrazilianCurrencyInput, parseBrazilianCurrency } from '../features/management/currency'
 
 export function PurchaseListPage() {
   const { activeCompany, role, isAdmin } = useCompanies()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
   const navigate = useNavigate()
   const [environments, setEnvironments] = useState<Array<{ id: string; name: string }>>([])
   const [environmentId, setEnvironmentId] = useState('')
@@ -33,7 +44,10 @@ export function PurchaseListPage() {
   const [manualEnvironment, setManualEnvironment] = useState('')
   const [manualQuantity, setManualQuantity] = useState(1)
   const [manualCost, setManualCost] = useState<number | null>(null)
+  const [manualSupplierName, setManualSupplierName] = useState('')
+  const [manualPurchaseUnit, setManualPurchaseUnit] = useState('un')
   const canManage = isAdmin || role === 'owner' || role === 'manager'
+  const canReview = canReviewPurchase(role, isAdmin)
   const [requests, setRequests] = useState<PurchaseRequest[]>([])
   const [requestDestinationId, setRequestDestinationId] = useState('')
   const [requestProductId, setRequestProductId] = useState('')
@@ -47,6 +61,12 @@ export function PurchaseListPage() {
   const [purchasePlans, setPurchasePlans] = useState<PurchaseProductPlan[]>([])
   const [purchaseSearch, setPurchaseSearch] = useState('')
   const [purchaseMode, setPurchaseMode] = useState<'todos' | 'comprar' | 'transferir'>('todos')
+  const [purchaseCategory, setPurchaseCategory] = useState('')
+  const [purchaseSupplier, setPurchaseSupplier] = useState('')
+  const [purchaseCategories, setPurchaseCategories] = useState<Array<{ id: string; name: string }>>([])
+  const [purchaseCategoryByProduct, setPurchaseCategoryByProduct] = useState<Record<string, string>>({})
+  const [purchasePage, setPurchasePage] = useState(1)
+  const purchasePageSize = 25
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [supplierPrices, setSupplierPrices] = useState<SupplierPrice[]>([])
   const [supplierPanelOpen, setSupplierPanelOpen] = useState(false)
@@ -61,6 +81,8 @@ export function PurchaseListPage() {
   const [supplierUnitPrice, setSupplierUnitPrice] = useState<number | null>(null)
   const [purchaseUnit, setPurchaseUnit] = useState('un')
   const [unitsPerPurchase, setUnitsPerPurchase] = useState<number | null>(null)
+  const [draftStep, setDraftStep] = useState<1 | 2 | 3>(1)
+  const draftHydratedCompany = useRef('')
 
   const load = useCallback(async () => {
     if (!activeCompany) return
@@ -69,20 +91,37 @@ export function PurchaseListPage() {
     try {
       const supabase = tryGetSupabaseClient()
       if (!supabase) throw new Error('Supabase não configurado.')
+      let nextSuppliers: Supplier[] = []
+      let nextSupplierPrices: SupplierPrice[] = []
       const envResult = await supabase.from('environments').select('id,name').eq('company_id', activeCompany.id).eq('active', true)
       if (envResult.error) throw envResult.error
       setEnvironments((envResult.data ?? []).map((item) => ({ id: item.id, name: item.name })))
       if (canManage) {
-        setSuppliers(await listSuppliers(activeCompany.id))
-        setSupplierPrices(await listSupplierPrices(activeCompany.id))
+        nextSuppliers = await listSuppliers(activeCompany.id)
+        nextSupplierPrices = await listSupplierPrices(activeCompany.id)
+        setSuppliers(nextSuppliers)
+        setSupplierPrices(nextSupplierPrices)
+        const categoryResult = await supabase
+          .from('product_categories')
+          .select('id,name')
+          .eq('company_id', activeCompany.id)
+          .eq('active', true)
+          .order('name')
+        if (!categoryResult.error) {
+          setPurchaseCategories((categoryResult.data ?? []).map((item) => ({ id: item.id, name: item.name })))
+        }
+        if (requestDestinationId) {
+          setSuppliers(nextSuppliers)
+        }
       }
       const productResult = await supabase
         .from('products')
-        .select('id,name,sku')
+        .select('id,name,sku,category_id')
         .eq('company_id', activeCompany.id)
         .eq('active', true)
         .order('name')
       if (productResult.error) throw productResult.error
+      setPurchaseCategoryByProduct(Object.fromEntries((productResult.data ?? []).map((item) => [item.id, item.category_id ?? ''])))
       setRequestProducts((productResult.data ?? []).map((item) => ({
         id: item.id,
         name: item.name,
@@ -101,29 +140,64 @@ export function PurchaseListPage() {
       const nextRows = await getPurchaseList(activeCompany.id, null)
       const plans = planPurchaseRows(nextRows)
       setPurchasePlans(plans)
-      setDraftItems(plans.filter((plan) => plan.purchaseQuantity > 0).map((plan) => ({
-        key: plan.productId,
-        productName: plan.productName,
-        environmentName: 'Todos os ambientes',
-        quantity: plan.purchaseQuantity,
-        unitCost: plan.unitCost,
-        manual: false,
-      })))
+      setDraftItems((current) => {
+        let base = current
+        if (draftHydratedCompany.current !== activeCompany.id && userId) {
+          base = loadPurchaseDraft(activeCompany.id, userId)
+          draftHydratedCompany.current = activeCompany.id
+        }
+        const preservedManual = base.filter((item) =>
+          item.manual || plans.some((plan) => plan.productId === item.key),
+        )
+        const suggested = plans.filter((plan) => plan.purchaseQuantity > 0).map((plan) => {
+          const existing = preservedManual.find((item) => item.key === plan.productId)
+          if (existing) return existing
+          const cheapest = getCheapestSupplierPrice(nextSupplierPrices, plan.productId)
+          const supplier = cheapest ? nextSuppliers.find((item) => item.id === cheapest.supplierId) : null
+          return {
+            key: plan.productId,
+            productId: plan.productId,
+            productName: plan.productName,
+            environmentName: 'Todos os ambientes',
+            quantity: plan.purchaseQuantity,
+            unitCost: cheapest?.unitPrice ?? plan.unitCost,
+            supplierId: cheapest?.supplierId,
+            supplierName: supplier?.name,
+            purchaseUnit: cheapest?.purchaseUnit ?? 'un',
+            draftAction: 'comprar' as const,
+            manual: false,
+          }
+        })
+        return [...preservedManual.filter((item) => item.manual), ...suggested]
+      })
     } catch (caught) {
       setError(traduzirErro(caught, 'Não foi possível carregar a lista de compras.'))
     } finally {
       setLoading(false)
     }
-  }, [activeCompany, canManage, requestDestinationId])
+  }, [activeCompany, canManage, requestDestinationId, userId])
 
   useEffect(() => {
     if (activeCompany) queueMicrotask(() => { void load() })
   }, [activeCompany, environmentId, load])
 
-  const exportCsv = () => {
-    const csvItems = draftItems.filter((item) => item.quantity > 0)
+  useEffect(() => {
+    if (!activeCompany || !userId) return
+    if (draftItems.length > 0) savePurchaseDraft(activeCompany.id, userId, draftItems)
+  }, [activeCompany, draftItems, userId])
+
+  const exportCsv = async () => {
+    const csvItems = draftItems.filter((item) =>
+      item.quantity > 0 && item.draftAction !== 'fora',
+    )
     if (csvItems.length === 0) {
       setError('Adicione ao menos um item com quantidade maior que zero.')
+      return
+    }
+    try {
+      await persistDraftSupplierData()
+    } catch (caught) {
+      setError(traduzirErro(caught, 'Não foi possível salvar o fornecedor ou preço informado.'))
       return
     }
     const totalDraft = calculatePurchaseDraftTotal(csvItems)
@@ -137,7 +211,11 @@ export function PurchaseListPage() {
           item.quantity,
           item.unitCost,
           calculatePurchaseDraftEstimated(item),
-          item.manual ? 'Adicionado manualmente' : 'Sugestão do estoque',
+          item.draftAction === 'transferir'
+            ? 'Transferir entre ambientes'
+            : item.manual
+              ? 'Adicionado manualmente'
+              : 'Sugestão do estoque',
         ]),
         ['Total', '', '', '', totalDraft.hasMissingCost ? 'Custo ausente em itens' : totalDraft.total, ''],
       ],
@@ -156,8 +234,86 @@ export function PurchaseListPage() {
     ))
   }
 
+  const updateDraftSupplier = (key: string, supplierName: string, supplierId?: string) => {
+    setDraftItems((current) => current.map((item) =>
+      item.key === key
+        ? { ...item, supplierName: supplierName.trim() || undefined, supplierId: supplierName.trim() ? supplierId : undefined }
+        : item,
+    ))
+  }
+
+  const updateDraftPurchaseUnit = (key: string, purchaseUnit: string) => {
+    setDraftItems((current) => current.map((item) =>
+      item.key === key ? { ...item, purchaseUnit } : item,
+    ))
+  }
+
   const removeDraftItem = (key: string) => {
     setDraftItems((current) => current.filter((item) => item.key !== key))
+  }
+
+  const persistDraftSupplierData = async () => {
+    if (!activeCompany) return
+    for (const item of draftItems) {
+      if (!item.supplierName?.trim()) continue
+      let supplierId = item.supplierId
+      const existing = suppliers.find((supplier) =>
+        supplier.id === supplierId
+        || supplier.name.trim().toLowerCase() === item.supplierName?.trim().toLowerCase(),
+      )
+      if (!existing) {
+        supplierId = await saveSupplier(activeCompany.id, null, {
+          name: item.supplierName.trim(),
+          contactName: null,
+          phone: null,
+          email: null,
+          notes: null,
+        })
+      } else {
+        supplierId = existing.id
+      }
+
+      if (item.productId && supplierId && item.unitCost != null) {
+        await saveSupplierPrice(
+          activeCompany.id,
+          item.productId,
+          supplierId,
+          item.unitCost,
+          item.purchaseUnit ?? 'un',
+          null,
+        )
+      }
+    }
+  }
+
+  const includePlanInDraft = (plan: PurchaseProductPlan) => {
+    setDraftItems((current) => {
+      const existing = current.find((item) => item.key === plan.productId)
+      if (existing) {
+        return current.map((item) => item.key === plan.productId
+          ? { ...item, quantity: plan.purchaseQuantity, environmentName: 'Todos os ambientes' }
+          : item)
+      }
+      const cheapest = getCheapestSupplierPrice(supplierPrices, plan.productId)
+      const supplier = cheapest ? suppliers.find((item) => item.id === cheapest.supplierId) : null
+      return [
+        ...current,
+        {
+          key: plan.productId,
+          productId: plan.productId,
+          productName: plan.productName,
+          environmentName: 'Todos os ambientes',
+          quantity: plan.purchaseQuantity,
+          unitCost: cheapest?.unitPrice ?? plan.unitCost,
+          supplierId: cheapest?.supplierId,
+          supplierName: supplier?.name,
+          purchaseUnit: cheapest?.purchaseUnit ?? 'un',
+          draftAction: 'comprar',
+          manual: false,
+        },
+      ]
+    })
+    setPreviewOpen(true)
   }
 
   const addManualItem = () => {
@@ -173,6 +329,9 @@ export function PurchaseListPage() {
         environmentName: manualEnvironment.trim() || 'Não informado',
         quantity: Math.max(1, manualQuantity),
         unitCost: manualCost,
+        supplierName: manualSupplierName.trim() || undefined,
+        purchaseUnit: manualPurchaseUnit,
+        draftAction: 'comprar',
         manual: true,
       },
     ])
@@ -180,16 +339,57 @@ export function PurchaseListPage() {
     setManualEnvironment('')
     setManualQuantity(1)
     setManualCost(null)
+    setManualSupplierName('')
+    setManualPurchaseUnit('un')
+  }
+
+  const updateDraftAction = (key: string, draftAction: 'comprar' | 'transferir' | 'fora') => {
+    setDraftItems((current) => current.map((item) =>
+      item.key === key ? { ...item, draftAction } : item,
+    ))
+  }
+
+  const saveDraft = () => {
+    if (!activeCompany || !userId) {
+      setError('Entre na sua conta antes de salvar o rascunho.')
+      return
+    }
+    savePurchaseDraft(activeCompany.id, userId, draftItems)
+    setMessage('Rascunho da lista salvo neste aparelho.')
+  }
+
+  const restoreDraft = () => {
+    if (!activeCompany || !userId) return
+    const restored = loadPurchaseDraft(activeCompany.id, userId)
+    setDraftItems(restored)
+    setDraftStep(1)
+    setMessage(restored.length ? 'Rascunho restaurado.' : 'Nenhum rascunho salvo foi encontrado.')
+  }
+
+  const clearDraft = () => {
+    if (!activeCompany || !userId) return
+    clearPurchaseDraft(activeCompany.id, userId)
+    setDraftItems([])
+    setDraftStep(1)
+    setMessage('Rascunho removido.')
     setError('')
   }
 
   const downloadPdf = async () => {
-    const visibleItems = draftItems.filter((item) => item.quantity > 0)
+    const visibleItems = draftItems.filter((item) =>
+      item.quantity > 0 && item.draftAction !== 'fora',
+    )
     if (visibleItems.length === 0) {
       setError('Adicione ao menos um item com quantidade maior que zero.')
       return
     }
     setError('')
+    try {
+      await persistDraftSupplierData()
+    } catch (caught) {
+      setError(traduzirErro(caught, 'Não foi possível salvar o fornecedor ou preço informado.'))
+      return
+    }
     await downloadPurchaseListPdf(
       activeCompany?.name ?? 'Empresa',
       environmentId
@@ -237,7 +437,7 @@ export function PurchaseListPage() {
         await createPurchaseRequest(activeCompany.id, requestDestinationId, requestItems, requestNote)
         setRequestItems([])
         setRequestNote('')
-        setMessage('Solicitação enviada para aprovação da gestão.')
+        setMessage('Solicitação enviada. Você pode continuar usando o aplicativo normalmente enquanto aguarda a revisão.')
         await load()
     } catch (caught) {
         setError(traduzirErro(caught, 'Não foi possível enviar a solicitação.'))
@@ -407,7 +607,13 @@ export function PurchaseListPage() {
                     </select>
                   </label>
                   <label>Preço pago
-                    <input type="number" min="0" step="0.01" value={supplierUnitPrice ?? ''} onChange={(event) => setSupplierUnitPrice(event.target.value === '' ? null : Number(event.target.value))} />
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={supplierUnitPrice == null ? '' : formatBrazilianCurrencyInput(supplierUnitPrice)}
+                      placeholder="R$ 0,00"
+                      onChange={(event) => setSupplierUnitPrice(parseBrazilianCurrency(event.target.value))}
+                    />
                   </label>
                   <label>Unidade de compra
                     <select value={purchaseUnit} onChange={(event) => setPurchaseUnit(event.target.value)}>
@@ -429,7 +635,7 @@ export function PurchaseListPage() {
                     {supplierPrices.filter((price) => !priceProductId || price.productId === priceProductId).map((price) => (
                       <div key={price.id}>
                         <span>{suppliers.find((supplier) => supplier.id === price.supplierId)?.name ?? 'Fornecedor'} • {new Date(price.validFrom).toLocaleDateString('pt-BR')}</span>
-                        <strong>{formatBRL(price.unitPrice)} / {price.purchaseUnit}{price.unitsPerPurchase ? ` • ${price.unitsPerPurchase} unidades` : ''}</strong>
+                        <strong>{formatBrazilianCurrency(price.unitPrice)} / {price.purchaseUnit}{price.unitsPerPurchase ? ` • ${price.unitsPerPurchase} unidades` : ''}</strong>
                       </div>
                     ))}
                   </div>
@@ -441,7 +647,7 @@ export function PurchaseListPage() {
       )}
       <Card>
         <h2>Solicitar reposição para um ambiente</h2>
-        <p className="field-help">Use esta opção quando faltar material em seu ambiente. A solicitação não altera o estoque; a gestão revisa e pode transferir do ambiente de origem.</p>
+        <p className="field-help">Use esta opção quando faltar material em seu ambiente. A solicitação não altera o estoque nem interrompe suas outras tarefas; qualquer gerente ou proprietário habilitado pode revisar a solicitação.</p>
         <div className="form-grid">
           <label>Ambiente de destino
             <select value={requestDestinationId} onChange={(event) => setRequestDestinationId(event.target.value)}>
@@ -491,14 +697,14 @@ export function PurchaseListPage() {
                 {request.note && <small>Observação: {request.note}</small>}
                 {request.review_note && <small>Resposta da gestão: {request.review_note}</small>}
               </div>
-              {canManage && request.status === 'pendente' && (
+              {canReview && request.status === 'pendente' && (
                 <div className="purchase-request-actions">
                   <input value={requestReviewNote} onChange={(event) => setRequestReviewNote(event.target.value)} placeholder="Observação da revisão" />
                   <button className="secondary-button" type="button" onClick={() => void reviewRequest(request.id, 'rejeitar')}>Rejeitar</button>
                   <ActionButton className="primary-button" busyLabel="Aprovando..." onAction={() => reviewRequest(request.id, 'aprovar')}>Aprovar</ActionButton>
                 </div>
               )}
-              {canManage && request.status === 'aprovada' && (
+              {canReview && request.status === 'aprovada' && (
                 <div className="purchase-request-actions">
                   <select value={requestSourceId} onChange={(event) => setRequestSourceId(event.target.value)}>
                     <option value="">Ambiente de origem</option>
@@ -516,12 +722,15 @@ export function PurchaseListPage() {
       {message && <p className="form-success" role="status">{message}</p>}
       {canManage && <Card>
         <label>Ambiente
-          <select value={environmentId} onChange={(event) => setEnvironmentId(event.target.value)}>
+          <select value={environmentId} onChange={(event) => { setEnvironmentId(event.target.value); setPurchasePage(1) }}>
             <option value="">Todos</option>
             {environments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
         </label>
         <div className="purchase-list-actions">
+          <button className="secondary-button" type="button" onClick={saveDraft}>Salvar rascunho</button>
+          <button className="secondary-button" type="button" onClick={restoreDraft}>Restaurar rascunho</button>
+          <button className="secondary-button" type="button" onClick={clearDraft}>Limpar rascunho</button>
           <ActionButton className="secondary-button" onAction={exportCsv} disabled={loading} busyLabel="Exportando...">Exportar CSV</ActionButton>
           <ActionButton className="secondary-button" onAction={downloadBlankPdf} disabled={loading} busyLabel="Gerando...">Gerar modelo vazio em PDF</ActionButton>
           <button className="primary-button" type="button" disabled={loading} onClick={() => setPreviewOpen(true)}>Prévia da compra</button>
@@ -532,13 +741,25 @@ export function PurchaseListPage() {
         <Card>
           <div className="purchase-plan-toolbar">
             <label>Buscar produto
-              <input value={purchaseSearch} onChange={(event) => setPurchaseSearch(event.target.value)} placeholder="Nome ou SKU" />
+              <input value={purchaseSearch} onChange={(event) => { setPurchaseSearch(event.target.value); setPurchasePage(1) }} placeholder="Nome ou SKU" />
             </label>
             <label>Necessidade
-              <select value={purchaseMode} onChange={(event) => setPurchaseMode(event.target.value as typeof purchaseMode)}>
+              <select value={purchaseMode} onChange={(event) => { setPurchaseMode(event.target.value as typeof purchaseMode); setPurchasePage(1) }}>
                 <option value="todos">Todos</option>
                 <option value="comprar">Comprar do fornecedor</option>
                 <option value="transferir">Transferir entre ambientes</option>
+              </select>
+            </label>
+            <label>Categoria
+              <select value={purchaseCategory} onChange={(event) => { setPurchaseCategory(event.target.value); setPurchasePage(1) }}>
+                <option value="">Todas</option>
+                {purchaseCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+              </select>
+            </label>
+            <label>Fornecedor
+              <select value={purchaseSupplier} onChange={(event) => { setPurchaseSupplier(event.target.value); setPurchasePage(1) }}>
+                <option value="">Todos</option>
+                {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
               </select>
             </label>
           </div>
@@ -546,15 +767,25 @@ export function PurchaseListPage() {
             const visiblePlans = purchasePlans.filter((plan) => {
               const matchesText = `${plan.productName}`.toLowerCase().includes(purchaseSearch.trim().toLowerCase())
               const matchesEnvironment = !environmentId || plan.environments.some((environment) => environment.id === environmentId)
+              const matchesCategory = !purchaseCategory || purchaseCategoryByProduct[plan.productId] === purchaseCategory
+              const draftSupplier = draftItems.find((item) => item.productId === plan.productId || item.key === plan.productId)
+              const cheapestSupplier = getCheapestSupplierPrice(supplierPrices, plan.productId)
+              const matchesSupplier = !purchaseSupplier
+                || draftSupplier?.supplierId === purchaseSupplier
+                || cheapestSupplier?.supplierId === purchaseSupplier
               const matchesMode = purchaseMode === 'todos'
                 || (purchaseMode === 'comprar' && plan.purchaseQuantity > 0)
                 || (purchaseMode === 'transferir' && plan.transferable > 0)
-              return matchesText && matchesEnvironment && matchesMode
+              return matchesText && matchesEnvironment && matchesCategory && matchesSupplier && matchesMode
             })
-            return visiblePlans.length === 0
+            const purchasePageData = paginatePurchasePlans(visiblePlans, purchasePage, purchasePageSize)
+            const purchasePageCount = purchasePageData.pageCount
+            const pagedPlans = purchasePageData.items
+            return pagedPlans.length === 0
               ? <p>Nenhum produto atende aos filtros selecionados.</p>
-              : <div className="purchase-plan-list">
-                {visiblePlans.map((plan) => {
+              : <>
+                <div className="purchase-plan-list">
+                {pagedPlans.map((plan) => {
                   const totalEstimated = plan.unitCost == null ? null : plan.purchaseQuantity * plan.unitCost
                   const environmentRows = environmentId
                     ? plan.environments.filter((environment) => environment.id === environmentId)
@@ -571,7 +802,7 @@ export function PurchaseListPage() {
                             <button className="secondary-button" type="button" onClick={() => navigate('/movimentacoes')}>Transferir</button>
                           )}
                           {plan.purchaseQuantity > 0 && (
-                            <button className="primary-button" type="button" onClick={() => setPreviewOpen(true)}>Incluir na compra</button>
+                            <button className="primary-button" type="button" onClick={() => includePlanInDraft(plan)}>Incluir na compra</button>
                           )}
                         </div>
                       </header>
@@ -600,6 +831,14 @@ export function PurchaseListPage() {
                   )
                 })}
               </div>
+                {visiblePlans.length > purchasePageSize && (
+                  <div className="pagination-controls">
+                    <button type="button" className="secondary-button" disabled={purchasePage <= 1} onClick={() => setPurchasePage((page) => Math.max(1, page - 1))}>Anterior</button>
+                    <span>Página {purchasePage} de {purchasePageCount}</span>
+                    <button type="button" className="secondary-button" disabled={purchasePage >= purchasePageCount} onClick={() => setPurchasePage((page) => Math.min(purchasePageCount, page + 1))}>Próxima</button>
+                  </div>
+                )}
+              </>
           })()}
         </Card>
       )}
@@ -610,13 +849,20 @@ export function PurchaseListPage() {
           <section className="purchase-preview-modal" role="dialog" aria-modal="true" aria-labelledby="purchase-preview-title">
             <header className="purchase-preview-header">
               <div>
-                <small>Prévia editável</small>
+                <small>Prévia editável • Etapa {draftStep} de 3</small>
                 <h2 id="purchase-preview-title">Lista de compras</h2>
                 <p>{activeCompany?.name ?? 'Empresa'} • {environmentId ? environments.find((item) => item.id === environmentId)?.name ?? 'Ambiente' : 'Todos os ambientes'}</p>
               </div>
               <button className="secondary-button" type="button" onClick={() => setPreviewOpen(false)}>Fechar</button>
             </header>
+            <nav className="purchase-stepper" aria-label="Etapas da lista de compras">
+              <button type="button" className={draftStep === 1 ? 'active' : ''} onClick={() => setDraftStep(1)}>1. Itens</button>
+              <button type="button" className={draftStep === 2 ? 'active' : ''} onClick={() => setDraftStep(2)}>2. Ambiente e ação</button>
+              <button type="button" className={draftStep === 3 ? 'active' : ''} onClick={() => setDraftStep(3)}>3. Confirmar</button>
+            </nav>
             <div className="purchase-preview-body">
+              {draftStep === 1 && (
+              <>
               <div className="purchase-preview-section">
                 <h3>Itens da lista</h3>
                 {draftItems.filter((item) => item.quantity > 0).length === 0 ? (
@@ -633,7 +879,43 @@ export function PurchaseListPage() {
                           <input type="number" min="0" step="1" value={item.quantity} onChange={(event) => updateDraftQuantity(item.key, Number(event.target.value))} />
                         </label>
                         <label>Custo unitário
-                          <input type="number" min="0" step="0.01" value={item.unitCost ?? ''} placeholder="Não informado" onChange={(event) => updateDraftCost(item.key, event.target.value === '' ? null : Number(event.target.value))} />
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={item.unitCost == null ? '' : formatBrazilianCurrencyInput(item.unitCost)}
+                            placeholder="R$ 0,00"
+                            onChange={(event) => updateDraftCost(item.key, parseBrazilianCurrency(event.target.value))}
+                          />
+                        </label>
+                        <label>Fornecedor
+                          <input
+                            list={`suppliers-${item.key}`}
+                            value={item.supplierName ?? ''}
+                            placeholder="Digite ou escolha"
+                            onChange={(event) => {
+                              const supplier = suppliers.find((row) => row.name.toLowerCase() === event.target.value.trim().toLowerCase())
+                              updateDraftSupplier(item.key, event.target.value, supplier?.id)
+                            }}
+                          />
+                          <datalist id={`suppliers-${item.key}`}>
+                            {suppliers.map((supplier) => <option key={supplier.id} value={supplier.name} />)}
+                          </datalist>
+                        </label>
+                        <label>Unidade
+                          <select value={item.purchaseUnit ?? 'un'} onChange={(event) => updateDraftPurchaseUnit(item.key, event.target.value)}>
+                            <option value="un">Unidade</option>
+                            <option value="cx">Caixa</option>
+                            <option value="pct">Pacote</option>
+                            <option value="kg">Quilograma</option>
+                            <option value="l">Litro</option>
+                          </select>
+                        </label>
+                        <label>Ação
+                          <select value={item.draftAction ?? 'comprar'} onChange={(event) => updateDraftAction(item.key, event.target.value as 'comprar' | 'transferir' | 'fora')}>
+                            <option value="comprar">Comprar do fornecedor</option>
+                            <option value="transferir">Transferir entre ambientes</option>
+                            <option value="fora">Ficar fora da lista</option>
+                          </select>
                         </label>
                         <strong className="purchase-draft-estimated">{calculatePurchaseDraftEstimated(item) === null ? '-' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculatePurchaseDraftEstimated(item)!)} </strong>
                         <button className="purchase-draft-remove" type="button" onClick={() => removeDraftItem(item.key)} aria-label={`Remover ${item.productName}`}>Remover</button>
@@ -655,11 +937,85 @@ export function PurchaseListPage() {
                     <input type="number" min="1" step="1" value={manualQuantity} onChange={(event) => setManualQuantity(Math.max(1, Number(event.target.value)))} />
                   </label>
                   <label>Custo unitário
-                    <input type="number" min="0" step="0.01" value={manualCost ?? ''} onChange={(event) => setManualCost(event.target.value === '' ? null : Number(event.target.value))} />
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={manualCost == null ? '' : formatBrazilianCurrencyInput(manualCost)}
+                      placeholder="R$ 0,00"
+                      onChange={(event) => setManualCost(parseBrazilianCurrency(event.target.value))}
+                    />
+                  </label>
+                  <label>Fornecedor
+                    <input list="purchase-manual-suppliers" value={manualSupplierName} onChange={(event) => setManualSupplierName(event.target.value)} placeholder="Digite ou escolha" />
+                    <datalist id="purchase-manual-suppliers">
+                      {suppliers.map((supplier) => <option key={supplier.id} value={supplier.name} />)}
+                    </datalist>
+                  </label>
+                  <label>Unidade
+                    <select value={manualPurchaseUnit} onChange={(event) => setManualPurchaseUnit(event.target.value)}>
+                      <option value="un">Unidade</option>
+                      <option value="cx">Caixa</option>
+                      <option value="pct">Pacote</option>
+                      <option value="kg">Quilograma</option>
+                      <option value="l">Litro</option>
+                    </select>
                   </label>
                 </div>
                 <button className="secondary-button" type="button" onClick={addManualItem}>Adicionar à lista</button>
               </aside>
+              </>
+              )}
+              {draftStep === 2 && (
+                <div className="purchase-preview-section">
+                  <h3>Ambiente e forma de atendimento</h3>
+                  <p className="field-help">Confira se cada item será comprado ou transferido. Itens marcados como fora da lista não entram no PDF nem no CSV.</p>
+                  <div className="purchase-draft-list">
+                    {draftItems.map((item) => (
+                      <article className="purchase-draft-row" key={`step2-${item.key}`}>
+                        <div className="purchase-draft-name"><strong>{item.productName}</strong><span>Quantidade {item.quantity}</span></div>
+                        <label>Ambiente
+                          <input value={item.environmentName} onChange={(event) => setDraftItems((current) => current.map((row) =>
+                            row.key === item.key ? { ...row, environmentName: event.target.value } : row,
+                          ))} />
+                        </label>
+                        <label>Ação
+                          <select value={item.draftAction ?? 'comprar'} onChange={(event) => updateDraftAction(item.key, event.target.value as 'comprar' | 'transferir' | 'fora')}>
+                            <option value="comprar">Comprar</option>
+                            <option value="transferir">Transferir</option>
+                            <option value="fora">Fora da lista</option>
+                          </select>
+                        </label>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {draftStep === 3 && (
+                <div className="purchase-preview-section">
+                  <h3>Confirmar lista final</h3>
+                  {(() => {
+                    const validation = validatePurchaseDraft(draftItems)
+                    return validation.valid ? (
+                      <>
+                        <p className="field-help">Revise o total e confirme. Os itens marcados como fora da lista não serão incluídos.</p>
+                        <div className="purchase-draft-list">
+                          {draftItems.filter((item) => item.quantity > 0 && item.draftAction !== 'fora').map((item) => (
+                            <article className="purchase-draft-row" key={`step3-${item.key}`}>
+                              <div className="purchase-draft-name"><strong>{item.productName}</strong><span>{item.environmentName}</span></div>
+                              <div><small>Quantidade</small><strong>{item.quantity}</strong></div>
+                              <div><small>Ação</small><strong>{item.draftAction === 'transferir' ? 'Transferir' : 'Comprar'}</strong></div>
+                              <div><small>Fornecedor</small><strong>{item.supplierName || 'Não informado'}</strong></div>
+                              <strong>{calculatePurchaseDraftEstimated(item) === null ? '-' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculatePurchaseDraftEstimated(item)!)}</strong>
+                            </article>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="form-error">{validation.message}</p>
+                    )
+                  })()}
+                </div>
+              )}
             </div>
             <footer className="purchase-preview-footer">
               <div>
@@ -672,8 +1028,35 @@ export function PurchaseListPage() {
                 })()}</strong>
               </div>
               <div className="purchase-preview-actions">
-                <button className="secondary-button" type="button" onClick={() => setPreviewOpen(false)}>Continuar editando</button>
-                <button className="primary-button" type="button" onClick={() => void downloadPdf()}>Gerar PDF</button>
+                {draftStep > 1 && (
+                  <button className="secondary-button" type="button" onClick={() => setDraftStep((draftStep - 1) as 1 | 2)}>Voltar</button>
+                )}
+                {draftStep < 3 ? (
+                  <button
+                    className="primary-button"
+                    type="button"
+                    onClick={() => {
+                      const validation = validatePurchaseDraft(draftItems)
+                      if (!validation.valid) {
+                        setError(validation.message ?? 'Corrija os itens da lista antes de continuar.')
+                        return
+                      }
+                      setError('')
+                      setDraftStep((draftStep + 1) as 2 | 3)
+                    }}
+                  >
+                    Próxima etapa
+                  </button>
+                ) : (
+                  <button
+                    className="primary-button"
+                    type="button"
+                    disabled={!validatePurchaseDraft(draftItems).valid}
+                    onClick={() => void downloadPdf()}
+                  >
+                    Confirmar e gerar PDF
+                  </button>
+                )}
               </div>
             </footer>
           </section>

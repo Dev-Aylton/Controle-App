@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canCreateProduct, canDeactivate, canInvite, canManageCompany, canPromote, canViewCompanyCode, canViewStock } from './uiPermissions'
+import { canCreateProduct, canDeactivate, canInvite, canManageCompany, canPromote, canRequestPurchase, canReviewPurchase, canViewCompanyCode, canViewStock } from './uiPermissions'
 
 describe('permissões da interface', () => {
   it('reconhece cargos que podem gerenciar empresa', () => {
@@ -47,5 +47,15 @@ describe('permissões da interface', () => {
 
   it('admin de suporte pode gerenciar todas as empresas', () => {
     expect(canManageCompany(null, true)).toBe(true)
+  })
+
+  it('funcionário pode solicitar compra sem bloquear suas outras atividades', () => {
+    expect(canRequestPurchase('employee', false)).toBe(true)
+    expect(canReviewPurchase('employee', false)).toBe(false)
+  })
+
+  it('qualquer gerente ou proprietário ativo pode revisar solicitações', () => {
+    expect(canReviewPurchase('manager', false)).toBe(true)
+    expect(canReviewPurchase('owner', false)).toBe(true)
   })
 })

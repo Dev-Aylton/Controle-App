@@ -17,9 +17,9 @@ export interface Database {
         Update: { user_id?: string }
       }
       companies: {
-        Row: { id: string; name: string; phone: string | null; photo: string | null; created_at: string }
-        Insert: { id?: string; name: string; phone?: string | null; photo?: string | null; created_at?: string }
-        Update: { name?: string; phone?: string | null; photo?: string | null }
+        Row: { id: string; name: string; phone: string | null; photo: string | null; active: boolean; suspended_at: string | null; suspended_by: string | null; suspended_reason: string | null; created_at: string }
+        Insert: { id?: string; name: string; phone?: string | null; photo?: string | null; active?: boolean; suspended_at?: string | null; suspended_by?: string | null; suspended_reason?: string | null; created_at?: string }
+        Update: { name?: string; phone?: string | null; photo?: string | null; active?: boolean; suspended_at?: string | null; suspended_by?: string | null; suspended_reason?: string | null }
       }
       company_codes: {
         Row: { id: string; company_id: string; code: string; version: number; active: boolean; created_at: string; created_by: string | null }
@@ -38,6 +38,16 @@ export interface Database {
       }
       audit_log: {
         Row: { id: number; user_id: string | null; company_id: string | null; action: string; data: Json; acted_as_support: boolean; created_at: string }
+        Insert: never
+        Update: never
+      }
+      support_conversations: {
+        Row: { id: string; user_id: string; status: 'open'|'closed'; archived_by_user: boolean; archived_by_admin: boolean; created_at: string; updated_at: string }
+        Insert: never
+        Update: never
+      }
+      support_messages: {
+        Row: { id: string; conversation_id: string; sender_id: string; body: string | null; attachment_path: string | null; attachment_name: string | null; attachment_type: string | null; attachment_size: number | null; hidden_by_user: boolean; hidden_by_admin: boolean; read_by_user_at: string | null; read_by_admin_at: string | null; sent_at: string }
         Insert: never
         Update: never
       }

@@ -10,6 +10,9 @@ export type TeamMember = {
   role: CompanyRole
   active: boolean
   createdAt: string
+  deactivatedAt?: string | null
+  deactivatedBy?: string | null
+  deactivatedReason?: string | null
 }
 
 type RpcTeamMember = {
@@ -20,6 +23,9 @@ type RpcTeamMember = {
   role: CompanyRole
   active: boolean
   created_at: string
+  deactivated_at: string | null
+  deactivated_by: string | null
+  deactivated_reason: string | null
 }
 
 export async function getTeamMembers(companyId: string): Promise<TeamMember[]> {
@@ -35,5 +41,8 @@ export async function getTeamMembers(companyId: string): Promise<TeamMember[]> {
     role: member.role,
     active: member.active,
     createdAt: member.created_at,
+    deactivatedAt: member.deactivated_at,
+    deactivatedBy: member.deactivated_by,
+    deactivatedReason: member.deactivated_reason,
   }))
 }

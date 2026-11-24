@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildTeamMemberViews } from './teamRules'
+import { buildTeamMemberViews, filterTeamMemberViews, getTeamRoleLabel } from './teamRules'
 
 describe('TeamPage - membros', () => {
   it('não retorna estado vazio para o admin e mostra seus dados atuais', () => {
@@ -39,5 +39,23 @@ describe('TeamPage - membros', () => {
     })
     expect(result).toHaveLength(1)
     expect(result[0].membershipId).toBe('membership-1')
+  })
+
+  it('filtra membros por nome, cargo e status', () => {
+    const members = buildTeamMemberViews({
+      members: [
+        { membershipId: '1', userId: 'u1', name: 'Mariana Souza', email: 'mariana@example.com', role: 'employee', active: true, createdAt: '2026-01-01T00:00:00Z' },
+        { membershipId: '2', userId: 'u2', name: 'Carlos Lima', email: 'carlos@example.com', role: 'manager', active: false, createdAt: '2026-01-01T00:00:00Z' },
+      ],
+      isAdmin: false,
+    })
+    expect(filterTeamMemberViews(members, { search: 'mariana', role: 'employee', status: 'ativos' })).toHaveLength(1)
+    expect(filterTeamMemberViews(members, { search: '', role: 'todos', status: 'inativos' }).map((member) => member.name)).toEqual(['Carlos Lima'])
+  })
+
+  it('usa nomes claros para os cargos', () => {
+    expect(getTeamRoleLabel('owner')).toBe('Proprietário')
+    expect(getTeamRoleLabel('manager')).toBe('Gerente')
+    expect(getTeamRoleLabel('employee')).toBe('Funcionário')
   })
 })

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  calculateAutomaticDosePrice,
   calculateSalesFinancials,
   normalizeExternalName,
   parseSalesRows,
@@ -8,6 +9,9 @@ import {
 } from './salesRules'
 
 describe('importação de vendas', () => {
+  it('calcula preço por dose a partir do preço da unidade', () => {
+    expect(calculateAutomaticDosePrice(10, 4, 1000, 50)).toBe(0.5)
+  })
   it('normaliza nome externo', () => {
     expect(normalizeExternalName(' Cerveja  IPA! ')).toBe('cerveja ipa')
   })

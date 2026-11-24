@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import type { AppNotification } from '../features/notifications/notificationCenter'
+import {
+  sortNotificationsByPriority,
+  type AppNotification,
+  type AppNotificationCategory,
+} from '../features/notifications/notificationCenter'
 
 type NotificationCenterProps = {
   notifications: AppNotification[]
@@ -19,8 +23,27 @@ export function NotificationCenter({
 }: NotificationCenterProps) {
   const [open, setOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
+  const [notificationSearch, setNotificationSearch] = useState('')
+  const [notificationPage, setNotificationPage] = useState(1)
+  const [notificationCategory, setNotificationCategory] = useState<'todas' | AppNotificationCategory>('todas')
+  const notificationPageSize = 10
   const unreadCount = notifications.filter((notification) => !notification.read && !notification.dismissed).length
   const visible = notifications.filter((notification) => !notification.dismissed)
+  const categoryLabels: Record<AppNotificationCategory, string> = {
+    estoque: 'Estoque',
+    movimentacoes: 'Movimentações',
+    suporte: 'Suporte',
+    sistema: 'Sistema',
+  }
+  const searchedNotifications = sortNotificationsByPriority(visible
+    .filter((notification) => notificationCategory === 'todas' || notification.category === notificationCategory)
+    .filter((notification) =>
+      `${notification.title} ${notification.description}`.toLowerCase().includes(notificationSearch.toLowerCase().trim()),
+    ))
+  const categoryOptions = (['estoque', 'movimentacoes', 'suporte', 'sistema'] as AppNotificationCategory[])
+    .filter((category) => visible.some((notification) => notification.category === category))
+  const notificationPageCount = Math.max(1, Math.ceil(searchedNotifications.length / notificationPageSize))
+  const visibleNotifications = searchedNotifications.slice((notificationPage - 1) * notificationPageSize, notificationPage * notificationPageSize)
 
   useEffect(() => {
     if (!open) return
@@ -65,17 +88,51 @@ export function NotificationCenter({
               </div>
             )}
           </header>
+          <label className="notification-search">
+            Buscar avisos
+            <input value={notificationSearch} onChange={(event) => { setNotificationSearch(event.target.value); setNotificationPage(1) }} placeholder="Título ou descrição" />
+          </label>
+          {categoryOptions.length > 1 && (
+            <div className="notification-category-tabs" aria-label="Categorias de notificação">
+              <button
+                type="button"
+                className={notificationCategory === 'todas' ? 'active' : ''}
+                onClick={() => { setNotificationCategory('todas'); setNotificationPage(1) }}
+              >
+                Todas <span>{visible.length}</span>
+              </button>
+              {categoryOptions.map((category) => {
+                const count = visible.filter((notification) => notification.category === category).length
+                return (
+                  <button
+                    type="button"
+                    key={category}
+                    className={notificationCategory === category ? 'active' : ''}
+                    onClick={() => { setNotificationCategory(category); setNotificationPage(1) }}
+                  >
+                    {categoryLabels[category]} <span>{count}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
           <div className="notification-list">
-            {visible.length === 0 ? (
+            {searchedNotifications.length === 0 ? (
               <p className="notification-empty">Nenhum aviso pendente. Tudo está em ordem.</p>
-            ) : visible.map((notification) => (
+            ) : visibleNotifications.map((notification) => (
               <article
                 className={`notification-item ${notification.severity}${notification.read ? ' is-read' : ''}`}
                 key={notification.id}
               >
                 <span className="notification-severity" aria-label={notification.severity === 'critical' ? 'Urgente' : notification.severity === 'warning' ? 'Atenção' : 'Informação'} />
                 <div className="notification-copy">
-                  <strong>{notification.title}</strong>
+                  <div className="notification-title-row">
+                    <strong>{notification.title}</strong>
+                    <span className={`notification-category ${notification.category}`}>{categoryLabels[notification.category]}</span>
+                  </div>
+                  <span className={`notification-urgency ${notification.severity}`}>
+                    {notification.severity === 'critical' ? 'Urgente' : notification.severity === 'warning' ? 'Atenção' : 'Informação'}
+                  </span>
                   <p>{notification.description}</p>
                 </div>
                 <div className="notification-actions">
@@ -96,6 +153,13 @@ export function NotificationCenter({
               </article>
             ))}
           </div>
+          {searchedNotifications.length > notificationPageSize && (
+            <div className="notification-pagination">
+              <button type="button" disabled={notificationPage <= 1} onClick={() => setNotificationPage((page) => Math.max(1, page - 1))}>Anterior</button>
+              <span>{notificationPage}/{notificationPageCount}</span>
+              <button type="button" disabled={notificationPage >= notificationPageCount} onClick={() => setNotificationPage((page) => Math.min(notificationPageCount, page + 1))}>Próxima</button>
+            </div>
+          )}
         </aside>
       )}
     </div>

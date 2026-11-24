@@ -4,9 +4,9 @@ import { useAuth } from '../features/auth/auth-context'
 import { tryGetSupabaseClient } from '../lib/supabase'
 import type { CompanyRole } from '../lib/database.types'
 import { friendlySupabaseError, traduzirErro } from '../lib/errors'
-import { canDeactivate, canInvite, canPromote, canViewCompanyCode } from '../lib/uiPermissions'
+import { canDeactivate, canInvite, canPromote, canReactivate, canViewCompanyCode } from '../lib/uiPermissions'
 import { Container, Card, Avatar, ActionButton, ContextHelp, PageGuide } from '../components'
-import { buildTeamMemberViews } from './teamRules'
+import { buildTeamMemberViews, filterTeamMemberViews, getTeamRoleLabel, type TeamMemberFilter } from './teamRules'
 import { getTeamMembers, type TeamMember } from '../services/team'
 
 export function TeamPage() {
@@ -25,6 +25,10 @@ export function TeamPage() {
   const [inviteRole, setInviteRole] = useState<'owner' | 'manager'>('manager')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [teamSearch, setTeamSearch] = useState('')
+  const [teamRoleFilter, setTeamRoleFilter] = useState<TeamMemberFilter['role']>('todos')
+  const [teamStatusFilter, setTeamStatusFilter] = useState<TeamMemberFilter['status']>('todos')
+  const [deactivationReason, setDeactivationReason] = useState('')
 
   const load = useCallback(async () => {
     if (!supabase || !activeCompany) {
@@ -117,13 +121,33 @@ export function TeamPage() {
     if (!supabase) return
     setError('')
     try {
-      const { error: actionError } = await supabase.rpc('deactivate_member', { p_membership_id: membershipId })
+      const { error: actionError } = await supabase.rpc('deactivate_member', {
+        p_membership_id: membershipId,
+        p_reason: deactivationReason.trim() || null,
+      })
       if (actionError) throw actionError
+      setDeactivationReason('')
       setMessage('Membro desativado.')
       await refresh()
       await load()
     } catch (caught) {
       setError(traduzirErro(caught, 'Não foi possível desativar o membro. Tente novamente.'))
+    }
+  }
+
+  const reactivate = async (membershipId: string) => {
+    if (!supabase) return
+    setError('')
+    try {
+      const { error: actionError } = await supabase.rpc('reactivate_member', {
+        p_membership_id: membershipId,
+      })
+      if (actionError) throw actionError
+      setMessage('Membro reativado.')
+      await refresh()
+      await load()
+    } catch (caught) {
+      setError(traduzirErro(caught, 'Não foi possível reativar o membro.'))
     }
   }
 
@@ -167,6 +191,11 @@ export function TeamPage() {
     currentUserName: user?.user_metadata.full_name ?? user?.email,
     currentUserEmail: user?.email,
     isAdmin,
+  })
+  const filteredTeamMembers = filterTeamMemberViews(teamMembers, {
+    search: teamSearch,
+    role: teamRoleFilter,
+    status: teamStatusFilter,
   })
   const adminNotListed = isAdmin
     && Boolean(user?.id)
@@ -232,10 +261,30 @@ export function TeamPage() {
         </Card>
       )}
       <Card>
-        <h2>Membros ativos</h2>
+        <h2>Membros da equipe</h2>
         {adminNotListed && (
           <p>Você é o administrador do app e não consta como membro desta empresa.</p>
         )}
+        <div className="form-grid">
+          <label>Buscar pessoa
+            <input value={teamSearch} onChange={(event) => setTeamSearch(event.target.value)} placeholder="Nome ou e-mail" />
+          </label>
+          <label>Cargo
+            <select value={teamRoleFilter} onChange={(event) => setTeamRoleFilter(event.target.value as TeamMemberFilter['role'])}>
+              <option value="todos">Todos</option>
+              <option value="owner">Proprietários</option>
+              <option value="manager">Gerentes</option>
+              <option value="employee">Funcionários</option>
+            </select>
+          </label>
+          <label>Status
+            <select value={teamStatusFilter} onChange={(event) => setTeamStatusFilter(event.target.value as TeamMemberFilter['status'])}>
+              <option value="todos">Todos</option>
+              <option value="ativos">Ativos</option>
+              <option value="inativos">Inativos</option>
+            </select>
+          </label>
+        </div>
         <div className="member-list">
           {loadingMembers && <p className="page-state">Carregando membros...</p>}
           {!loadingMembers && membersError && (
@@ -244,8 +293,8 @@ export function TeamPage() {
               <ActionButton className="secondary-button" busyLabel="Tentando..." onAction={load}>Tentar de novo</ActionButton>
             </div>
           )}
-          {!loadingMembers && !membersError && teamMembers.length === 0 && <p>Nenhum membro ativo encontrado.</p>}
-          {!loadingMembers && !membersError && teamMembers.map((member) => {
+          {!loadingMembers && !membersError && filteredTeamMembers.length === 0 && <p>Nenhum membro corresponde aos filtros.</p>}
+          {!loadingMembers && !membersError && filteredTeamMembers.map((member) => {
             const targetRole = member.role as CompanyRole
             const deactivateAllowed = member.membershipId !== 'app-admin'
               && canDeactivate(role, isAdmin, targetRole, user?.id ?? '', member.userId)
@@ -262,7 +311,13 @@ export function TeamPage() {
                   />
                   <span>
                     <strong>{member.name}</strong>
-                    <small>{member.email ?? 'E-mail não disponível'} • {targetRole} • {member.active ? 'Ativo' : 'Inativo'}</small>
+                    <small>{member.email ?? 'E-mail não disponível'} • {getTeamRoleLabel(targetRole)} • {member.active ? 'Ativo' : 'Inativo'}</small>
+                    {!member.active && member.deactivatedReason && (
+                      <small>Motivo do desligamento: {member.deactivatedReason}</small>
+                    )}
+                    {!member.active && member.deactivatedAt && (
+                      <small>Desativado em {new Date(member.deactivatedAt).toLocaleString('pt-BR')}</small>
+                    )}
                   </span>
                 </div>
                 <div className="member-actions">
@@ -270,7 +325,29 @@ export function TeamPage() {
                     <ActionButton className="secondary-button" busyLabel="Promovendo..." confirmMessage={`Promover ${member.name} a gerente? Essa alteração amplia as permissões de gestão.`} onAction={() => promote(member.membershipId)}>Promover</ActionButton>
                   )}
                   {deactivateAllowed && (
-                    <ActionButton className="danger-button" busyLabel="Desativando..." confirmMessage="Desativar este membro?" onAction={() => deactivate(member.membershipId)}>Desativar</ActionButton>
+                    <>
+                      <label>Motivo do desligamento
+                        <input value={deactivationReason} onChange={(event) => setDeactivationReason(event.target.value)} placeholder="Ex.: troca de responsável" />
+                      </label>
+                      <ActionButton
+                        className="danger-button"
+                        busyLabel="Desativando..."
+                        confirmMessage={`Desativar ${member.name}? O histórico será preservado e o vínculo poderá ser reativado.`}
+                        onAction={() => deactivate(member.membershipId)}
+                      >
+                        Desativar
+                      </ActionButton>
+                    </>
+                  )}
+                  {!member.active && member.membershipId !== 'app-admin' && canReactivate(role, isAdmin, targetRole) && (
+                    <ActionButton
+                      className="secondary-button"
+                      busyLabel="Reativando..."
+                      confirmMessage={`Reativar ${member.name}? O usuário voltará a ter acesso conforme seu vínculo e cargo.`}
+                      onAction={() => reactivate(member.membershipId)}
+                    >
+                      Reativar
+                    </ActionButton>
                   )}
                 </div>
               </article>

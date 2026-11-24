@@ -24,6 +24,20 @@ export type EnvironmentPricing = {
   dose_ml: number | null
 }
 
+export function calculateAutomaticDosePrice(
+  unitPrice: number | null,
+  baseUnitCost: number | null,
+  volumeMl: number | null,
+  doseMl: number | null,
+) {
+  if (!volumeMl || !doseMl || doseMl <= 0) return null
+  const dosesPerUnit = Math.floor(volumeMl / doseMl)
+  if (dosesPerUnit < 1) return null
+  const source = unitPrice ?? baseUnitCost
+  if (source == null || source < 0) return null
+  return Math.round((source / dosesPerUnit + Number.EPSILON) * 100) / 100
+}
+
 export function calculateSalesFinancials(
   item: Pick<SalesPreviewItem, 'quantity' | 'saleType'>,
   pricing?: EnvironmentPricing,
@@ -98,10 +112,37 @@ export function parseSalesRows(rows: Record<string, unknown>[], mapping: SalesCo
 export async function parseSalesFile(file: File): Promise<Record<string, unknown>[]> {
   const buffer = await file.arrayBuffer()
   if (file.name.toLowerCase().endsWith('.csv')) {
-    const text = new TextDecoder('utf-8').decode(buffer)
-    return Papa.parse<Record<string, unknown>>(text, { header: true, skipEmptyLines: true }).data
+    let text = new TextDecoder('utf-8', { fatal: false }).decode(buffer)
+    if (text.includes('\uFFFD')) text = new TextDecoder('windows-1252').decode(buffer)
+    text = text.replace(/^\uFEFF/, '')
+    if (!text.includes('Modelo oficial de vendas')) {
+      throw new Error('Use somente o modelo CSV oficial gerado pelo Controle-App.')
+    }
+    const lines = text.split(/\r?\n/)
+    const headerIndex = lines.findIndex((line) => {
+      const normalized = line.toLowerCase()
+      return normalized.includes('codigo/sku') && normalized.includes('produto') && normalized.includes('quantidade') && normalized.includes('tipo')
+    })
+    if (headerIndex < 0) throw new Error('O cabeçalho oficial de vendas não foi encontrado.')
+    const tableText = lines.slice(headerIndex).join('\n')
+    return Papa.parse<Record<string, unknown>>(tableText, { header: true, skipEmptyLines: true, delimiter: tableText.includes(';') ? ';' : ',' }).data
   }
   const workbook = XLSX.read(buffer, { type: 'array' })
+  for (const sheetName of workbook.SheetNames) {
+    const matrix = XLSX.utils.sheet_to_json<(string | number | null)[]>(workbook.Sheets[sheetName], { header: 1, defval: '' })
+    const headerIndex = matrix.findIndex((row) =>
+      row.some((cell) => String(cell).trim() === 'Código/SKU')
+      && row.some((cell) => String(cell).trim() === 'Produto')
+      && row.some((cell) => String(cell).trim() === 'Quantidade')
+      && row.some((cell) => String(cell).trim() === 'Tipo'),
+    )
+    if (headerIndex >= 0) {
+      const header = matrix[headerIndex].map((cell) => String(cell ?? '').trim())
+      return matrix.slice(headerIndex + 1)
+        .filter((row) => row.some((cell) => String(cell ?? '').trim() !== ''))
+        .map((row) => Object.fromEntries(header.map((title, columnIndex) => [title, row[columnIndex] ?? ''])))
+    }
+  }
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
   return XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet)
 }

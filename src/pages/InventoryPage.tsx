@@ -6,6 +6,7 @@ import { Container, Card, ActionButton, ContextHelp, PageGuide } from '../compon
 import { traduzirErro } from '../lib/errors'
 import {
   downloadInventoryCountTemplate,
+  downloadInventoryCountCsvTemplate,
   findInventoryCountProduct,
   parseInventoryCountFile,
   suggestInventoryCountProducts,
@@ -95,6 +96,22 @@ export function InventoryPage() {
       ? environments.find((item) => item.id === environmentId)?.name ?? 'Todos os ambientes'
       : 'Todos os ambientes'
     downloadInventoryCountTemplate(environmentName, products.map((product) => ({
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      categoryName: categories.find((category) => category.id === product.category_id)?.name ?? '',
+      unit: product.unit,
+      volumeMl: product.volume_ml,
+      doseMl: product.dose_ml,
+      weightG: product.weight_g,
+    })))
+  }
+
+  const downloadCsvTemplate = () => {
+    const environmentName = environmentId
+      ? environments.find((item) => item.id === environmentId)?.name ?? 'Todos os ambientes'
+      : 'Todos os ambientes'
+    downloadInventoryCountCsvTemplate(environmentName, products.map((product) => ({
       id: product.id,
       name: product.name,
       sku: product.sku,
@@ -483,6 +500,8 @@ export function InventoryPage() {
         <div className="inventory-template-actions">
           <button className="secondary-button" type="button" onClick={() => setTemplatePreviewOpen(true)}>Visualizar modelo</button>
           <a className="secondary-button" href={`${import.meta.env.BASE_URL}modelo-contagem.xlsx`} download="modelo-contagem.xlsx">Baixar modelo</a>
+          <a className="secondary-button" href={`${import.meta.env.BASE_URL}modelo-contagem.csv`} download="modelo-contagem.csv">Baixar modelo CSV</a>
+          <button className="secondary-button" type="button" onClick={downloadCsvTemplate}>Baixar modelo CSV</button>
           {canFinish && (
             <>
               <button className="secondary-button" type="button" onClick={downloadTemplate}>Gerar modelo personalizado</button>

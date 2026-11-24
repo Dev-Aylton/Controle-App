@@ -4,6 +4,11 @@ export type RemoveProfilePhotoDependencies = {
   clearProviderAvatar: () => Promise<void>
 }
 
+export type RemoveProfilePhotoResult = {
+  storageRemoved: boolean
+  providerAvatarCleared: boolean
+}
+
 export function getOwnedProfilePhotoPath(userId: string, avatarUrl: string): string | null {
   if (/^https?:/i.test(avatarUrl)) return null
   return avatarUrl.startsWith(`${userId}/`) ? avatarUrl : null
@@ -14,9 +19,28 @@ export async function removeProfilePhoto(
   avatarUrl: string,
   hasProviderAvatar: boolean,
   dependencies: RemoveProfilePhotoDependencies,
-) {
+): Promise<RemoveProfilePhotoResult> {
   const storagePath = getOwnedProfilePhotoPath(userId, avatarUrl)
-  if (storagePath) await dependencies.removeStorageObject(storagePath)
   await dependencies.clearProfilePhoto({ avatar_url: null, avatar_key: null })
-  if (hasProviderAvatar) await dependencies.clearProviderAvatar()
+  const result: RemoveProfilePhotoResult = {
+    storageRemoved: !storagePath,
+    providerAvatarCleared: !hasProviderAvatar,
+  }
+  if (storagePath) {
+    try {
+      await dependencies.removeStorageObject(storagePath)
+      result.storageRemoved = true
+    } catch {
+      result.storageRemoved = false
+    }
+  }
+  if (hasProviderAvatar) {
+    try {
+      await dependencies.clearProviderAvatar()
+      result.providerAvatarCleared = true
+    } catch {
+      result.providerAvatarCleared = false
+    }
+  }
+  return result
 }

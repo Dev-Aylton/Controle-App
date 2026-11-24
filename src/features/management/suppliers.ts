@@ -21,6 +21,18 @@ export type SupplierPrice = {
   validFrom: string
 }
 
+export function getCheapestSupplierPrice(
+  prices: SupplierPrice[],
+  productId: string,
+) {
+  return prices
+    .filter((price) => price.productId === productId)
+    .sort((left, right) =>
+      left.unitPrice - right.unitPrice
+      || new Date(right.validFrom).getTime() - new Date(left.validFrom).getTime(),
+    )[0] ?? null
+}
+
 export async function listSuppliers(companyId: string): Promise<Supplier[]> {
   const supabase = tryGetSupabaseClient()
   if (!supabase) throw new Error('Supabase não configurado.')

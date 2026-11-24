@@ -19,6 +19,7 @@ const paths: Record<string, string> = {
   Empresa: 'M4 20V5h12v15H4Zm2-11h3m2 0h3m-8 4h3m2 0h3m-5 7v-3',
   Equipe: 'M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8 1a3 3 0 1 0 0-6M2 21v-3a5 5 0 0 1 10 0v3m2-5a5 5 0 0 1 8 4v1',
   'Meu perfil': 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0',
+  Suporte: 'M4 5h16v11H9l-5 4v-4H4V5Zm4 5h8m-8 3h5',
   'Mais opções': 'M4 6h16M4 12h16M4 18h16',
 }
 

@@ -50,24 +50,29 @@ export async function listPurchaseRequests(companyId: string): Promise<PurchaseR
     : typeof result.data === 'string'
       ? JSON.parse(result.data)
       : result.data ?? []
-  return (Array.isArray(rows) ? rows : []).map((row: Record<string, unknown>) => ({
-    id: String(row.id),
-    destination_environment_id: String(row.destination_environment_id),
-    destination_environment_name: String(row.destination_environment_name),
-    status: row.status as PurchaseRequest['status'],
-    note: row.note == null ? null : String(row.note),
-    review_note: row.review_note == null ? null : String(row.review_note),
-    created_at: String(row.created_at),
-    reviewed_at: row.reviewed_at == null ? null : String(row.reviewed_at),
-    requested_by: String(row.requested_by),
-    items: ((row.items as Array<Record<string, unknown>>) ?? []).map((item) => ({
-      product_id: String(item.product_id),
-      product_name: String(item.product_name),
-      sku: item.sku == null ? null : String(item.sku),
-      quantity: Number(item.quantity),
-      approved_quantity: item.approved_quantity == null ? null : Number(item.approved_quantity),
-    })),
-  }))
+  return (Array.isArray(rows) ? rows : []).map((rawRow: Record<string, unknown>) => {
+    const row = (rawRow.json && typeof rawRow.json === 'object'
+      ? rawRow.json
+      : rawRow) as Record<string, unknown>
+    return {
+      id: String(row.id),
+      destination_environment_id: String(row.destination_environment_id),
+      destination_environment_name: String(row.destination_environment_name),
+      status: row.status as PurchaseRequest['status'],
+      note: row.note == null ? null : String(row.note),
+      review_note: row.review_note == null ? null : String(row.review_note),
+      created_at: String(row.created_at),
+      reviewed_at: row.reviewed_at == null ? null : String(row.reviewed_at),
+      requested_by: String(row.requested_by),
+      items: ((row.items as Array<Record<string, unknown>>) ?? []).map((item) => ({
+        product_id: String(item.product_id),
+        product_name: String(item.product_name),
+        sku: item.sku == null ? null : String(item.sku),
+        quantity: Number(item.quantity),
+        approved_quantity: item.approved_quantity == null ? null : Number(item.approved_quantity),
+      })),
+    }
+  })
 }
 
 export async function resolvePurchaseRequest(requestId: string, action: 'aprovar' | 'rejeitar', reviewNote?: string) {

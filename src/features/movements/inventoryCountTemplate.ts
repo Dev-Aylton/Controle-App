@@ -1,5 +1,6 @@
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
+import { downloadCsv } from '../management/csv'
 
 export type CountTemplateProduct = {
   id: string
@@ -140,8 +141,9 @@ export function downloadInventoryCountTemplate(environmentName: string, products
   const rows = buildInventoryCountRows(environmentName, products)
   const worksheet = XLSX.utils.aoa_to_sheet([
     ['Controle-App', '', '', '', '', '', '', '', ''],
-    ['Controle de estoque e inventário', '', '', '', '', '', '', '', ''],
-    ['Ambiente', environmentName, 'Data', dateText, 'Hora', timeText, '', '', ''],
+    ['Modelo oficial de contagem', '', '', '', '', '', '', '', ''],
+    ['Versão', '1.0', 'Tipo', 'Contagem', 'Ambiente', environmentName, '', '', ''],
+    ['Data', dateText, 'Hora', timeText, 'Preencha apenas Quantidade contada.', '', '', '', ''],
     ['', '', '', '', '', '', '', '', ''],
     ...rows,
   ])
@@ -187,11 +189,44 @@ export function downloadInventoryCountTemplate(environmentName: string, products
       alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
     }
   }
+  for (let row = 5; row < 5 + products.length; row += 1) {
+    for (let column = 0; column < 9; column += 1) {
+      const cell = XLSX.utils.encode_cell({ r: row, c: column })
+      if (!worksheet[cell]) continue
+      worksheet[cell].s = {
+        border: {
+          top: { style: 'thin', color: { rgb: 'C8D8D2' } },
+          bottom: { style: 'thin', color: { rgb: 'C8D8D2' } },
+          left: { style: 'thin', color: { rgb: 'C8D8D2' } },
+          right: { style: 'thin', color: { rgb: 'C8D8D2' } },
+        },
+        alignment: { vertical: 'top', wrapText: true },
+      }
+    }
+  }
+  worksheet['!autofilter'] = { ref: `A5:I${Math.max(5, 4 + products.length)}` }
+  worksheet['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', state: 'frozen' }
   worksheet['!rows'] = [{ hpt: 30 }, { hpt: 22 }, { hpt: 20 }, { hpt: 8 }, { hpt: 34 }, ...Array(Math.max(0, products.length)).fill({ hpt: 24 })]
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Contagem')
   XLSX.writeFile(workbook, `modelo-contagem-${environmentName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.xlsx`)
 }
+
+export function downloadInventoryCountCsvTemplate(environmentName: string, products: CountTemplateProduct[]) {
+  downloadCsv(
+    `modelo-contagem-${environmentName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.csv`,
+    [
+      ['Controle-App', 'Modelo oficial de contagem'],
+      ['Versão', '1.0'],
+      ['Tipo', 'Contagem'],
+      ['Ambiente', environmentName],
+      ['Preencha somente a coluna Quantidade contada.', ''],
+      [],
+      ...buildInventoryCountRows(environmentName, products),
+    ],
+  )
+}
+
 
 export async function parseInventoryCountFile(file: File): Promise<InventoryCountRow[]> {
   const buffer = await file.arrayBuffer()
@@ -208,6 +243,10 @@ export async function parseInventoryCountFile(file: File): Promise<InventoryCoun
     if (!sheetName) throw new Error('Nenhuma aba encontrada na planilha.')
         const sheet = workbook.Sheets[sheetName]
         const matrix = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, { header: 1, defval: '' })
+        if (String(matrix[0]?.[0] ?? '').trim() !== 'Controle-App'
+          || !matrix.some((row) => String(row[0] ?? '').includes('Modelo oficial de contagem'))) {
+          throw new Error('Use somente o modelo XLSX oficial gerado pelo Controle-App.')
+        }
         const headerIndex = matrix.findIndex((row) =>
           row.some((cell) => String(cell ?? '').toLowerCase().includes('quantidade contada'))
           && row.some((cell) => String(cell ?? '').toLowerCase().includes('produto')),
@@ -219,8 +258,19 @@ export async function parseInventoryCountFile(file: File): Promise<InventoryCoun
           .map((row) => Object.fromEntries(header.map((title, columnIndex) => [title, row[columnIndex] ?? ''])))
       })()
     : (() => {
-    const text = new TextDecoder('utf-8', { fatal: false }).decode(buffer)
-        return Papa.parse<Record<string, unknown>>(text, { header: true, skipEmptyLines: true, delimiter: text.includes(';') ? ';' : ',' }).data
+    let text = new TextDecoder('utf-8', { fatal: false }).decode(buffer)
+    if (text.includes('\uFFFD')) text = new TextDecoder('windows-1252').decode(buffer)
+    text = text.replace(/^\uFEFF/, '')
+    if (!text.includes('Modelo oficial de contagem')) {
+      throw new Error('Use somente o modelo CSV oficial gerado pelo Controle-App.')
+    }
+    const lines = text.split(/\r?\n/)
+    const headerIndex = lines.findIndex((line) =>
+      normalizeHeader(line).includes('quantidadecontada') && normalizeHeader(line).includes('produto'),
+    )
+    if (headerIndex < 0) throw new Error('O cabeçalho oficial de contagem não foi encontrado.')
+    const tableText = lines.slice(headerIndex).join('\n')
+    return Papa.parse<Record<string, unknown>>(tableText, { header: true, skipEmptyLines: true, delimiter: tableText.includes(';') ? ';' : ',' }).data
       })()
   return rawRows.map((row, index) => {
     const get = (...keys: string[]) => {

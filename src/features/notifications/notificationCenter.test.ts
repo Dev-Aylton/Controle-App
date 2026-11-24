@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { loadNotificationState, saveNotificationState } from './notificationCenter'
+import {
+  loadNotificationState,
+  saveNotificationState,
+  sortNotificationsByPriority,
+  type AppNotification,
+} from './notificationCenter'
 
 describe('centro de notificações', () => {
   beforeEach(() => {
@@ -44,5 +49,26 @@ describe('centro de notificações', () => {
     })
     expect(loadNotificationState('company-a', 'user-a').readIds).toEqual(['one'])
     expect(loadNotificationState('company-b', 'user-a').readIds).toEqual(['two'])
+  })
+
+  it('ordena urgentes e não lidos antes de informações lidas', () => {
+    const notification = (id: string, severity: AppNotification['severity'], read: boolean, createdAt: string): AppNotification => ({
+      id,
+      severity,
+      category: 'estoque',
+      title: id,
+      description: id,
+      route: '/',
+      routeLabel: 'Abrir',
+      read,
+      dismissed: false,
+      createdAt,
+    })
+    const ordered = sortNotificationsByPriority([
+      notification('info-lida', 'info', true, '2026-11-24T12:00:00Z'),
+      notification('atencao', 'warning', false, '2026-11-24T10:00:00Z'),
+      notification('urgente', 'critical', false, '2026-11-24T09:00:00Z'),
+    ])
+    expect(ordered.map((item) => item.id)).toEqual(['urgente', 'atencao', 'info-lida'])
   })
 })

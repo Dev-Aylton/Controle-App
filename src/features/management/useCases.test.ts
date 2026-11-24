@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canDeactivate, canInvite, canManageCompany, canPromote, canViewCompanyCode } from '../../lib/uiPermissions'
+import { canDeactivate, canInvite, canManageCompany, canPromote, canRequestPurchase, canReviewPurchase, canViewCompanyCode } from '../../lib/uiPermissions'
 
 describe('casos de uso por entidade', () => {
   it('administrador pode operar todas as empresas em modo suporte', () => {
@@ -28,5 +28,11 @@ describe('casos de uso por entidade', () => {
   it('ninguem pode desativar a própria vinculação pela interface', () => {
     expect(canDeactivate('owner', false, 'owner', 'self', 'self')).toBe(false)
     expect(canDeactivate('manager', false, 'employee', 'self', 'employee')).toBe(true)
+  })
+
+  it('compra funciona com solicitação do funcionário e aprovação de qualquer gestão', () => {
+    expect(canRequestPurchase('employee', false)).toBe(true)
+    expect(canReviewPurchase('manager', false)).toBe(true)
+    expect(canReviewPurchase('owner', false)).toBe(true)
   })
 })

@@ -28,11 +28,23 @@ export type OfflineCatalogItem = {
   name: string
   unit: string
   environments: string
+  sku?: string | null
+  volumeMl?: number | null
+  doseMl?: number | null
+  weightG?: number | null
+}
+
+export type OfflineMovementEnvironment = {
+  userId: string
+  companyId: string
+  id: string
+  name: string
 }
 
 class OfflineDatabase extends Dexie {
   queuedMovements!: Table<QueuedMovement, string>
   catalog!: Table<OfflineCatalogItem, string>
+  movementEnvironments!: Table<OfflineMovementEnvironment, string>
 
   constructor() {
     super('controle-app-offline')
@@ -52,6 +64,11 @@ class OfflineDatabase extends Dexie {
           if (!item.userId) item.userId = LEGACY_UNASSIGNED_USER_ID
         }),
       ])
+    })
+    this.version(3).stores({
+      queuedMovements: 'clientRequestId, userId, [userId+status], status, localCreatedAt, nextAttemptAt',
+      catalog: 'id, userId, companyId',
+      movementEnvironments: '[userId+companyId+id], userId, companyId',
     })
   }
 }

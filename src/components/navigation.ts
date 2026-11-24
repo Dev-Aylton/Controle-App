@@ -14,4 +14,5 @@ export const NAVIGATION_ITEMS = [
   { label: 'Auditoria', shortLabel: 'Auditoria', path: '/auditoria', icon: 'A+' },
   { label: 'Equipe', shortLabel: 'Equipe', path: '/equipe', icon: 'T' },
   { label: 'Meu perfil', shortLabel: 'Perfil', path: '/perfil', icon: 'P' },
+  { label: 'Suporte', shortLabel: 'Suporte', path: '/suporte', icon: '?' },
 ] as const

@@ -47,11 +47,10 @@ export function Avatar({
   }, [storageBucket, storagePath])
 
   const signedUrl = signedImage && signedImage.bucket === storageBucket && signedImage.path === storagePath ? signedImage.url : ''
-  const src = uploadedUrl || signedUrl || googleUrl || (avatarKey === 'default-female'
+  const defaultAvatar = avatarKey === 'default-female'
     ? '/Controle-App/avatars/default_avatar_fem.jpg'
-    : avatarKey === 'default-male'
-      ? '/Controle-App/avatars/default_avatar.jpg'
-      : '')
+    : '/Controle-App/avatars/default_avatar.jpg'
+  const src = uploadedUrl || signedUrl || googleUrl || (companyLogoFallback ? '' : defaultAvatar)
 
   if (src && src !== failedSrc) {
     return <img className={`avatar-image avatar-${shape}`} style={{ width: size, height: size }} src={src} alt={alt || name || 'Avatar'} onError={() => {
@@ -64,6 +63,5 @@ export function Avatar({
     return <img className={`avatar-image avatar-${shape}`} style={{ width: size, height: size }} src={fallbackUrl || '/Controle-App/favicon.svg'} alt={alt || 'Logo da empresa'} />
   }
 
-  const initial = (name?.trim().charAt(0) || '?').toUpperCase()
-  return <span className={`avatar-image avatar-${shape} avatar-initial`} style={{ width: size, height: size }} aria-label={alt || name || 'Avatar'}>{initial}</span>
+  return <span className={`avatar-image avatar-${shape} avatar-initial`} style={{ width: size, height: size }} aria-label={alt || name || 'Avatar'}>A</span>
 }
