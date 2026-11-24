@@ -74,7 +74,7 @@ export function EnvironmentsPage() {
       setDescription(item.description ?? '')
       setEditingActive(item.active)
       setEditorOpen(true)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      window.requestAnimationFrame(() => document.getElementById('environment-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
     }
 
     const resetEditor = () => {
@@ -152,7 +152,11 @@ export function EnvironmentsPage() {
           <h1>Ambientes</h1>
           <p>Locais físicos, saldos, produtos e ações operacionais da empresa.</p>
         </div>
-        {canManage && <button className="primary-button" type="button" onClick={() => { resetEditor(); setEditorOpen(true) }}>Novo ambiente</button>}
+        {canManage && <button className="primary-button" type="button" onClick={() => {
+          resetEditor()
+          setEditorOpen(true)
+          window.requestAnimationFrame(() => document.getElementById('environment-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+        }}>Novo ambiente</button>}
       </div>
       <PageGuide
         purpose="Representar os locais físicos que guardam, usam ou vendem estoque."
@@ -165,7 +169,7 @@ export function EnvironmentsPage() {
       )}
       {error && <p className="form-error" role="alert">{error}</p>}
       {canManage && editorOpen && (
-        <Card>
+        <Card><section id="environment-editor" tabIndex={-1}>
           <div className="environment-editor-heading">
             <h2>{editingId ? 'Editar ambiente' : 'Novo ambiente'}</h2>
             <button className="secondary-button" type="button" onClick={resetEditor}>Fechar</button>
@@ -202,7 +206,7 @@ export function EnvironmentsPage() {
               {editingId ? 'Salvar ambiente' : 'Criar ambiente'}
             </ActionButton>
           </form>
-        </Card>
+        </section></Card>
       )}
       <Card>
         {items.length === 0 && <p>Nenhum ambiente cadastrado ainda. Crie o primeiro ambiente.</p>}

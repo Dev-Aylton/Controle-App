@@ -550,13 +550,20 @@ export function PurchaseListPage() {
               <h2>Fornecedores e preços de compra</h2>
               <p className="field-help">Cadastre o fornecedor e registre o preço efetivamente pago. O histórico ajuda a comparar compras e não substitui o custo de estoque configurado no produto.</p>
             </div>
-            <button className="secondary-button" type="button" onClick={() => setSupplierPanelOpen((current) => !current)}>
+            <button className="secondary-button" type="button" onClick={() => {
+              if (supplierPanelOpen) {
+                setSupplierPanelOpen(false)
+              } else {
+                setSupplierPanelOpen(true)
+                window.requestAnimationFrame(() => document.getElementById('supplier-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+              }
+            }}>
               {supplierPanelOpen ? 'Fechar fornecedores' : 'Gerenciar fornecedores'}
             </button>
           </div>
           {supplierPanelOpen && (
             <div className="supplier-panel">
-              <div className="supplier-editor">
+              <div className="supplier-editor" id="supplier-editor" tabIndex={-1}>
                 <h3>{supplierEditingId ? 'Editar fornecedor' : 'Novo fornecedor'}</h3>
                 <div className="form-grid">
                   <label>Nome<input value={supplierName} onChange={(event) => setSupplierName(event.target.value)} placeholder="Ex.: Distribuidora Central" /></label>
@@ -584,6 +591,7 @@ export function PurchaseListPage() {
                       setSupplierPhone(supplier.phone ?? '')
                       setSupplierEmail(supplier.email ?? '')
                       setSupplierNotes(supplier.notes ?? '')
+                      window.requestAnimationFrame(() => document.getElementById('supplier-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
                     }}>Editar</button>
                   </article>
                 ))}

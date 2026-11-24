@@ -74,6 +74,13 @@ export function ProductsPage() {
   const [stockDetailsLoading, setStockDetailsLoading] = useState<string | null>(null)
   const [editingActive, setEditingActive] = useState(true)
   const pageSize = 50
+  const revealSection = (id: string) => {
+    window.requestAnimationFrame(() => {
+      const section = document.getElementById(id)
+      section?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      section?.focus({ preventScroll: true })
+    })
+  }
 
   const catalogSuggestions = name.trim().length >= 2
     ? searchProductCatalog(name)
@@ -155,6 +162,7 @@ export function ProductsPage() {
     setPage(1)
     setResultsOpen(true)
     void loadResults(search, categoryFilter, showInactive, 1)
+    revealSection('product-results')
   }
 
   const clearSearch = () => {
@@ -171,6 +179,7 @@ export function ProductsPage() {
   const openSuggestions = async () => {
     if (!activeCompanyId) return
     setSuggestionOpen(true)
+    revealSection('product-suggestions')
     setSuggestionLoading(true)
     setError('')
     try {
@@ -338,6 +347,7 @@ export function ProductsPage() {
     setPhotoPath(product.photo_path); setPhotoPreview('')
     const cost = costs.find((item) => item.product_id === product.id)
     setUnitCost(cost ? Number(cost.unit_cost) : 0)
+    revealSection('product-editor')
   }
 
   const toggleEditingActive = async () => {
@@ -460,8 +470,19 @@ export function ProductsPage() {
         </div>
         <div className="product-page-actions">
           {canManage && <button className="secondary-button" type="button" onClick={() => navigate('/produtos/importar')}>Importar planilha</button>}
-          {canManage && <button className="secondary-button" type="button" onClick={() => setCategoryPanelOpen((current) => !current)}>{categoryPanelOpen ? 'Fechar categorias' : 'Gerenciar categorias'}</button>}
-          {canCreate && <button className="primary-button" type="button" onClick={() => { reset(); setEditorOpen(true) }}>Novo produto</button>}
+          {canManage && <button className="secondary-button" type="button" onClick={() => {
+            if (categoryPanelOpen) {
+              setCategoryPanelOpen(false)
+            } else {
+              setCategoryPanelOpen(true)
+              revealSection('product-categories')
+            }
+          }}>{categoryPanelOpen ? 'Fechar categorias' : 'Gerenciar categorias'}</button>}
+          {canCreate && <button className="primary-button" type="button" onClick={() => {
+            reset()
+            setEditorOpen(true)
+            revealSection('product-editor')
+          }}>Novo produto</button>}
         </div>
       </div>
       <PageGuide
@@ -481,7 +502,7 @@ export function ProductsPage() {
         </div>
       )}
       {suggestionOpen && (
-        <Card>
+        <Card><section id="product-suggestions" tabIndex={-1}>
           <h2>Sugestões de estoque</h2>
           {suggestionLoading && <p>Calculando sugestões...</p>}
           {!suggestionLoading && suggestions.length === 0 && <p>Nenhum histórico suficiente para sugerir.</p>}
@@ -526,10 +547,10 @@ export function ProductsPage() {
               </div>
             </>
           )}
-        </Card>
+        </section></Card>
       )}
       {canManage && categoryPanelOpen && (
-        <Card>
+        <Card><section id="product-categories" tabIndex={-1}>
           <h2>Categorias</h2>
           <p className="field-help">Categoria organiza produtos com o mesmo propósito: facilita filtros, importação, inventário e relatórios. Use nomes simples e consistentes, como “Refrigerantes”, “Cervejas” ou “Carnes”.</p>
           <div className="form-grid">
@@ -567,7 +588,7 @@ export function ProductsPage() {
               </article>
             ))}
           </div>
-        </Card>
+        </section></Card>
       )}
       {error && <p className="form-error" role="alert">{error}</p>}
       <Card>
@@ -591,7 +612,7 @@ export function ProductsPage() {
         </div>
       </Card>
       {canCreate && editorOpen && (
-        <Card>
+        <Card><section id="product-editor" tabIndex={-1}>
           <div className="product-editor-heading">
             <h2>{editingId && canManage ? 'Editar produto' : 'Novo produto'}</h2>
             <button className="secondary-button" type="button" onClick={reset}>Fechar</button>
@@ -746,9 +767,9 @@ export function ProductsPage() {
               {editingId ? 'Salvar produto' : 'Criar produto'}
             </ActionButton>
           </form>
-        </Card>
+        </section></Card>
       )}
-      {resultsOpen && <Card>
+      {resultsOpen && <Card><section id="product-results" tabIndex={-1}>
         <div className="product-list-summary">
           <strong>{loadingList ? 'Carregando...' : `${totalProducts} produto(s) encontrado(s)`}</strong>
           <button className="secondary-button" type="button" onClick={clearSearch}>Limpar pesquisa</button>
@@ -886,7 +907,7 @@ export function ProductsPage() {
             void loadResults(appliedSearch, appliedCategory, appliedInactive, nextPage)
           }}>Próxima</button>
         </div>
-      </Card>}
+      </section></Card>}
     </Container>
   )
 }

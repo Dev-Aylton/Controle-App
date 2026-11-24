@@ -499,12 +499,12 @@ export function InventoryPage() {
         <p className="field-help">Baixe a planilha do ambiente selecionado, preencha a coluna “Quantidade contada” e importe o arquivo para revisar antes de finalizar.</p>
         <div className="inventory-template-actions">
           <button className="secondary-button" type="button" onClick={() => setTemplatePreviewOpen(true)}>Visualizar modelo</button>
-          <a className="secondary-button" href={`${import.meta.env.BASE_URL}modelo-contagem.xlsx`} download="modelo-contagem.xlsx">Baixar modelo</a>
-          <a className="secondary-button" href={`${import.meta.env.BASE_URL}modelo-contagem.csv`} download="modelo-contagem.csv">Baixar modelo CSV</a>
-          <button className="secondary-button" type="button" onClick={downloadCsvTemplate}>Baixar modelo CSV</button>
+          <a className="secondary-button" href={`${import.meta.env.BASE_URL}modelo-contagem.xlsx`} download="modelo-contagem.xlsx">Baixar modelo padrão XLSX</a>
+          <a className="secondary-button" href={`${import.meta.env.BASE_URL}modelo-contagem.csv`} download="modelo-contagem.csv">Baixar modelo padrão CSV</a>
+          <button className="secondary-button" type="button" onClick={downloadCsvTemplate}>Gerar CSV personalizado do ambiente</button>
           {canFinish && (
             <>
-              <button className="secondary-button" type="button" onClick={downloadTemplate}>Gerar modelo personalizado</button>
+              <button className="secondary-button" type="button" onClick={downloadTemplate}>Gerar XLSX personalizado do ambiente</button>
               <label className="secondary-button inventory-template-import">Importar contagem
                 <input type="file" accept=".xlsx,.xls,.csv,text/csv" onChange={(event) => void readCountFile(event)} disabled={!environmentId} />
               </label>

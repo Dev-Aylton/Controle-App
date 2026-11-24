@@ -658,7 +658,7 @@ export function MovementsPage() {
             </label>
             <div>
               <ActionButton className="secondary-button" busyLabel="Gerando..." disabled={!batchEnvironmentId} onAction={downloadEntryTemplate}>
-                Baixar modelo de entradas
+                Baixar modelo XLSX de entradas
               </ActionButton>
               <ActionButton className="secondary-button" busyLabel="Gerando..." disabled={!batchEnvironmentId} onAction={downloadEntryCsvTemplate}>
                 Baixar modelo CSV
