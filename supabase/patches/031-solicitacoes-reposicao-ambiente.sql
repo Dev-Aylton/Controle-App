@@ -97,7 +97,7 @@ begin
   then raise exception 'Membro ativo necessário'; end if;
 
   return coalesce((
-    select jsonb_agg(request_row order by request_row.created_at desc)
+    select jsonb_agg(request_row.json order by request_row.created_at desc)
     from (
       select jsonb_build_object(
         'id', r.id,
@@ -145,7 +145,10 @@ as $$
 declare
   v_request public.purchase_requests%rowtype;
 begin
-  select * into v_request from public.purchase_requests where id=p_request_id;
+  select * into v_request
+  from public.purchase_requests
+  where id=p_request_id
+  for update;
   if v_request.id is null then raise exception 'Solicitação não encontrada'; end if;
   if not coalesce(public.is_admin(), false)
     and not coalesce(public.is_manager_or_owner(v_request.company_id), false)
@@ -158,7 +161,8 @@ begin
       review_note=nullif(btrim(coalesce(p_review_note,'')), ''),
       reviewed_by=auth.uid(),
       reviewed_at=timezone('utc',now())
-  where id=p_request_id;
+  where id=p_request_id and status='pendente';
+  if not found then raise exception 'Solicitação já foi revisada'; end if;
   if p_action='aprovar' then
     update public.purchase_request_items
     set approved_quantity=quantity
@@ -182,7 +186,10 @@ declare
   v_item record;
   v_transfer_group uuid;
 begin
-  select * into v_request from public.purchase_requests where id=p_request_id;
+  select * into v_request
+  from public.purchase_requests
+  where id=p_request_id
+  for update;
   if v_request.id is null then raise exception 'Solicitação não encontrada'; end if;
   if not coalesce(public.is_admin(), false)
     and not coalesce(public.is_manager_or_owner(v_request.company_id), false)
@@ -220,7 +227,8 @@ begin
       review_note=nullif(btrim(coalesce(p_review_note,'')), ''),
       reviewed_by=auth.uid(),
       reviewed_at=timezone('utc',now())
-  where id=p_request_id;
+  where id=p_request_id and status='aprovada';
+  if not found then raise exception 'Solicitação já foi atendida'; end if;
   return v_request.id;
 end;
 $$;

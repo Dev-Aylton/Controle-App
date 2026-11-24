@@ -190,6 +190,42 @@ suite('RLS Etapa 4B - compras e motivos de perda', () => {
     }
   })
 
+  it('duas revisões concorrentes só aplicam uma transição de estado', async () => {
+    const employee = client('et4b-employee-a')
+    const request = await employee.rpc('create_purchase_request', {
+      p_company_id: companyA,
+      p_destination_environment_id: environmentA,
+      p_items: [{ product_id: id('et4b-product-a'), quantity: 1 }],
+      p_note: 'teste concorrente',
+    })
+    expect(request.error).toBeNull()
+
+    const owner = client('et4b-owner-a')
+    const manager = client('et4b-manager-a')
+    const reviews = await Promise.all([
+      owner.rpc('resolve_purchase_request', {
+        p_request_id: request.data,
+        p_action: 'aprovar',
+        p_review_note: 'aprovação concorrente',
+      }),
+      manager.rpc('resolve_purchase_request', {
+        p_request_id: request.data,
+        p_action: 'rejeitar',
+        p_review_note: 'rejeição concorrente',
+      }),
+    ])
+    expect(reviews.filter((review) => review.error === null)).toHaveLength(1)
+    expect(reviews.filter((review) => review.error !== null)).toHaveLength(1)
+
+    const listed = await owner.rpc('list_purchase_requests', { p_company_id: companyA })
+    expect(listed.error).toBeNull()
+    const parsedRows = typeof listed.data === 'string' ? JSON.parse(listed.data) : listed.data
+    const rawRows = (Array.isArray(parsedRows) ? parsedRows : []) as Array<{ id?: string; status?: string; json?: { id: string; status: string } }>
+    const rows = rawRows.map((row) => row.json ?? row)
+    const finalState = rows.find((row) => row.id === request.data)
+    expect(['aprovada', 'rejeitada']).toContain(finalState?.status)
+  })
+
   it('admin lê a lista de compras e completa motivo como suporte', async () => {
     if (!appAdmin) throw new Error('Admin Etapa 4B ausente')
     const purchase = await appAdmin.rpc('get_purchase_list', { p_company_id: companyA })

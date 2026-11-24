@@ -136,7 +136,7 @@ suite('RLS Etapa 5A - vendas e fila', () => {
     })).error).not.toBeNull()
   })
 
-  it('gerente importa vendas com saldo negativo permitido', async () => {
+  it('gerente não importa venda sem saldo e importa depois de repor estoque', async () => {
     const manager = client('et5a-manager-a')
     const pricing = await manager.rpc('list_product_environment_pricing', {
       p_company_id: companyA, p_environment_id: environmentA,
@@ -147,6 +147,15 @@ suite('RLS Etapa 5A - vendas e fila', () => {
       p_company_id: companyA, p_external_name: 'Produto Externo', p_product_id: productA, p_environment_id: environmentA,
     })
     expect(map.error).toBeNull()
+    const rejected = await manager.rpc('import_sales_batch', {
+      p_company_id: companyA, p_environment_id: environmentA, p_label: 'Evento teste',
+      p_items: [{ product_id: productA, quantity: 2, sale_type: 'unidade' }],
+    })
+    expect(rejected.error?.message).toContain('Saldo insuficiente')
+    expect((await manager.rpc('register_movement', {
+      p_company_id: companyA, p_product_id: productA, p_environment_id: environmentA,
+      p_type: 'entrada', p_quantity: 2,
+    })).error).toBeNull()
     const batch = await manager.rpc('import_sales_batch', {
       p_company_id: companyA, p_environment_id: environmentA, p_label: 'Evento teste',
       p_items: [{ product_id: productA, quantity: 2, sale_type: 'unidade' }],
@@ -176,7 +185,7 @@ suite('RLS Etapa 5A - vendas e fila', () => {
     await admin.from('products').update({ volume_ml: 570, dose_ml: 30 }).eq('id', productA)
     await manager.rpc('register_movement', {
       p_company_id: companyA, p_product_id: productA, p_environment_id: environmentA,
-      p_type: 'entrada', p_quantity: 1,
+      p_type: 'entrada', p_quantity: 2,
     })
     const batch = await manager.rpc('import_sales_batch', {
       p_company_id: companyA, p_environment_id: environmentA, p_label: 'Dose teste',
@@ -188,11 +197,15 @@ suite('RLS Etapa 5A - vendas e fila', () => {
     })
     expect(balance.error).toBeNull()
     const row = (balance.data ?? []).find((item: { product_id: string }) => item.product_id === productA)
-    expect(row).toEqual(expect.objectContaining({ balance: -2 }))
+    expect(row).toEqual(expect.objectContaining({ balance: 1 }))
   })
 
   it('undo duas vezes falha e estorna o lote', async () => {
     const owner = client('et5a-owner-a')
+    expect((await owner.rpc('register_movement', {
+      p_company_id: companyA, p_product_id: productA, p_environment_id: environmentA,
+      p_type: 'entrada', p_quantity: 1,
+    })).error).toBeNull()
     const batch = await owner.rpc('import_sales_batch', {
       p_company_id: companyA, p_environment_id: environmentA, p_label: 'Undo teste',
       p_items: [{ product_id: productA, quantity: 1, sale_type: 'unidade' }],
@@ -211,6 +224,10 @@ suite('RLS Etapa 5A - vendas e fila', () => {
   it('admin lê histórico e pode importar como suporte', async () => {
     if (!appAdmin) throw new Error('Admin Etapa 5A ausente')
     expect((await appAdmin.rpc('list_sales_imports', { p_company_id: companyA })).error).toBeNull()
+    expect((await appAdmin.rpc('register_movement', {
+      p_company_id: companyA, p_product_id: productA, p_environment_id: environmentA,
+      p_type: 'entrada', p_quantity: 1,
+    })).error).toBeNull()
     expect((await appAdmin.rpc('import_sales_batch', {
       p_company_id: companyA, p_environment_id: environmentA, p_label: 'Admin',
       p_items: [{ product_id: productA, quantity: 1, sale_type: 'unidade' }],

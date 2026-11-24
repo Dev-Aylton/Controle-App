@@ -326,10 +326,10 @@ suite('RLS Etapa 4 - gestão', () => {
     const result = await client('et4-manager-a').rpc('import_products', {
       p_company_id: companyA,
       p_rows: [
-        { name: 'rls-test-et4-import-max', unit: 'un', min_stock: 3, max_stock: 8 },
-        { name: 'rls-test-et4-import-old', unit: 'un' },
-        { name: 'rls-test-et4-com-maximo', unit: 'un', min_stock: 10 },
-        { name: 'rls-test-et4-import-invalid', unit: 'un', min_stock: 5, max_stock: 2 },
+        { import_action: 'create', name: 'rls-test-et4-import-max', unit: 'un', min_stock: 3, max_stock: 8 },
+        { import_action: 'create', name: 'rls-test-et4-import-old', unit: 'un' },
+        { import_action: 'update', existing_product_id: id('rls-test-et4-com-maximo'), name: 'rls-test-et4-com-maximo', unit: 'un', min_stock: 10 },
+        { import_action: 'create', name: 'rls-test-et4-import-invalid', unit: 'un', min_stock: 5, max_stock: 2 },
       ],
     })
     expect(result.error).toBeNull()

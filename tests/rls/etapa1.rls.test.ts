@@ -295,6 +295,12 @@ suite('RLS Etapa 1', () => {
     const target = createdUsers.get('employee-deactivate')
     const membership = await admin.from('memberships').select('id').eq('user_id', target?.id).eq('company_id', companyA).maybeSingle()
     expect(membership.data?.id, 'membership do usuário de desativação não foi preparada').toBeTruthy()
+    const restored = await admin.from('memberships').update({
+      active: true,
+      deactivated_at: null,
+      deactivated_by: null,
+    }).eq('id', membership.data?.id)
+    expect(restored.error).toBeNull()
     const result = await manager!.rpc('deactivate_member', { p_membership_id: membership.data?.id })
     expect(result.error).toBeNull()
     const row = await admin.from('memberships').select('id,active,deactivated_at').eq('id', membership.data?.id).maybeSingle()
@@ -396,6 +402,10 @@ suite('RLS Etapa 1', () => {
       { contentType: 'image/webp', upsert: true },
     )
     expect(own.error, 'usuário não conseguiu acessar sua própria pasta profile-photos').toBeNull()
+    const ownRemoval = await employee!.storage.from('profile-photos').remove([
+      `${employeeUser?.id}/avatar.webp`,
+    ])
+    expect(ownRemoval.error, 'usuário não conseguiu excluir a própria foto de perfil').toBeNull()
     const ownerUser = createdUsers.get('owner-a')
     const other = await employee!.storage.from('profile-photos').upload(
       `${ownerUser?.id}/avatar.webp`,

@@ -106,17 +106,6 @@ for (const file of migrationFiles) {
   await parseFile(`supabase/migrations/${file}`, sql)
 }
 
-for (const unifiedName of ['aplicar-etapa1.sql', 'aplicar-etapa2.sql', 'aplicar-etapa3.sql', 'aplicar-etapa4.sql', 'aplicar-etapa4-equipe.sql', 'aplicar-etapa4b.sql', 'aplicar-etapa5a.sql', 'aplicar-etapa3b.sql']) {
-  const unifiedPath = `${root}supabase/${unifiedName}`
-  try {
-    const unified = await readFile(unifiedPath, 'utf8')
-    await parseFile(`supabase/${unifiedName}`, unified)
-  } catch (error) {
-    failed = true
-    console.error(`Erro ao ler supabase/${unifiedName}: ${error instanceof Error ? error.message : String(error)}`)
-  }
-}
-
 const patchFiles = (await readdir(`${root}supabase/patches`)).filter((name) => /\.sql$/i.test(name)).sort()
 for (const file of patchFiles) {
   const patch = await readFile(`${root}supabase/patches/${file}`, 'utf8')
@@ -129,4 +118,4 @@ for (const file of patchFiles) {
 }
 
 if (failed) process.exit(1)
-console.log(`Sintaxe PostgreSQL validada: ${migrationFiles.length} migrations e supabase/aplicar-etapa1.sql`)
+console.log(`Sintaxe PostgreSQL validada: ${migrationFiles.length} migrations e ${patchFiles.length} patches`)

@@ -27,6 +27,20 @@ test('demo permite trocar cargos e respeitar menus', async ({ page }) => {
   await expect(page.getByText('Abaixo do mínimo')).toBeVisible()
 })
 
+test('papéis do aplicativo não causam rolagem horizontal em celular e desktop', async ({ page }) => {
+  for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
+    await page.setViewportSize(viewport)
+    await page.goto('#/demo')
+    for (const role of ['employee', 'manager', 'owner']) {
+      await page.getByLabel('Entrar como').selectOption(role)
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        `${role} teve rolagem horizontal em ${viewport.width}px`,
+      ).toBe(true)
+    }
+  }
+})
+
 test('demo mostra central de alertas e lista de compras', async ({ page }) => {
   await page.goto('#/demo')
   await page.getByLabel('Entrar como').selectOption('manager')

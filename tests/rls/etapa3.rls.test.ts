@@ -27,6 +27,7 @@ suite('RLS Etapa 3 - movimentações e inventário', () => {
   let environmentOtherB = ''
   let productA = ''
   let productB = ''
+  let batchProductA = ''
   let managerClient: ReturnType<typeof loggedClient> | null = null
   let employeeClient: ReturnType<typeof loggedClient> | null = null
   let temporaryAdminUserId: string | null = null
@@ -80,12 +81,14 @@ suite('RLS Etapa 3 - movimentações e inventário', () => {
 
       const productResult = await admin.from('products').insert([
         { company_id: companyA, name: 'rls-test-et3-produto-a', sku: 'rls-test-et3-a', unit: 'un', active: true },
+        { company_id: companyA, name: 'rls-test-et3-produto-lote', sku: 'rls-test-et3-lote', unit: 'un', active: true },
         { company_id: companyB, name: 'rls-test-et3-produto-b', sku: 'rls-test-et3-b', unit: 'un', active: true },
       ]).select('*')
       if (productResult.error) throw new Error(`Falha produtos Etapa 3: ${productResult.error.message}`)
       productA = productResult.data?.find((item) => item.company_id === companyA)?.id ?? ''
       productB = productResult.data?.find((item) => item.company_id === companyB)?.id ?? ''
-      if (!environmentA || !environmentB || !productA || !productB) {
+      batchProductA = productResult.data?.find((item) => item.company_id === companyA && item.name.includes('lote'))?.id ?? ''
+      if (!environmentA || !environmentB || !productA || !batchProductA || !productB) {
         throw new Error('Falha setup Etapa 3: ambientes ou produtos não foram criados.')
       }
 
@@ -174,7 +177,8 @@ suite('RLS Etapa 3 - movimentações e inventário', () => {
     expect(result.error).toBeNull()
     movementFromEmployee = result.data as string
     const balance = await employeeClient!.rpc('get_stock_balance', { p_company_id: companyA, p_environment_id: environmentA })
-    expect(balance.error, 'funcionário conseguiu ler saldo').not.toBeNull()
+    expect(balance.error, 'funcionário não conseguiu ler saldo').toBeNull()
+    expect((balance.data ?? []).some((row) => row.product_id === productA)).toBe(true)
     const cost = await employeeClient!.from('product_costs').select('*').eq('company_id', companyA)
     expect(cost.data ?? [], 'funcionário leu custo').toHaveLength(0)
   })
@@ -184,12 +188,22 @@ suite('RLS Etapa 3 - movimentações e inventário', () => {
     expect((result.data ?? []).every((movement) => movement.id === movementFromEmployee), 'funcionário viu movimento de outro usuário').toBe(true)
   })
 
-  it('saída acima do saldo falha', async () => {
+  it('saída acima do saldo registra divergência auditada', async () => {
     const result = await employeeClient!.rpc('register_movement', { p_company_id: companyA, p_product_id: productA, p_environment_id: environmentA, p_type: 'saida', p_quantity: 999 })
-    expect(result.error?.message, 'saída acima do saldo não falhou').toContain('saldo')
+    expect(result.error, 'saída com divergência deveria ser registrada').toBeNull()
+    const divergence = await admin
+      .from('audit_log')
+      .select('action')
+      .eq('company_id', companyA)
+      .eq('action', 'stock_divergence_detected')
+      .limit(1)
+    expect(divergence.error).toBeNull()
+    expect((divergence.data ?? []).length).toBeGreaterThan(0)
   })
 
   it('transferência cria duas pernas e estorno desfaz as duas', async () => {
+    const seed = await managerClient!.rpc('register_movement', { p_company_id: companyA, p_product_id: productA, p_environment_id: environmentA, p_type: 'entrada', p_quantity: 1100 })
+    expect(seed.error).toBeNull()
     const transfer = await managerClient!.rpc('register_transfer', { p_company_id: companyA, p_product_id: productA, p_from_environment_id: environmentA, p_to_environment_id: environmentB, p_quantity: 1 })
     expect(transfer.error).toBeNull()
   })
@@ -266,6 +280,8 @@ suite('RLS Etapa 3 - movimentações e inventário', () => {
   })
 
   it('transferência cria duas pernas e estorno estorna ambas', async () => {
+    const seed = await managerClient!.rpc('register_movement', { p_company_id: companyA, p_product_id: productA, p_environment_id: environmentA, p_type: 'entrada', p_quantity: 1100 })
+    expect(seed.error).toBeNull()
     const transfer = await managerClient!.rpc('register_transfer', { p_company_id: companyA, p_product_id: productA, p_from_environment_id: environmentA, p_to_environment_id: environmentB, p_quantity: 1 })
     expect(transfer.error).toBeNull()
     const legs = await managerClient!.from('stock_movements').select('*').eq('transfer_group_id', transfer.data)
@@ -280,6 +296,118 @@ suite('RLS Etapa 3 - movimentações e inventário', () => {
     expect(wrongProduct.error, 'produto da empresa B foi aceito na empresa A').not.toBeNull()
     const wrongEnvironment = await managerClient!.rpc('register_movement', { p_company_id: companyA, p_product_id: productA, p_environment_id: environmentOtherB, p_type: 'entrada', p_quantity: 1 })
     expect(wrongEnvironment.error, 'ambiente da empresa B foi aceito na empresa A').not.toBeNull()
+  })
+
+  it('entrada em lote aceita funcionário ativo e valida produto, ambiente e duplicidade', async () => {
+    const requestId = crypto.randomUUID()
+    const args = {
+      p_company_id: companyA,
+      p_environment_id: environmentA,
+      p_entries: [
+        { product_id: productA, quantity: 2, note: 'lote teste 1' },
+        { product_id: batchProductA, quantity: 3, note: 'lote teste 2' },
+      ],
+      p_client_request_id: requestId,
+    }
+    const before = await managerClient!.from('stock_movements')
+      .select('id,product_id,quantity')
+      .eq('company_id', companyA)
+      .eq('environment_id', environmentA)
+      .in('product_id', [productA, batchProductA])
+    const batchResults = await Promise.all([
+      employeeClient!.rpc('apply_movement_entry_batch', args),
+      employeeClient!.rpc('apply_movement_entry_batch', args),
+    ])
+    const batch = batchResults[0]
+    expect(batch.error, 'funcionário ativo não aplicou lote válido').toBeNull()
+    expect((batch.data as { applied: number }).applied).toBe(2)
+    expect(batchResults[1].error).toBeNull()
+    expect(batchResults[1].data).toEqual(batch.data)
+    const after = await managerClient!.from('stock_movements')
+      .select('id,product_id,quantity')
+      .eq('company_id', companyA)
+      .eq('environment_id', environmentA)
+      .in('product_id', [productA, batchProductA])
+    expect((after.data ?? []).length).toBe((before.data ?? []).length + 2)
+
+    const duplicate = await employeeClient!.rpc('apply_movement_entry_batch', {
+      p_company_id: companyA,
+      p_environment_id: environmentA,
+      p_entries: [
+        { product_id: productA, quantity: 1, note: null },
+        { product_id: productA, quantity: 2, note: null },
+      ],
+      p_client_request_id: crypto.randomUUID(),
+    })
+    expect(duplicate.error?.message, 'produto duplicado no lote não falhou').toContain('duplicado')
+
+    const wrongProduct = await employeeClient!.rpc('apply_movement_entry_batch', {
+      p_company_id: companyA,
+      p_environment_id: environmentA,
+      p_entries: [{ product_id: productB, quantity: 1, note: null }],
+      p_client_request_id: crypto.randomUUID(),
+    })
+    expect(wrongProduct.error, 'produto da empresa B foi aceito em lote').not.toBeNull()
+
+    const wrongEnvironment = await employeeClient!.rpc('apply_movement_entry_batch', {
+      p_company_id: companyA,
+      p_environment_id: environmentOtherB,
+      p_entries: [{ product_id: productA, quantity: 1, note: null }],
+      p_client_request_id: crypto.randomUUID(),
+    })
+    expect(wrongEnvironment.error, 'ambiente da empresa B foi aceito em lote').not.toBeNull()
+  })
+
+  it('movimentação manual em lote aplica entradas, saídas e transferências válidas com idempotência', async () => {
+    const seed = await employeeClient!.rpc('register_movement', {
+      p_company_id: companyA,
+      p_product_id: productA,
+      p_environment_id: environmentA,
+      p_type: 'entrada',
+      p_quantity: 20,
+    })
+    expect(seed.error).toBeNull()
+
+    const requestId = crypto.randomUUID()
+    const entries = [
+      { product_id: productA, environment_id: environmentA, type: 'saida', quantity: 2, note: 'saída lote manual' },
+      { product_id: batchProductA, environment_id: environmentA, type: 'entrada', quantity: 3, note: 'entrada lote manual' },
+      { product_id: productA, environment_id: environmentA, to_environment_id: environmentB, type: 'transferencia', quantity: 1, note: 'transferência lote manual' },
+    ]
+    const batchResults = await Promise.all([
+      employeeClient!.rpc('apply_movement_batch', { p_company_id: companyA, p_entries: entries, p_client_request_id: requestId }),
+      employeeClient!.rpc('apply_movement_batch', { p_company_id: companyA, p_entries: entries, p_client_request_id: requestId }),
+    ])
+    expect(batchResults[0].error).toBeNull()
+    expect(batchResults[1].error).toBeNull()
+    expect(batchResults[0].data).toEqual(batchResults[1].data)
+    expect((batchResults[0].data as { applied: number }).applied).toBe(3)
+  })
+
+  it('movimentação manual em lote rejeita produto externo e transferência sem destino', async () => {
+    const wrongProduct = await employeeClient!.rpc('apply_movement_batch', {
+      p_company_id: companyA,
+      p_entries: [{ product_id: productB, environment_id: environmentA, type: 'entrada', quantity: 1, note: null }],
+      p_client_request_id: crypto.randomUUID(),
+    })
+    expect(wrongProduct.error).not.toBeNull()
+
+    const wrongTransfer = await employeeClient!.rpc('apply_movement_batch', {
+      p_company_id: companyA,
+      p_entries: [{ product_id: productA, environment_id: environmentA, to_environment_id: environmentOtherB, type: 'transferencia', quantity: 1, note: null }],
+      p_client_request_id: crypto.randomUUID(),
+    })
+    expect(wrongTransfer.error).not.toBeNull()
+  })
+
+  it('anon não aplica entrada em lote', async () => {
+    const result = await anon.rpc('apply_movement_entry_batch', {
+      p_company_id: companyA,
+      p_environment_id: environmentA,
+      p_entries: [{ product_id: productA, quantity: 1, note: null }],
+      p_client_request_id: crypto.randomUUID(),
+    })
+    expect(result.error, 'anon aplicou entrada em lote').not.toBeNull()
   })
 
   it('UPDATE e DELETE em stock_movements falham', async () => {

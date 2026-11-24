@@ -154,4 +154,124 @@ suite('RLS Etapa 4 - equipe', () => {
     expect(wrong.error).toBeNull()
     expect(wrong.data?.every((row: { user_id: string }) => row.user_id === id('et4-equipe-owner-b'))).toBe(true)
   })
+
+  it('conta nova entra por código como funcionário e não entra em empresa suspensa', async () => {
+    if (!appAdmin || !admin) throw new Error('Clientes RLS ausentes')
+    const email = randomEmail('et4-equipe-new-user')
+    const password = testPassword()
+    const user = await createTestUser(admin, email, password)
+    users.push(user)
+    const session = await loginUser(email, password)
+    const employeeNew = loggedClient(session.access_token)
+
+    const join = await employeeNew.rpc('join_company_with_code', { p_code: codeA })
+    expect(join.error).toBeNull()
+    expect(join.data).toBeTruthy()
+
+    const team = await client('et4-equipe-owner-a').rpc('get_team_members', { p_company_id: companyA })
+    expect(team.error).toBeNull()
+    expect((team.data ?? []).some((row: { user_id: string }) => row.user_id === user.id)).toBe(true)
+
+    const suspend = await appAdmin.rpc('suspend_company', {
+      p_company_id: companyA,
+      p_reason: 'teste de entrada por código',
+    })
+    expect(suspend.error).toBeNull()
+    const suspendedJoin = await employeeNew.rpc('join_company_with_code', { p_code: codeA })
+    expect(suspendedJoin.error?.message).toContain('empresa suspensa')
+
+    const reactivate = await appAdmin.rpc('reactivate_company', {
+      p_company_id: companyA,
+    })
+    expect(reactivate.error).toBeNull()
+  })
+
+  it('proprietário desativa com motivo, funcionário perde acesso e proprietário reativa', async () => {
+    const owner = client('et4-equipe-owner-a')
+    const employee = client('et4-equipe-employee-a')
+
+    const before = await owner.rpc('get_team_members', { p_company_id: companyA })
+    expect(before.error).toBeNull()
+    const employeeRow = (before.data ?? []).find((row: { user_id: string }) =>
+      row.user_id === id('et4-equipe-employee-a'),
+    ) as { membership_id: string } | undefined
+    expect(employeeRow?.membership_id).toBeTruthy()
+
+    const deactivate = await owner.rpc('deactivate_member', {
+      p_membership_id: employeeRow!.membership_id,
+      p_reason: 'troca de responsável pelo turno',
+    })
+    expect(deactivate.error).toBeNull()
+
+    const inactive = await owner.rpc('get_team_members', { p_company_id: companyA })
+    expect(inactive.error).toBeNull()
+    const inactiveRow = (inactive.data ?? []).find((row: { user_id: string }) =>
+      row.user_id === id('et4-equipe-employee-a'),
+    ) as { active: boolean; deactivated_reason: string } | undefined
+    expect(inactiveRow?.active).toBe(false)
+    expect(inactiveRow?.deactivated_reason).toBe('troca de responsável pelo turno')
+
+    expect((await employee.rpc('get_team_members', { p_company_id: companyA })).error).not.toBeNull()
+
+    const reactivate = await owner.rpc('reactivate_member', {
+      p_membership_id: employeeRow!.membership_id,
+    })
+    expect(reactivate.error).toBeNull()
+
+    const after = await owner.rpc('get_team_members', { p_company_id: companyA })
+    expect(after.error).toBeNull()
+    const activeRow = (after.data ?? []).find((row: { user_id: string }) =>
+      row.user_id === id('et4-equipe-employee-a'),
+    ) as { active: boolean; deactivated_reason: string | null } | undefined
+    expect(activeRow?.active).toBe(true)
+    expect(activeRow?.deactivated_reason).toBeNull()
+  })
+
+  it('funcionário não desativa nem reativa vínculo', async () => {
+    const employee = client('et4-equipe-employee-a')
+    const owner = client('et4-equipe-owner-a')
+    const members = await owner.rpc('get_team_members', { p_company_id: companyA })
+    expect(members.error).toBeNull()
+    const employeeRow = (members.data ?? []).find((row: { user_id: string }) =>
+      row.user_id === id('et4-equipe-employee-a'),
+    ) as { membership_id: string } | undefined
+    expect(employeeRow?.membership_id).toBeTruthy()
+    expect((await employee.rpc('deactivate_member', {
+      p_membership_id: employeeRow!.membership_id,
+      p_reason: 'proibido',
+    })).error).not.toBeNull()
+    expect((await employee.rpc('reactivate_member', {
+      p_membership_id: employeeRow!.membership_id,
+    })).error).not.toBeNull()
+  })
+
+  it('admin suspende empresa, bloqueia operações e reativa', async () => {
+    if (!appAdmin) throw new Error('Admin da aplicação ausente')
+    const owner = client('et4-equipe-owner-a')
+    const employee = client('et4-equipe-employee-a')
+
+    const suspend = await appAdmin.rpc('suspend_company', {
+      p_company_id: companyA,
+      p_reason: 'manutenção operacional',
+    })
+    expect(suspend.error).toBeNull()
+
+    expect((await owner.rpc('get_team_members', { p_company_id: companyA })).error).not.toBeNull()
+    expect((await employee.rpc('get_team_members', { p_company_id: companyA })).error).not.toBeNull()
+
+    const update = await owner
+      .from('companies')
+      .update({ phone: '11999999999' })
+      .eq('id', companyA)
+      .select('id')
+    expect(update.error || (update.data ?? []).length === 0).toBeTruthy()
+
+    const reactivate = await appAdmin.rpc('reactivate_company', {
+      p_company_id: companyA,
+    })
+    expect(reactivate.error).toBeNull()
+
+    const ownerAgain = await owner.rpc('get_team_members', { p_company_id: companyA })
+    expect(ownerAgain.error).toBeNull()
+  })
 })
