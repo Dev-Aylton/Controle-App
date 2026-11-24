@@ -83,12 +83,37 @@ const employeeSteps: TutorialStep[] = [
   },
   {
     title: 'Trabalho sem conexão',
-    body: 'Se a conexão cair, entradas, saídas e perdas podem ser registradas no aparelho e enviadas depois.',
+    body: 'Se a conexão cair, entradas, saídas e transferências simples podem ser salvas no aparelho e enviadas depois.',
     bullets: [
       'Confirme o status da fila no painel da conta.',
       'Não saia antes de resolver lançamentos pendentes.',
-      'Transferências e lançamentos por dose são registrados com idempotência.',
+      'Perdas e lotes por planilha exigem conexão nesta versão.',
+      'O banco recebe cada lançamento uma única vez quando a conexão retorna.',
     ],
+  },
+  {
+    title: 'Lista de compras e reposição',
+    body: 'Você pode solicitar reposição sem interromper o turno nem depender de uma pessoa específica para aprovar.',
+    bullets: [
+      'Abra Lista de compras e informe o ambiente de destino.',
+      'Monte a solicitação com os produtos e quantidades necessários.',
+      'Acompanhe o status pendente, aprovado ou atendido.',
+      'Uma aprovação de qualquer gerente ou proprietário habilitado libera o fluxo.',
+    ],
+    route: '/compras',
+    routeLabel: 'Solicitar reposição',
+  },
+  {
+    title: 'Suporte privado',
+    body: 'Cada usuário conversa diretamente com o administrador do aplicativo em uma conversa exclusiva.',
+    bullets: [
+      'Usuários diferentes não veem suas conversas.',
+      'É possível enviar texto e anexos de até 10 MB.',
+      'Mensagens têm estados de envio e visualização.',
+      'Arquivar ou ocultar afeta apenas a visão de quem realizou a ação.',
+    ],
+    route: '/suporte',
+    routeLabel: 'Abrir suporte',
   },
   {
     title: 'Meu perfil',
@@ -160,6 +185,18 @@ const managementSteps: TutorialStep[] = [
     routeLabel: 'Importar planilha',
   },
   {
+    title: 'Movimentação em lote',
+    body: 'Registre vários produtos e ambientes na mesma operação sem repetir o formulário produto por produto.',
+    bullets: [
+      'Adicione linhas, edite tipo, quantidade, origem e destino.',
+      'Gere a prévia antes de confirmar.',
+      'Revise itens repetidos e divergências de saldo.',
+      'O lote só é aplicado quando todas as linhas estão válidas.',
+    ],
+    route: '/movimentacoes',
+    routeLabel: 'Montar lote manual',
+  },
+  {
     title: 'Estoque inicial',
     body: 'Depois de cadastrar produtos e ambientes, registre o estoque existente.',
     bullets: [
@@ -204,9 +241,23 @@ const managementSteps: TutorialStep[] = [
       'Use Lista de compras para ver sugestões e custo estimado.',
       'Revise itens sugeridos, custos e quantidades antes de gerar PDF ou CSV.',
       'Toque no sino para abrir notificações, marcar leitura ou dispensar avisos.',
+      'Use filtros por Estoque, Movimentações, Suporte e Sistema.',
+      'Urgentes aparecem primeiro e são diferenciados por cor e texto.',
     ],
     route: '/compras',
     routeLabel: 'Abrir lista de compras',
+  },
+  {
+    title: 'Fornecedores e preços de compra',
+    body: 'Um produto pode ser comprado de fornecedores diferentes conforme preço e disponibilidade.',
+    bullets: [
+      'Cadastre fornecedores e dados de contato.',
+      'Registre unidade de compra, unidades por embalagem e preço.',
+      'Digite ou escolha um fornecedor diretamente na lista editável.',
+      'Compare preços, mas confirme disponibilidade antes de comprar.',
+    ],
+    route: '/compras',
+    routeLabel: 'Gerenciar fornecedores',
   },
   {
     title: 'Vendas e faturamento',
@@ -258,6 +309,9 @@ const managementSteps: TutorialStep[] = [
       'Gerentes podem operar estoque, compras, vendas e inventário.',
       'Funcionários podem lançar e contar, conforme a operação.',
       'O código da empresa permite novos vínculos.',
+      'Desative membros desligados e informe o motivo.',
+      'Reative um vínculo preservando o histórico da pessoa.',
+      'Filtre a equipe por cargo e status ativo ou inativo.',
     ],
     route: '/equipe',
     routeLabel: 'Gerenciar equipe',
@@ -275,6 +329,18 @@ const managementSteps: TutorialStep[] = [
     route: '/relatorios',
     routeLabel: 'Abrir relatórios',
   },
+  {
+    title: 'Conta, privacidade e suporte',
+    body: 'Minha conta reúne atualização do app, exportação, tema, diagnóstico, privacidade e exclusão.',
+    bullets: [
+      'Baixe dados pessoais em JSON e dados operacionais em CSV.',
+      'Use Suporte para conversar com o administrador e enviar anexos.',
+      'A política informa exatamente como os dados são usados e mantidos.',
+      'A exclusão da conta concede 90 dias para reativação e preserva histórico.',
+    ],
+    route: '/perfil',
+    routeLabel: 'Abrir meu perfil',
+  },
 ]
 
 export function getTutorialSteps(role: CompanyRole | null, isAdmin: boolean): TutorialStep[] {
@@ -290,9 +356,22 @@ export function getTutorialSteps(role: CompanyRole | null, isAdmin: boolean): Tu
         'Consulte relatório e auditoria antes e depois do suporte.',
         'Revise notificações de divergências, contagens e vendas antes de agir.',
         'Proprietário aprova decisões da empresa; gerente orienta a operação; funcionário registra os fatos.',
+        'Use a tela Empresa para suspender ou reativar uma empresa com confirmação.',
       ],
       route: '/auditoria',
       routeLabel: 'Abrir auditoria',
+    },
+    {
+      title: 'Caixa de suporte',
+      body: 'O administrador atende uma conversa privada por usuário, com anexos, leitura e arquivamento.',
+      bullets: [
+        'Filtre conversas abertas e arquivadas.',
+        'Responda somente o usuário da conversa selecionada.',
+        'O sino mostra a quantidade de mensagens não lidas.',
+        'Ocultar ou arquivar afeta somente a visão do administrador.',
+      ],
+      route: '/suporte',
+      routeLabel: 'Abrir caixa de suporte',
     },
   ]
   if (role === 'employee') return employeeSteps

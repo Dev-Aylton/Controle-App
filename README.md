@@ -13,7 +13,7 @@
   <a href="https://pages.github.com/"><img src="https://img.shields.io/badge/GitHub_Pages-publicado-222?logo=github&logoColor=white" alt="GitHub Pages"></a>
 </p>
 
-Aplicação PWA para controle de estoque e gestão de bares, com suporte a várias empresas, cargos, ambientes, compras, vendas, inventário e auditoria.
+Aplicação PWA multiempresa para controle de estoque, compras, vendas, inventário, equipe e auditoria. O projeto inclui operação offline segura para movimentações simples, políticas de acesso por cargo, suporte privado e implantação preparada para Supabase.
 
 - **Aplicação:** https://dev-aylton.github.io/Controle-App/
 - **Modo demonstração:** https://dev-aylton.github.io/Controle-App/#/demo
@@ -22,13 +22,16 @@ Aplicação PWA para controle de estoque e gestão de bares, com suporte a vári
 ## Funcionalidades
 
 - **Ambientes e produtos:** categorias, múltiplos ambientes, custo, mínimo/máximo, volume e dose.
-- **Movimentações:** entradas, saídas, perdas, transferências, dose/garrafa aberta, estorno e zeragem.
-- **Inventário:** contagem cega, diferenças em unidades e doses e finalização por gerente/proprietário.
-- **Gestão:** central de alertas, saldo negativo, perdas sem motivo, compras sugeridas e painel.
+- **Movimentações:** formulário e lote manual, entradas, saídas, perdas, transferências, dose/garrafa aberta, estorno e zeragem.
+- **Inventário:** contagem cega, importação oficial CSV/XLSX, diferenças entre contagens e finalização por gerente/proprietário.
+- **Compras:** sugestões por ambiente, múltiplos fornecedores, preços, rascunho editável, paginação, exportação CSV/PDF e solicitações de reposição não bloqueantes.
+- **Gestão:** central de alertas, dashboard diário, saldo negativo, perdas sem motivo, categorias de notificação e urgência visual.
 - **Relatórios:** movimentações, auditoria e exportação CSV segura contra injeção de fórmula.
-- **Vendas:** preços e custos por ambiente, importação CSV/XLSX, mapeamento, prévia financeira, histórico e desfazimento.
-- **Offline:** fila IndexedDB/Dexie isolada por usuário, sincronização ao reconectar e `client_request_id` idempotente; saída preserva o tema e os arquivos estáticos do PWA.
-- **Suporte:** administrador com acesso total, ações auditadas como suporte.
+- **Vendas:** preços e custos por ambiente, preço automático por dose, importação CSV/XLSX, mapeamento, ficha técnica, prévia financeira, histórico e desfazimento.
+- **Offline:** catálogo e fila de movimentações isolados por usuário; entradas, saídas e transferências simples sincronizam ao reconectar com identificador idempotente.
+- **Suporte:** chat privado usuário-administrador, anexos, leitura, arquivamento, ocultação e contador no sino.
+- **Privacidade:** política 1.3.0, aceite versionado, exportação de dados, pedido de exclusão em 90 dias e histórico preservado.
+- **Acesso administrativo:** suspensão e reativação de empresas, desativação e reativação de funcionários e auditoria das ações de suporte.
 - **Demonstração:** empresa fictícia, troca de cargo e operações locais sem login ou Supabase.
 
 ## Fluxo operacional recomendado
@@ -39,7 +42,7 @@ Aplicação PWA para controle de estoque e gestão de bares, com suporte a vári
 4. **Confira saldos e faça inventários** para comparar a contagem física com o saldo registrado.
 5. **Use alertas e a lista de compras** para priorizar reposições; consulte relatórios e auditoria para revisar o histórico.
 
-Preços por unidade/dose são obrigatórios para importar vendas. O custo por ambiente é opcional e, quando vazio, usa o custo base do produto; importações antigas não possuem snapshots financeiros e aparecem sem esses totais.
+Preços por unidade ou dose precisam estar cadastrados para calcular a venda. A importação exige saldo suficiente e é aplicada em lote. O custo por ambiente é opcional e usa o custo base quando necessário.
 
 ## Cargos e permissões
 
@@ -56,6 +59,9 @@ Preços por unidade/dose são obrigatórios para importar vendas. O custo por am
 | Custo, compra, histórico e relatórios | Sim | Sim | Sim | Não |
 | Equipe e código da empresa | Sim | Sim | Parcial | Não |
 | Auditoria | Sim | Sim | Sim | Não |
+| Suspender ou reativar empresa | Sim | Não | Não | Não |
+| Chat de suporte | Sim, caixa administrativa | Sim, conversa própria | Sim, conversa própria | Sim, conversa própria |
+| Desativar ou reativar membros | Sim | Conforme cargo | Somente funcionários | Não |
 
 Funcionários novos entram pela RPC `join_company_with_code`: o vínculo como funcionário é criado imediatamente e já pode trabalhar, **sem aprovação prévia**.
 
@@ -68,8 +74,10 @@ Funcionários novos entram pela RPC `join_company_with_code`: o vínculo como fu
 - **Idempotência:** lançamentos offline enviam `client_request_id` para evitar duplicação.
 - **Privacidade local:** fila offline filtrada por usuário; registros antigos sem vínculo não são exibidos nem enviados.
 - **Auditoria:** ações do admin recebem a marca `acted_as_support`; auditoria bloqueia alteração e exclusão.
-- **Saldo:** transferência exige saldo na origem; venda/importação pode produzir saldo negativo conforme regra.
+- **Saldo:** transferências e importações de venda exigem saldo suficiente; divergências de movimentações continuam auditadas.
 - **Ambientes separados:** o projeto mantém banco real e banco de testes separados.
+- **Performance:** telas carregadas por rota; listas extensas usam paginação; XLSX e PDF são carregados sob demanda.
+- **Privacidade:** sessão e fila permanecem locais durante uso autorizado; a saída limpa dados locais da conta sem apagar histórico empresarial.
 
 ## Stack
 
@@ -99,13 +107,16 @@ npm test
 npm run lint
 npx playwright test
 npx playwright test --config playwright.company.config.ts
+npm run sql:validar
+npm run test:rls
 ```
 
 - **Vitest:** suíte unitária do domínio e regras da interface.
 - **RLS:** testes em `tests/rls/`, executados contra o projeto Supabase de testes.
 - **Playwright:** suíte da demonstração em `tests/e2e/` e fluxo da empresa com Supabase simulado em `tests/company-e2e/`.
+- **Playwright:** suíte da demonstração em `tests/e2e/` e fluxo da empresa com Supabase simulado em `tests/company-e2e/`.
+- **SQL:** 16 migrations e 40 patches validados; ordem e rollback documentados em `supabase/DEPLOY.md`.
 
-<!-- TODO: Atualizar os números de testes após a execução final das suítes no CI. -->
 
 ## Estrutura principal
 
@@ -127,7 +138,7 @@ docs/
 
 ## Roadmap e status
 
-O status detalhado está na [página de acompanhamento](https://dev-aylton.github.io/Controle-App/docs/acompanhamento/plano/). A execução final dos fluxos Playwright ainda é acompanhada separadamente.
+O status detalhado está na [página de acompanhamento](https://dev-aylton.github.io/Controle-App/docs/acompanhamento/plano/). O release foi ensaiado no banco de testes antes da aplicação no banco real.
 
 ## Telas
 

@@ -12,10 +12,10 @@
     "test:e2e": "playwright test",
     "test:rls": "node scripts/rodar-rls.mjs",
     "test:rls:limpar": "node scripts/limpar-rls.mjs",
+    "templates:official": "node scripts/generate-official-templates.mjs",
     "icons:pwa": "node scripts/generate-pwa-icons.mjs",
     "acompanhamento:dados": "node scripts/generate-acompanhamento.mjs",
     "testes:relatorio": "node scripts/gerar-relatorio-testes.mjs",
-    "sql:unir": "node scripts/unir-migrations-etapa1.mjs",
     "sql:validar": "node scripts/validar-sql-etapa1.mjs"
   },
   "dependencies": {

@@ -1,8 +1,8 @@
 # Capturas do aplicativo
 
-As capturas ainda estão pendentes. A execução Playwright disponível falhou antes de renderizar a demonstração porque a proteção de rede também interceptou o módulo local `src/lib/supabase.ts`, e a navegação absoluta descartava o subcaminho configurado; nenhuma imagem foi gerada. A proteção e a navegação foram corrigidas, mas a suíte não foi executada novamente para respeitar o limite de uma execução.
+As capturas abaixo são geradas pelo Playwright em modo demonstração, sempre com dados fictícios e chamadas externas ao Supabase bloqueadas.
 
-Arquivos previstos para a próxima execução headless, sempre com dados fictícios e bloqueio de chamadas ao Supabase:
+Arquivos atuais:
 
 - `inicio.png` — início da demonstração.
 - `produtos.png` — catálogo fictício.
