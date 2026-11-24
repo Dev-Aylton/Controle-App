@@ -153,12 +153,24 @@ export function parseProductsCsv(
   existingVariants: ExistingProductVariant[] = [],
 ) {
   const normalized = csvText.replace(/\uFEFF/g, '')
-  const firstLine = normalized.split(/\r?\n/, 1)[0] ?? ''
+  const lines = normalized.split(/\r?\n/)
+  const hasOfficialMarker = normalized.includes('Modelo oficial de produtos')
+  const headerIndex = lines.findIndex((line) => {
+    const normalizedLine = line.toLowerCase()
+    return normalizedLine.includes('nome')
+      && normalizedLine.includes('codigo')
+      && normalizedLine.includes('unidade')
+  })
+  if (hasOfficialMarker && headerIndex < 0) throw new Error('O cabeçalho oficial de produtos não foi encontrado.')
+  const effectiveHeaderIndex = headerIndex >= 0 ? headerIndex : 0
+  const tableText = lines.slice(effectiveHeaderIndex).join('\n')
+  const firstLine = lines[effectiveHeaderIndex] ?? ''
   const separator = (firstLine.match(/;/g)?.length ?? 0) > (firstLine.match(/,/g)?.length ?? 0) ? ';' : ','
-  const parsed = Papa.parse<Record<string, string>>(normalized, {
+  const parsed = Papa.parse<Record<string, string>>(tableText, {
     header: true,
     delimiter: separator,
     skipEmptyLines: true,
   })
+  if (hasOfficialMarker && parsed.errors.length > 0) throw new Error('Não foi possível interpretar o modelo CSV de produtos.')
   return parseProductRows(parsed.data as Record<string, unknown>[], existingNames, existingSkus, existingVariants)
 }

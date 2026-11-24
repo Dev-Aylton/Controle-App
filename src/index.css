@@ -2809,6 +2809,18 @@ input[type='file']::file-selector-button {
   -ms-overflow-style:none;
 }
 .inventory-template-sheet::-webkit-scrollbar { display:none; }
+.inventory-template-sheet .table-wrap {
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-inline:contain;
+}
+.inventory-template-sheet .table-wrap::before {
+  content:'Deslize para conferir todas as colunas';
+  display:block;
+  margin-bottom:8px;
+  color:var(--text-muted);
+  font-size:11px;
+}
 .inventory-template-brand {
   min-height:58px;
   display:flex;

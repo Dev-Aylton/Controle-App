@@ -4,6 +4,19 @@ import { formatBRL } from './formatCurrency'
 import { calculateStockValue } from '../stockValue'
 
 describe('importação de produtos', () => {
+  it('lê o CSV oficial com cabeçalho e metadados', () => {
+    const csv = [
+      'Controle-App;Modelo oficial de produtos',
+      'Versão;1.0',
+      'Tipo;Produtos',
+      'Preencha uma linha por produto ou variante.;',
+      '',
+      'nome;codigo;tipo_categoria;unidade;volume_ml;peso;dose_ml;estoque_minimo;estoque_maximo;custo',
+      'Vodka;V001;Destilados;garrafa;998;;50;2;10;89,90',
+    ].join('\r\n')
+    const rows = parseProductsCsv(csv)
+    expect(rows[0]).toMatchObject({ name: 'Vodka', sku: 'V001', unit: 'garrafa', volumeMl: 998, doseMl: 50, cost: 89.9 })
+  })
   it('detecta separador ponto e vírgula', () => {
     const rows = parseProductsCsv('nome,código,categoria,unidade,estoque_minimo,custo\nCerveja,CEV-1,Bebidas,un,10,12,50')
     expect(rows.length).toBeGreaterThan(0)

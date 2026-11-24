@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildInventoryCountRows, findInventoryCountProduct, suggestInventoryCountProducts } from './inventoryCountTemplate'
+import * as XLSX from 'xlsx'
+import { buildInventoryCountRows, findInventoryCountProduct, parseInventoryCountFile, suggestInventoryCountProducts } from './inventoryCountTemplate'
 
 describe('modelo de contagem', () => {
   it('gera cabeçalho e linhas por produto', () => {
@@ -51,5 +52,37 @@ describe('modelo de contagem', () => {
       { id: 'p2', name: 'Absolut', sku: 'ABS-750' },
     ]
     expect(suggestInventoryCountProducts('998', 'Smirnof', products)[0]?.id).toBe('p1')
+  })
+
+  it('lê o modelo CSV oficial preenchido', async () => {
+    const csv = [
+      'Controle-App;Modelo oficial de contagem',
+      'Versão;1.0',
+      'Tipo;Contagem',
+      'Ambiente;Bar',
+      '',
+      'Código;Tipo/Categoria;Produto;Unidade;Volume/Peso;Dose (ml);Ambiente;Quantidade contada;Observações',
+      'P001;Vodka;Vodka;Garrafa;998 ml;50;Bar;12,5;Conferido',
+    ].join('\r\n')
+    const file = new File([csv], 'modelo-contagem.csv', { type: 'text/csv' })
+    const rows = await parseInventoryCountFile(file)
+    expect(rows[0]).toMatchObject({ code: 'P001', name: 'Vodka', quantity: 12.5, environment: 'Bar' })
+  })
+
+  it('lê o modelo XLSX oficial preenchido', async () => {
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ['Controle-App'],
+      ['Modelo oficial de contagem'],
+      ['Versão', '1.0', 'Tipo', 'Contagem'],
+      [],
+      ['Código', 'Tipo/Categoria', 'Produto', 'Unidade', 'Volume/Peso', 'Dose (ml)', 'Ambiente', 'Quantidade contada', 'Observações'],
+      ['P001', 'Vodka', 'Vodka', 'Garrafa', '998 ml', 50, 'Bar', 12.5, 'Conferido'],
+    ])
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, sheet, 'Contagem')
+    const bytes = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' })
+    const file = new File([bytes], 'modelo-contagem.xlsx')
+    const rows = await parseInventoryCountFile(file)
+    expect(rows[0]).toMatchObject({ code: 'P001', name: 'Vodka', quantity: 12.5, environment: 'Bar' })
   })
 })

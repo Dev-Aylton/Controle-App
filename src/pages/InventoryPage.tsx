@@ -644,7 +644,7 @@ export function InventoryPage() {
               <div><span>Modelo completo</span><strong>{products.length} produto(s)</strong></div>
               <div className="purchase-preview-actions">
                 <button className="secondary-button" type="button" onClick={() => setTemplatePreviewOpen(false)}>Fechar</button>
-                <button className="primary-button" type="button" onClick={downloadTemplate}>Baixar XLSX</button>
+                <button className="primary-button" type="button" disabled={!environmentId} onClick={downloadTemplate}>Baixar XLSX do ambiente</button>
               </div>
             </footer>
           </section>
