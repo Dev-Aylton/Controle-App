@@ -2462,13 +2462,20 @@ input[type='file']::file-selector-button {
   }
   .purchase-preview-add { order:-1; }
   .purchase-draft-row {
-    grid-template-columns:minmax(0,1fr) 84px;
+    grid-template-columns:minmax(0,1fr) minmax(90px,110px);
+    overflow:hidden;
   }
+  .purchase-draft-name,
+  .purchase-draft-row label,
   .purchase-draft-row label:nth-of-type(2),
   .purchase-draft-estimated,
   .purchase-draft-remove {
     grid-column:1 / -1;
   }
+  .purchase-draft-row input,
+  .purchase-draft-row select,
+  .purchase-preview-add input,
+  .purchase-preview-add select { min-width:0; max-width:100%; }
   .purchase-draft-estimated { justify-self:start; }
   .purchase-preview-footer {
     align-items:stretch;

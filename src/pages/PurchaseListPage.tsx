@@ -16,6 +16,7 @@ import {
   validatePurchaseDraft,
 } from '../features/management/purchaseListDraft'
 import { downloadBlankPurchaseListPdf, downloadPurchaseListPdf } from '../features/management/purchaseListPdf'
+import { buildPurchaseListExportRows, downloadPurchaseListXlsx } from '../features/management/purchaseListExport'
 import {
   createPurchaseRequest,
   fulfillPurchaseRequest,
@@ -200,26 +201,24 @@ export function PurchaseListPage() {
       setError(traduzirErro(caught, 'Não foi possível salvar o fornecedor ou preço informado.'))
       return
     }
-    const totalDraft = calculatePurchaseDraftTotal(csvItems)
     downloadCsv(
       `${activeCompany?.name ?? 'empresa'}-compras-${new Date().toISOString().slice(0, 10)}.csv`,
-      [
-        ['Produto', 'Ambiente', 'Quantidade', 'Custo unitário', 'Custo estimado', 'Tipo'],
-        ...csvItems.map((item) => [
-          item.productName,
-          item.environmentName,
-          item.quantity,
-          item.unitCost,
-          calculatePurchaseDraftEstimated(item),
-          item.draftAction === 'transferir'
-            ? 'Transferir entre ambientes'
-            : item.manual
-              ? 'Adicionado manualmente'
-              : 'Sugestão do estoque',
-        ]),
-        ['Total', '', '', '', totalDraft.hasMissingCost ? 'Custo ausente em itens' : totalDraft.total, ''],
-      ],
+      buildPurchaseListExportRows(csvItems),
     )
+  }
+
+  const exportXlsx = async () => {
+    const items = draftItems.filter((item) => item.quantity > 0 && item.draftAction !== 'fora')
+    if (items.length === 0) {
+      setError('Adicione ao menos um item com quantidade maior que zero.')
+      return
+    }
+    try {
+      await persistDraftSupplierData()
+      downloadPurchaseListXlsx(activeCompany?.name ?? 'empresa', items)
+    } catch (caught) {
+      setError(traduzirErro(caught, 'Não foi possível exportar a lista em XLSX.'))
+    }
   }
 
   const updateDraftQuantity = (key: string, quantity: number) => {
@@ -756,6 +755,7 @@ export function PurchaseListPage() {
           <button className="secondary-button" type="button" onClick={restoreDraft}>Restaurar rascunho</button>
           <button className="secondary-button" type="button" onClick={clearDraft}>Limpar rascunho</button>
           <ActionButton className="secondary-button" onAction={exportCsv} disabled={loading} busyLabel="Exportando...">Exportar CSV</ActionButton>
+          <ActionButton className="secondary-button" onAction={exportXlsx} disabled={loading || draftItems.length === 0} disabledReason="Adicione itens ao rascunho" busyLabel="Exportando...">Exportar XLSX</ActionButton>
           <ActionButton className="secondary-button" onAction={downloadBlankPdf} disabled={loading} busyLabel="Gerando...">Gerar modelo vazio em PDF</ActionButton>
           <button className="primary-button" type="button" disabled={loading} onClick={() => setPreviewOpen(true)}>Prévia da compra</button>
         </div>
