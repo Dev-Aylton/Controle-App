@@ -240,6 +240,47 @@ suite('RLS Etapa 4 - gestão', () => {
     expect(all.error).not.toBeNull()
   })
 
+  it('somente gestor e administrador leem métricas consolidadas do dashboard', async () => {
+    const employee = client('et4-employee-a')
+    expect((await employee.rpc('get_dashboard_stock_metrics', {
+      p_company_id: companyA,
+    })).error).not.toBeNull()
+
+    const manager = await client('et4-manager-a').rpc('get_dashboard_stock_metrics', {
+      p_company_id: companyA,
+    })
+    expect(manager.error).toBeNull()
+    expect(manager.data?.[0]).toEqual(expect.objectContaining({
+      products_without_movements: expect.any(Number),
+      products_without_stock: expect.any(Number),
+    }))
+  })
+
+  it('auditoria paginada preserva isolamento e total filtrado', async () => {
+    const manager = client('et4-manager-a')
+    const page = await manager.rpc('get_audit_page', {
+      p_company_id: companyA,
+      p_from: from,
+      p_to: to,
+      p_action: null,
+      p_user: null,
+      p_search: null,
+      p_limit: 2,
+      p_offset: 0,
+    })
+    expect(page.error).toBeNull()
+    expect(page.data?.rows?.length ?? 0).toBeLessThanOrEqual(2)
+    expect(Number(page.data?.total ?? 0)).toBeGreaterThanOrEqual(page.data?.rows?.length ?? 0)
+
+    expect((await client('et4-owner-b').rpc('get_audit_page', {
+      p_company_id: companyA,
+      p_from: from,
+      p_to: to,
+      p_limit: 10,
+      p_offset: 0,
+    })).error).not.toBeNull()
+  })
+
   it('empresa A não lê dados da empresa B pelas RPCs', async () => {
     for (const [name, args] of rpcArgs(companyB)) {
       const result = await client('et4-manager-a').rpc(name, args)

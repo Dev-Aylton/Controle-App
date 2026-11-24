@@ -32,6 +32,8 @@ export function SupportPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [showArchived, setShowArchived] = useState(false)
+  const [conversationSearch, setConversationSearch] = useState('')
+  const [unreadOnly, setUnreadOnly] = useState(false)
   const messageEndRef = useRef<HTMLDivElement>(null)
   const loadingRef = useRef(false)
   const userId = user?.id ?? null
@@ -68,10 +70,29 @@ export function SupportPage() {
   useEffect(() => {
     if (!userId) return
     queueMicrotask(() => { void load() })
-    const interval = window.setInterval(() => {
-      void load(true)
-    }, 5000)
-    return () => window.clearInterval(interval)
+    let interval = 0
+    const startPolling = () => {
+      window.clearInterval(interval)
+      interval = window.setInterval(() => {
+        if (document.visibilityState === 'visible') void load(true)
+      }, 12000)
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        void load(true)
+        startPolling()
+      } else {
+        window.clearInterval(interval)
+      }
+    }
+    startPolling()
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('focus', onVisibility)
+    return () => {
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('focus', onVisibility)
+    }
   }, [load, userId])
 
   useEffect(() => {
@@ -164,9 +185,17 @@ export function SupportPage() {
     }
   }
 
-  const visibleConversations = conversations.filter((conversation) =>
-    showArchived ? conversation.archivedByAdmin : !conversation.archivedByAdmin,
-  )
+  const visibleConversations = conversations
+    .filter((conversation) => showArchived ? conversation.archivedByAdmin : !conversation.archivedByAdmin)
+    .filter((conversation) => !unreadOnly || conversation.unreadCount > 0)
+    .filter((conversation) => {
+      const search = conversationSearch.trim().toLocaleLowerCase('pt-BR')
+      if (!search) return true
+      return `${conversation.userName ?? ''} ${conversation.userEmail ?? ''}`
+        .toLocaleLowerCase('pt-BR')
+        .includes(search)
+    })
+    .sort((left, right) => right.unreadCount - left.unreadCount || right.updatedAt.localeCompare(left.updatedAt))
 
   return (
     <Container>
@@ -188,6 +217,24 @@ export function SupportPage() {
               <button className="secondary-button" type="button" onClick={() => setShowArchived((value) => !value)}>
                 {showArchived ? 'Ver abertas' : 'Ver arquivadas'}
               </button>
+            </div>
+            <div className="support-inbox-filters">
+              <label>
+                Buscar pessoa
+                <input
+                  value={conversationSearch}
+                  onChange={(event) => setConversationSearch(event.target.value)}
+                  placeholder="Nome ou e-mail"
+                />
+              </label>
+              <label className="support-unread-filter">
+                <input
+                  type="checkbox"
+                  checked={unreadOnly}
+                  onChange={(event) => setUnreadOnly(event.target.checked)}
+                />
+                Somente não lidas
+              </label>
             </div>
             <div className="support-conversation-list">
               {visibleConversations.length === 0 && <p>Nenhuma conversa encontrada.</p>}

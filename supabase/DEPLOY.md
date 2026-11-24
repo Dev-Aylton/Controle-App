@@ -5,7 +5,7 @@ Use este repositório como fonte única de verdade. Não execute arquivos antigo
 ## Ordem obrigatória
 
 1. Aplicar todas as migrations de `supabase/migrations/`, em ordem numérica de `001` a `016`.
-2. Aplicar todos os arquivos de `supabase/patches/`, em ordem numérica disponível de `001` a `042`.
+2. Aplicar todos os arquivos de `supabase/patches/`, em ordem numérica disponível de `001` a `044`.
 3. Implantar a Edge Function `supabase/functions/finalize-account-deletions/`.
 4. Configurar o segredo da rotina de finalização e o agendamento do banco.
 5. Configurar os buckets de fotos, empresa, perfil e suporte.
@@ -53,7 +53,7 @@ O primeiro comando valida a sintaxe e dependências de migrations e patches. O s
 - janela de manutenção avisada;
 - banco real identificado e conferido como São Paulo;
 - migrations validadas;
-- 42 arquivos de patch disponíveis conferidos em ordem;
+- 42 arquivos de patch disponíveis, do prefixo disponível `001` ao `044`, conferidos em ordem;
 - Edge Function implantada;
 - segredo e rotina diária configurados;
 - Storage e políticas conferidos;

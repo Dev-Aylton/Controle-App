@@ -80,6 +80,10 @@
   gap:10px;
   margin-bottom:10px;
 }
+.support-inbox-filters { display:grid; gap:10px; margin:10px 0; }
+.support-inbox-filters label { display:grid; gap:5px; font-size:12px; font-weight:750; }
+.support-unread-filter { display:flex!important; align-items:center; gap:7px!important; }
+.support-unread-filter input { width:auto; min-height:auto; }
 .support-chat-header div {
   display:grid;
   gap:3px;

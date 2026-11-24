@@ -345,8 +345,7 @@ const managementSteps: TutorialStep[] = [
 
 export function getTutorialSteps(role: CompanyRole | null, isAdmin: boolean): TutorialStep[] {
   if (isAdmin) return [
-    ...managementSteps.slice(0, 2),
-    ...managementSteps.slice(4),
+    ...managementSteps,
     {
       title: 'Modo suporte',
       body: 'Ao acessar outra empresa, suas ações ficam marcadas como suporte na auditoria.',

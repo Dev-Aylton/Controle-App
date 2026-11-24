@@ -16,6 +16,9 @@ describe('tutorial por cargo', () => {
     expect(text).toContain('Funcionário')
     expect(text).toContain('Caixa de suporte')
     expect(text).toContain('suspender ou reativar')
+    expect(text).toContain('Produtos e categorias')
+    expect(text).toContain('Importação da planilha')
+    expect(text).toContain('Fornecedores e preços de compra')
   })
   it('funcionalidades essenciais aparecem nos tópicos de gestão', () => {
     const text = getTutorialSteps('manager', false).map((step) => `${step.title} ${step.body} ${step.bullets.join(' ')}`).join(' ')

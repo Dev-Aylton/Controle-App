@@ -5,12 +5,11 @@ import { Card } from '../components/Card'
 import { useCompanies } from '../features/company/company-context'
 import { useEffect, useState } from 'react'
 import { tryGetSupabaseClient } from '../lib/supabase'
-import { getLowStockAlerts, getNegativeBalances, getPendingLossReasons, getEnvironmentLowStock, getInventoryValuation } from '../features/management/management'
+import { getLowStockAlerts, getNegativeBalances, getPendingLossReasons, getInventoryValuation, getDashboardStockMetrics } from '../features/management/management'
 import { NavLink } from 'react-router-dom'
 import { TutorialModal } from '../features/tutorial/TutorialModal'
 import { dismissTutorial, getTutorialStorage, wasTutorialDismissed } from '../features/tutorial/tutorial'
 import { listPurchaseRequests, type PurchaseRequest } from '../features/management/purchaseRequests'
-import { countProductsWithoutStock } from './homeMetrics'
 
 export function HomePage() {
   useBreakpoint()
@@ -22,6 +21,7 @@ export function HomePage() {
   const [movementsToday, setMovementsToday] = useState<number | null>(null)
   const [lowCount, setLowCount] = useState(0)
   const [zeroCount, setZeroCount] = useState(0)
+  const [neverMovedCount, setNeverMovedCount] = useState(0)
   const [negativeCount, setNegativeCount] = useState(0)
   const [pendingLossCount, setPendingLossCount] = useState(0)
   const [employeeMovementsToday, setEmployeeMovementsToday] = useState<number | null>(null)
@@ -51,12 +51,13 @@ export function HomePage() {
           getLowStockAlerts(activeCompanyId),
           getNegativeBalances(activeCompanyId),
           getPendingLossReasons(activeCompanyId),
-          getEnvironmentLowStock(activeCompanyId),
-        ]).then(([low, negative, pending, environments]) => {
+          getDashboardStockMetrics(activeCompanyId),
+        ]).then(([low, negative, pending, metrics]) => {
           setLowCount(low.length)
           setNegativeCount(negative.length)
           setPendingLossCount(pending.length)
-          setZeroCount(countProductsWithoutStock(environments))
+          setZeroCount(metrics.products_without_stock)
+          setNeverMovedCount(metrics.products_without_movements)
         }).catch(() => undefined)
         void getInventoryValuation(activeCompanyId)
           .then((value) => {
@@ -96,6 +97,7 @@ export function HomePage() {
   const displayedMovementsToday = activeCompanyId ? movementsToday : null
   const displayedLowCount = activeCompanyId ? lowCount : 0
   const displayedZeroCount = activeCompanyId ? zeroCount : 0
+  const displayedNeverMovedCount = activeCompanyId ? neverMovedCount : 0
   const displayedNegativeCount = activeCompanyId ? negativeCount : 0
   const displayedPendingLossCount = activeCompanyId ? pendingLossCount : 0
   return (
@@ -226,8 +228,9 @@ export function HomePage() {
           </Card>
           <Card>
             <p><strong>Produtos sem saldo</strong><br />{displayedZeroCount}</p>
-            <small>Contagem de produtos distintos, considerando o saldo total em todos os ambientes.</small>
+            <small>Saldo total igual a zero, somando todos os ambientes.</small>
           </Card>
+          <Card><p><strong>Nunca movimentados</strong><br />{displayedNeverMovedCount}</p><small>Produtos ativos sem entrada, saída, perda ou transferência registrada.</small></Card>
           <Card><p><strong>Saldos negativos</strong><br />{displayedNegativeCount}</p></Card>
           <Card><p><strong>Perdas sem motivo</strong><br />{displayedPendingLossCount}</p></Card>
           <Card><p><strong>Valor de estoque parado</strong><br />{stockValueFailed ? 'Falha ao carregar' : displayedStockValue === null ? 'Indisponível' : new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(displayedStockValue)}<br /><small>{stockValueFailed ? 'Não foi possível consultar a avaliação do estoque.' : displayedStockValue === null ? 'Cadastre os custos dos produtos com saldo para calcular o valor completo.' : 'Calculado com custo por ambiente ou custo base.'}</small></p></Card>

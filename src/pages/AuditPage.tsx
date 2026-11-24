@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useCompanies } from '../features/company/company-context'
 import { Container, Card, ActionButton, ContextHelp, PageGuide } from '../components'
-import { getAuditLog } from '../features/management/management'
+import { getAuditPage } from '../features/management/management'
 import type { AuditRow } from '../features/management/types'
 import { downloadCsv } from '../features/management/csv'
 import { traduzirErro } from '../lib/errors'
@@ -45,46 +45,46 @@ export function AuditPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [auditPage, setAuditPage] = useState(1)
+  const [auditTotal, setAuditTotal] = useState(0)
   const auditPageSize = 50
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (page = 1) => {
     if (!activeCompany) return
-    setAuditPage(1)
+    setAuditPage(page)
     setLoading(true)
     setError('')
     try {
-      setRows(await getAuditLog(activeCompany.id, `${from}T00:00:00.000Z`, `${to}T23:59:59.999Z`, 200))
+      const result = await getAuditPage({
+        companyId: activeCompany.id,
+        from: `${from}T00:00:00.000Z`,
+        to: `${to}T23:59:59.999Z`,
+        action,
+        user: userFilter,
+        search,
+        limit: auditPageSize,
+        offset: (page - 1) * auditPageSize,
+      })
+      setRows(result.rows)
+      setAuditTotal(result.total)
     } catch (caught) {
       setError(traduzirErro(caught, 'Não foi possível carregar a auditoria.'))
     } finally {
       setLoading(false)
     }
-  }, [activeCompany, from, to])
+  }, [action, activeCompany, from, search, to, userFilter])
 
   useEffect(() => {
-    if (activeCompany) queueMicrotask(() => { void load() })
+    if (activeCompany) queueMicrotask(() => { void load(1) })
   }, [activeCompany, load])
 
   if (!isAdmin && role !== 'owner' && role !== 'manager') {
     return <Container><h1>Auditoria</h1><Card><p>Acesso restrito.</p></Card></Container>
   }
 
-  const filtered = rows.filter((row) => {
-    const actionMatches = !action || row.action.includes(action)
-    const userMatches = !userFilter || row.user_name.toLowerCase().includes(userFilter.toLowerCase())
-    const searchText = search.trim().toLowerCase()
-    const searchMatches = !searchText || [
-      row.action,
-      row.object_name,
-      row.user_name,
-      row.summary,
-    ].some((value) => value.toLowerCase().includes(searchText))
-    return actionMatches && userMatches && searchMatches
-  })
-  const users = [...new Set(rows.map((row) => row.user_name).filter(Boolean))]
-  const supportCount = filtered.filter((row) => row.acted_as_support).length
-  const auditPageCount = Math.max(1, Math.ceil(filtered.length / auditPageSize))
-  const visibleAuditRows = filtered.slice((auditPage - 1) * auditPageSize, auditPage * auditPageSize)
+  const filtered = rows
+  const supportCount = rows.filter((row) => row.acted_as_support).length
+  const auditPageCount = Math.max(1, Math.ceil(auditTotal / auditPageSize))
+  const visibleAuditRows = rows
   const exportCsv = () => {
     downloadCsv(
       `${activeCompany?.name ?? 'empresa'}-auditoria-${from}-${to}.csv`,
@@ -117,7 +117,7 @@ export function AuditPage() {
       />
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="audit-summary-grid" aria-label="Resumo da auditoria">
-        <Card><span>Registros</span><strong>{filtered.length}</strong><small>No período filtrado</small></Card>
+        <Card><span>Registros</span><strong>{auditTotal}</strong><small>No período filtrado</small></Card>
         <Card><span>Pessoas</span><strong>{new Set(filtered.map((row) => row.user_name)).size}</strong><small>Usuários identificados</small></Card>
         <Card><span>Suporte</span><strong>{supportCount}</strong><small>Ações registradas como suporte</small></Card>
       </div>
@@ -126,10 +126,7 @@ export function AuditPage() {
           <label>De<input type="date" value={from} onChange={(event) => { setFrom(event.target.value); setAuditPage(1) }} /></label>
           <label>Até<input type="date" value={to} onChange={(event) => { setTo(event.target.value); setAuditPage(1) }} /></label>
           <label>Usuário
-            <select value={userFilter} onChange={(event) => { setUserFilter(event.target.value); setAuditPage(1) }}>
-              <option value="">Todos</option>
-              {users.map((user) => <option key={user} value={user}>{user}</option>)}
-            </select>
+            <input value={userFilter} onChange={(event) => { setUserFilter(event.target.value); setAuditPage(1) }} placeholder="Nome da pessoa" />
           </label>
           <label>Tipo
             <select value={action} onChange={(event) => { setAction(event.target.value); setAuditPage(1) }}>
@@ -149,7 +146,7 @@ export function AuditPage() {
           </label>
         </div>
         <div className="audit-filter-actions">
-          <ActionButton className="primary-button" onAction={load} disabled={loading} busyLabel="Carregando...">Aplicar filtros</ActionButton>
+          <ActionButton className="primary-button" onAction={() => load(1)} disabled={loading} busyLabel="Carregando...">Aplicar filtros</ActionButton>
           <ActionButton className="secondary-button" onAction={exportCsv} disabled={loading || filtered.length === 0} busyLabel="Exportando...">Exportar CSV</ActionButton>
         </div>
       </Card>
@@ -180,9 +177,9 @@ export function AuditPage() {
           ))}
         </div>
         <div className="pagination-controls" aria-label="Paginação da auditoria">
-          <button type="button" className="secondary-button" disabled={auditPage <= 1} onClick={() => setAuditPage((page) => Math.max(1, page - 1))}>Anterior</button>
-          <span>Página {auditPage} de {auditPageCount} • {filtered.length} registros</span>
-          <button type="button" className="secondary-button" disabled={auditPage >= auditPageCount} onClick={() => setAuditPage((page) => Math.min(auditPageCount, page + 1))}>Próxima</button>
+          <button type="button" className="secondary-button" disabled={auditPage <= 1 || loading} onClick={() => void load(auditPage - 1)}>Anterior</button>
+          <span>Página {auditPage} de {auditPageCount} • {auditTotal} registros</span>
+          <button type="button" className="secondary-button" disabled={auditPage >= auditPageCount || loading} onClick={() => void load(auditPage + 1)}>Próxima</button>
         </div>
         </>
       )}</Card>}
