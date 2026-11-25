@@ -232,6 +232,7 @@ export function downloadInventoryCountCsvTemplate(environmentName: string, produ
       ...buildInventoryCountRows(environmentName, products),
     ],
     true,
+    'windows-1252',
   )
 }
 

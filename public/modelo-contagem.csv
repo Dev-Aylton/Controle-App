@@ -1,10 +1,10 @@
-ï»¿sep=;
+sep=;
 Controle-App;Modelo oficial de contagem
-VersÃ£o;1.0
+Versão;1.0
 Tipo;Contagem
-Complete os campos em branco para identificar o produto, mantenha os dados preenchidos e informe Quantidade contada. ObservaÃ§Ãµes Ã© opcional.;
+Complete os campos em branco para identificar o produto, mantenha os dados preenchidos e informe Quantidade contada. Observações é opcional.;
 
-CÃ³digo;Tipo/Categoria;Produto;Unidade;Volume/Peso;Dose (ml);Ambiente;Quantidade contada;ObservaÃ§Ãµes
+Código;Tipo/Categoria;Produto;Unidade;Volume/Peso;Dose (ml);Ambiente;Quantidade contada;Observações
 ;;;;;;;;
 ;;;;;;;;
 ;;;;;;;;

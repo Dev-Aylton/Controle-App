@@ -4,6 +4,10 @@ import * as XLSX from 'xlsx'
 import { parseProductsCsv } from './parseProductsCsv'
 import { parseInventoryCountFile } from '../../movements/inventoryCountTemplate'
 
+function readWindows1252Csv(path: string) {
+  return new TextDecoder('windows-1252').decode(readFileSync(path))
+}
+
 function readMatrix(path: string) {
   const workbook = XLSX.read(readFileSync(path), { type: 'buffer' })
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
@@ -64,11 +68,11 @@ describe('arquivos XLSX oficiais estáticos', () => {
   })
 
   it('modelos CSV oficiais possuem os mesmos marcadores e cabeçalhos', () => {
-    const productCsv = readFileSync('public/modelo-produtos.csv', 'utf8').replace(/^\uFEFF/, '')
+    const productCsv = readWindows1252Csv('public/modelo-produtos.csv')
     expect(productCsv).toContain('Controle-App;Modelo oficial de produtos')
     expect(productCsv).toContain('nome;codigo;tipo_categoria;unidade')
 
-    const countCsv = readFileSync('public/modelo-contagem.csv', 'utf8').replace(/^\uFEFF/, '')
+    const countCsv = readWindows1252Csv('public/modelo-contagem.csv')
     expect(countCsv).toContain('Controle-App;Modelo oficial de contagem')
     expect(countCsv).toContain('Código;Tipo/Categoria;Produto')
     expect(countCsv).toContain('Complete os campos em branco para identificar o produto, mantenha os dados preenchidos')
@@ -77,7 +81,7 @@ describe('arquivos XLSX oficiais estáticos', () => {
   })
 
   it('lê os CSV oficiais depois de preenchidos pelo usuário', async () => {
-    const productTemplate = readFileSync('public/modelo-produtos.csv', 'utf8')
+    const productTemplate = readWindows1252Csv('public/modelo-produtos.csv')
     const productCsv = productTemplate.replace(
       ';;;;;;;;;',
       'Vodka Premium;"SKU;001";Destilados;garrafa;998;;50;2;10;"89,90"',
@@ -94,7 +98,7 @@ describe('arquivos XLSX oficiais estáticos', () => {
       cost: 89.9,
     })
 
-    const countTemplate = readFileSync('public/modelo-contagem.csv', 'utf8')
+    const countTemplate = readWindows1252Csv('public/modelo-contagem.csv')
     const countCsv = countTemplate.replace(
       ';;;;;;;;',
       'SKU001;Destilados;Vodka Premium;garrafa;998 ml;50;Bar;12.5;"Conferido; sem falta"',
