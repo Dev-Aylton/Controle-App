@@ -138,6 +138,10 @@ export async function syncQueuedMovements(userId: string): Promise<{ sent: numbe
   syncing = true
   try {
   if (!navigator.onLine) return { sent: 0, stopped: false }
+  await offlineDb.queuedMovements
+    .where('[userId+status]')
+    .equals([userId, 'enviando'])
+    .modify({ status: 'pendente', failureReason: null })
   const queue = await getUserQueue(userId, syncableStatuses)
   let sent = 0
   for (const item of queue) {
@@ -169,7 +173,7 @@ export async function syncQueuedMovements(userId: string): Promise<{ sent: numbe
           await completePendingLossReason(movementId, item.lossReasonId)
         }
       }
-      await offlineDb.queuedMovements.update(item.clientRequestId, { status: 'enviado', failureReason: null })
+      await offlineDb.queuedMovements.delete(item.clientRequestId)
       sent += 1
     } catch (caught) {
       const reason = traduzirErro(caught, 'Não foi possível sincronizar o lançamento.')

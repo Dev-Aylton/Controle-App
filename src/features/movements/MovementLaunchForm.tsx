@@ -50,6 +50,7 @@ export function MovementLaunchForm({ companyId, environments, products, onRegist
   const [operationPreset, setOperationPreset] = useState<'normal' | 'destination_withdrawal' | 'direct_purchase' | 'destination_return'>('normal')
   const [directPurchaseCost, setDirectPurchaseCost] = useState<number | null>(null)
 
+
   useEffect(() => {
     if (type !== 'perda') return
     void listLossReasons(companyId).then(setLossReasons).catch((caught) => {

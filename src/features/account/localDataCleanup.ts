@@ -10,7 +10,7 @@ export type ClearUserDeviceDataOptions = {
 }
 
 export async function clearUserDeviceData(userId: string | null, options: ClearUserDeviceDataOptions = {}) {
-  await offlineDb.transaction('rw', offlineDb.queuedMovements, offlineDb.catalog, async () => {
+  await offlineDb.transaction('rw', offlineDb.queuedMovements, offlineDb.catalog, offlineDb.movementEnvironments, async () => {
     const pendingStatuses = ['pendente', 'enviando', 'falhou'] as const
     const [userPending, unassignedPending] = await Promise.all([
       userId
@@ -31,9 +31,11 @@ export async function clearUserDeviceData(userId: string | null, options: ClearU
     if (userId) {
       await offlineDb.queuedMovements.where('userId').equals(userId).delete()
       await offlineDb.catalog.where('userId').equals(userId).delete()
+      await offlineDb.movementEnvironments.where('userId').equals(userId).delete()
     }
     await offlineDb.queuedMovements.where('userId').equals(LEGACY_UNASSIGNED_USER_ID).delete()
     await offlineDb.catalog.where('userId').equals(LEGACY_UNASSIGNED_USER_ID).delete()
+    await offlineDb.movementEnvironments.where('userId').equals(LEGACY_UNASSIGNED_USER_ID).delete()
   })
 
   clearLocalStorage(options.preserveAuthStorage ?? false)

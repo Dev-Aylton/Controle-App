@@ -102,6 +102,30 @@ describe('fila offline', () => {
     expect(await getOfflineQueueStatus('usuario-a')).toEqual({ userPending: 0, hasUnassignedPending: true })
   })
 
+  it('recupera item preso como enviando e remove a fila após sincronizar', async () => {
+    await offlineDb.queuedMovements.put({
+      userId: 'usuario-a',
+      clientRequestId: 'sending-request',
+      companyId: 'empresa-a',
+      productId: 'produto',
+      environmentId: 'ambiente',
+      type: 'entrada',
+      quantity: 1,
+      note: null,
+      localCreatedAt: '2026-11-21T22:00:00Z',
+      status: 'enviando',
+      failureReason: null,
+      attempts: 0,
+      nextAttemptAt: 0,
+    })
+    vi.stubGlobal('navigator', { onLine: true })
+
+    await syncQueuedMovements('usuario-a')
+
+    expect(registerMovement).toHaveBeenCalledTimes(1)
+    expect(await offlineDb.queuedMovements.count()).toBe(0)
+  })
+
   it('mantém catálogo de movimentação isolado por usuário e empresa', async () => {
     await cacheMovementCatalog(
       'usuario-a',

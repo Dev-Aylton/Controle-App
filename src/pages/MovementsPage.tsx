@@ -703,6 +703,7 @@ export function MovementsPage() {
         <Card>
           <h2>Lançar movimentação</h2>
           <MovementLaunchForm
+            key={`${initial?.productId ?? 'none'}-${initial?.environmentId ?? 'none'}-${initial?.type ?? 'none'}-${initial?.quantity ?? 0}`}
             companyId={activeCompany.id}
             environments={environments}
             products={products}

@@ -68,13 +68,28 @@ export function InventoryPage() {
   useEffect(() => {
     if (!companyId) return
     const supabase = tryGetSupabaseClient()
-    if (!supabase) return
     queueMicrotask(() => {
+      if (!supabase) {
+        setError('Supabase não configurado.')
+        setLoading(false)
+        return
+      }
+      setLoading(true)
+      setError('')
+      setEnvironmentId('')
+      setSessionId('')
+      setCounts({})
+      setCounted(new Set())
+      setPreview(null)
+      setCountImportPreview([])
       void Promise.all([
         supabase.from('environments').select('*').eq('company_id', companyId).eq('active', true),
         supabase.from('products').select('id,name,sku,category_id,unit,volume_ml,dose_ml,weight_g').eq('company_id', companyId).eq('active', true),
         supabase.from('product_categories').select('id,name').eq('company_id', companyId).eq('active', true),
       ]).then(([environmentResult, productResult, categoryResult]) => {
+        if (environmentResult.error) throw environmentResult.error
+        if (productResult.error) throw productResult.error
+        if (categoryResult.error) throw categoryResult.error
         setEnvironments((environmentResult.data ?? []).map((item) => ({ id: item.id, name: item.name })))
         setCategories((categoryResult.data ?? []).map((item) => ({ id: item.id, name: item.name })))
         setProducts((productResult.data ?? []).map((item) => ({
@@ -87,9 +102,27 @@ export function InventoryPage() {
           dose_ml: item.dose_ml,
           weight_g: item.weight_g,
         })))
-      })
+      }).catch((caught) => {
+        setEnvironments([])
+        setProducts([])
+        setCategories([])
+        setError(traduzirErro(caught, 'Não foi possível carregar os dados do inventário.'))
+      }).finally(() => setLoading(false))
     })
   }, [companyId])
+
+  const selectEnvironment = (nextEnvironmentId: string) => {
+    if (nextEnvironmentId !== environmentId) {
+      setSessionId('')
+      setCounts({})
+      setCounted(new Set())
+      setPreview(null)
+      setCountImportPreview([])
+      setGapAnalysis(null)
+      setBoatAnalysis(null)
+    }
+    setEnvironmentId(nextEnvironmentId)
+  }
 
   const downloadTemplate = () => {
     const environmentName = environmentId
@@ -655,7 +688,7 @@ export function InventoryPage() {
         <p className="field-help">Compare as duas últimas contagens finalizadas de um produto e veja quanto do saldo pode ser explicado por entradas, vendas, perdas, transferências e ajustes.</p>
         <div className="form-grid">
           <label>Ambiente
-            <select value={environmentId} onChange={(event) => setEnvironmentId(event.target.value)}>
+            <select value={environmentId} onChange={(event) => selectEnvironment(event.target.value)}>
               <option value="">Selecione</option>
               {environments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
@@ -702,7 +735,7 @@ export function InventoryPage() {
           <p className="field-help">Zera o saldo no ambiente selecionado. Escolha um produto específico ou “Todos os produtos” para aplicar a todos.</p>
           <div className="form-grid">
             <label>Ambiente
-              <select value={environmentId} onChange={(event) => setEnvironmentId(event.target.value)}>
+              <select value={environmentId} onChange={(event) => selectEnvironment(event.target.value)}>
                 <option value="">Selecione</option>
                 {environments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </select>
@@ -721,7 +754,7 @@ export function InventoryPage() {
       <Card>
         <p className="field-help">Inicie uma sessão para registrar a contagem física dos produtos neste ambiente.</p>
         <label>Ambiente
-          <select value={environmentId} onChange={(event) => setEnvironmentId(event.target.value)}>
+          <select value={environmentId} onChange={(event) => selectEnvironment(event.target.value)}>
             <option value="">Selecione</option>
             {environments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>

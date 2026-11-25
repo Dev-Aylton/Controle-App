@@ -39,6 +39,7 @@ describe('limpeza dos dados locais', () => {
     vi.unstubAllGlobals()
     await offlineDb.queuedMovements.clear()
     await offlineDb.catalog.clear()
+    await offlineDb.movementEnvironments.clear()
     local = new MemoryStorage()
     session = new MemoryStorage()
     cacheDelete.mockClear()
@@ -66,6 +67,11 @@ describe('limpeza dos dados locais', () => {
       { id: 'b-product', userId: 'usuario-b', companyId: 'empresa-b', name: 'B', unit: 'un', environments: '' },
       { id: 'legacy-product', userId: LEGACY_UNASSIGNED_USER_ID, companyId: 'empresa-antiga', name: 'Antigo', unit: 'un', environments: '' },
     ])
+    await offlineDb.movementEnvironments.bulkPut([
+      { userId: 'usuario-a', companyId: 'empresa-a', id: 'a-env', name: 'Ambiente A' },
+      { userId: 'usuario-b', companyId: 'empresa-b', id: 'b-env', name: 'Ambiente B' },
+      { userId: LEGACY_UNASSIGNED_USER_ID, companyId: 'empresa-antiga', id: 'legacy-env', name: 'Ambiente antigo' },
+    ])
 
     await clearUserDeviceData('usuario-a')
 
@@ -74,6 +80,7 @@ describe('limpeza dos dados locais', () => {
     expect(session.length).toBe(0)
     expect((await offlineDb.queuedMovements.toArray()).map((item) => item.clientRequestId)).toEqual(['b-movement'])
     expect((await offlineDb.catalog.toArray()).map((item) => item.id)).toEqual(['b-product'])
+    expect((await offlineDb.movementEnvironments.toArray()).map((item) => item.id)).toEqual(['b-env'])
     expect(cacheDelete).toHaveBeenCalledTimes(1)
     expect(cacheDelete).toHaveBeenCalledWith('runtime-api-data')
   })
