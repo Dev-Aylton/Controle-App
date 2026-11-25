@@ -6,6 +6,7 @@ import {
   canLaunchDemo, canUseSensitiveDemoData, registerDemoMovement, reverseDemoMovement,
   zeroDemoStock, finishDemoInventory, getDemoPurchaseItems, importDemoSales, undoDemoSales,
   registerDemoDoseMovement,
+  DEMO_COMPANY_NAME,
   DEMO_ENVIRONMENTS,
 } from '../features/demo/demoData'
 import { downloadCsv } from '../features/management/csv'
@@ -101,7 +102,7 @@ function DemoContent() {
         <img className="demo-desktop-logo dark-logo" src={wordmarkDark} alt="Controle-App" />
       </div>
       <div className="demo-desktop-company">
-        <strong>PIPA BOAT PARTY</strong>
+        <strong>{DEMO_COMPANY_NAME}</strong>
         <span>{state.role === 'admin' ? 'Administrador' : state.role === 'owner' ? 'Proprietário' : state.role === 'manager' ? 'Gerente' : 'Funcionário'}</span>
       </div>
       <nav className="demo-desktop-nav" aria-label="Telas da demonstração">
@@ -148,7 +149,7 @@ function DemoContent() {
             <button className="secondary-button demo-account-button" type="button" onClick={() => setAccountOpen(true)}>Minha conta</button>
           </div>
         </Card>
-        <h1>PIPA BOAT PARTY</h1>
+        <h1>{DEMO_COMPANY_NAME}</h1>
       </section>
       {sensitive && (
         <>
@@ -156,10 +157,10 @@ function DemoContent() {
             <Card>
               <h2>Empresa</h2>
               <div className="member-list">
-                <article className="member-row"><div><strong>PIPA BOAT PARTY</strong><span>Ambientes fictícios • cadastro e telefone demonstrativos</span></div></article>
+                <article className="member-row"><div><strong>{DEMO_COMPANY_NAME}</strong><span>Ambientes fictícios • cadastro e telefone demonstrativos</span></div></article>
               </div>
               <div className="form-grid">
-                <label>Nome da empresa<input value="PIPA BOAT PARTY" readOnly /></label>
+                <label>Nome da empresa<input value={DEMO_COMPANY_NAME} readOnly /></label>
                 <label>Telefone<input value="(83) 99999-0000" readOnly /></label>
               </div>
               <button className="primary-button" type="button">Salvar dados fictícios</button>
@@ -431,7 +432,7 @@ function DemoContent() {
           <p><strong>Fila local fictícia:</strong> 2 lançamentos aguardando conexão.</p>
           <div className="member-list">
             <article className="member-row"><div><strong>Entrada • Vodka Premium</strong><span>Pendente • 10 unidades</span></div></article>
-            <article className="member-row"><div><strong>Transferência • Estoque → Bar Embarque</strong><span>Pendente • 5 unidades</span></div></article>
+            <article className="member-row"><div><strong>Transferência • Estoque Central → Espaço Jardim</strong><span>Pendente • 5 unidades</span></div></article>
           </div>
           <button className="secondary-button" type="button">Sincronizar ao reconectar</button>
         </Card>

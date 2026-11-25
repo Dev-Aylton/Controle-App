@@ -165,9 +165,14 @@ window.PLANO_DATA = {
         {"nome": "O usuário validar o modal e registrar o aceite da política 1.3.0 no app de testes", "feita": true},
         {"nome": "Revisar e aprovar o texto final da política antes da publicação", "feita": true},
         {"nome": "Obter aprovação explícita e aplicar migrations no banco real com rollback preparado", "feita": true},
-        {"nome": "Executar smoke test pós-publicação em empresa real sem expor dados", "feita": false},
+        {"nome": "Executar smoke test pós-publicação no banco real sem expor dados empresariais", "feita": true},
         {"nome": "Atualizar capturas do portfólio e confirmar deploy/release final", "feita": true},
+        {"nome": "Aplicar correções de fila offline do release 5.1: recuperar estado enviando, remover itens concluídos e limpar ambientes locais", "feita": true},
+        {"nome": "Corrigir limpeza da sessão e das contagens do inventário ao trocar ambiente ou empresa", "feita": true},
+        {"nome": "Atualizar o guia técnico com privacidade, exclusão de conta, cron e alterações do release 5.1", "feita": true},
+        {"nome": "Neutralizar a faixa da política para visitante sem login e manter Em vigor desde só para usuário autenticado", "feita": true},
         {"nome": "Ajustar minuta v1.0.0 conforme decisões do dono e identificar lacunas", "feita": true},
+        {"nome": "Publicar o login Google no Google Cloud (Audience em In production, tipo External, sem escopos sensíveis, sem logo, sem verificação)", "feita": true},
         {"nome": "Usar conteúdo único na página pública e no modal, com links no rodapé e Minha conta", "feita": true},
         {"nome": "Testar seções da política e navegação por teclado do modal com Vitest", "feita": true},
         {"nome": "Isolar fila offline por usuário e limpar os dados locais ao sair ou excluir", "feita": true},
@@ -282,7 +287,7 @@ window.PLANO_DATA = {
         {"nome": "Executar ensaio completo de publicação no banco de testes com SQL, Storage, Edge Function, política e suítes", "feita": true},
         {"nome": "Atualizar variáveis, URLs e configuração do frontend para o banco real somente após aprovação", "feita": true},
         {"nome": "Aplicar migrations, patches, Edge Functions, Storage e política no banco real", "feita": true},
-        {"nome": "Publicar o frontend e validar login, RLS, aceite, suporte e sincronização em produção", "feita": false},
+        {"nome": "Validar em produção com uma segunda conta Google: login, aceite da política, isolamento entre empresas, suporte e sincronização offline", "feita": true},
         {"nome": "Atualizar capturas e documentação de release final", "feita": true}
       ]
     }

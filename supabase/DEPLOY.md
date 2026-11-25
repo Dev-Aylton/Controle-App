@@ -13,12 +13,12 @@ Use este repositório como fonte única de verdade. Não execute arquivos antigo
 
 ## Criação da empresa no banco real
 
-Não existe seed automático da Pipa Boat Party no código ou nas migrations.
+Não existe seed automático de empresas no código ou nas migrations.
 
 Depois da implantação da estrutura:
 
 1. Entre no Supabase real com uma conta definida como administrador da plataforma.
-2. Crie ou selecione a empresa Pipa Boat Party pela interface ou pelo fluxo autorizado.
+2. Crie ou selecione a empresa de produção pela interface ou pelo fluxo autorizado.
 3. Configure pelo menos um ambiente real.
 4. Importe produtos e ambientes com as planilhas oficiais disponíveis no app.
 5. Revise nomes, unidades, volumes, doses, mínimos e custos antes de confirmar.

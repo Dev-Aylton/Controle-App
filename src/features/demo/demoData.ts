@@ -2,6 +2,8 @@ import type { CompanyRole } from '../../lib/database.types'
 
 export type DemoRole = 'admin' | CompanyRole
 
+export const DEMO_COMPANY_NAME = 'AURORA EVENTOS (FICTÍCIA)'
+
 export type DemoProduct = {
   id: string
   name: string
@@ -38,10 +40,10 @@ export type DemoState = {
 }
 
 export const DEMO_ENVIRONMENTS = [
-  { id: 'env-est', name: 'Estoque' },
-  { id: 'env-bar-embarque', name: 'Bar Embarque' },
-  { id: 'env-bar-vip', name: 'Bar VIP' },
-  { id: 'env-bar-principal', name: 'Bar Principal' },
+  { id: 'env-est', name: 'Estoque Central' },
+  { id: 'env-jardim', name: 'Espaço Jardim' },
+  { id: 'env-vip', name: 'Salão VIP' },
+  { id: 'env-principal', name: 'Salão Principal' },
 ] as const
 
 const names = [
@@ -79,8 +81,8 @@ export function createDemoState(): DemoState {
     salesBatches: [],
     movements: [
       { id: 'demo-m1', productId: products[0].id, environmentId: 'env-est', type: 'entrada', quantity: 10, createdBy: 'employee', createdAt: '2026-11-20T18:00:00Z', lossReasonId: null },
-      { id: 'demo-m2', productId: products[3].id, environmentId: 'env-bar-vip', type: 'perda', quantity: 2, createdBy: 'employee', createdAt: '2026-11-21T20:00:00Z', lossReasonId: null },
-      { id: 'demo-m3', productId: products[14].id, environmentId: 'env-bar-principal', type: 'saida', quantity: 5, createdBy: 'employee', createdAt: '2026-11-21T21:00:00Z', lossReasonId: null },
+      { id: 'demo-m2', productId: products[3].id, environmentId: 'env-vip', type: 'perda', quantity: 2, createdBy: 'employee', createdAt: '2026-11-21T20:00:00Z', lossReasonId: null },
+      { id: 'demo-m3', productId: products[14].id, environmentId: 'env-principal', type: 'saida', quantity: 5, createdBy: 'employee', createdAt: '2026-11-21T21:00:00Z', lossReasonId: null },
     ],
   }
 }

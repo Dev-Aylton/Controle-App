@@ -68,6 +68,8 @@ Arquivos:
 
 **Falhas:** registros antigos sem usuário não são sincronizados; dados locais são isolados por usuário; falha de autorização interrompe envio.
 
+No release 5.1, a fila passou a recuperar itens presos no estado `enviando`: ao iniciar uma nova sincronização, esses registros voltam para `pendente` antes da tentativa. Itens sincronizados com sucesso são removidos da fila IndexedDB, evitando acúmulo indefinido. Ao sair da conta, a limpeza local também remove os ambientes armazenados em `movementEnvironments` pelo usuário atual e pelos registros antigos sem usuário vinculado.
+
 ## 4. Imutabilidade e estorno
 
 **Problema:** edição ou exclusão direta poderia destruir rastreabilidade.
@@ -123,3 +125,24 @@ npm.cmd run test:rls
 **Fluxo:** altere o código; execute testes unitários; valide interface; execute RLS no banco de testes; valide SQL antes da implantação.
 
 **Falhas:** suíte vermelha impede considerar o bloco concluído. Produção não é ambiente de desenvolvimento ou testes.
+
+As correções de fila offline, limpeza local, inventário e movimentações do release 5.1 vieram de uma auditoria própria do projeto. Na tela de inventário, trocar o ambiente ou a empresa limpa a sessão aberta, contagens, prévia e dados importados da contagem, evitando que uma operação seja aplicada no contexto anterior. Vitest cobre recuperação da fila, remoção de itens concluídos e limpeza dos ambientes offline; Playwright cobre os fluxos da demonstração e das telas por cargo.
+
+## 7. Exclusão de conta e privacidade
+
+**Problema:** a conta precisa ser desativada imediatamente com possibilidade de reativação por 90 dias, e a exclusão definitiva deve remover identificadores sensíveis sem destruir o histórico operacional da empresa.
+
+**Implementação:** a migration `016_privacidade_retentions.sql` cria solicitações de exclusão, registros de aceites da política e RPCs protegidas para consultar, aceitar, solicitar, reativar e finalizar a exclusão. `privacy_policy_releases` mantém versões publicadas e uma única versão atual; `PrivacyPolicyPrompt` consulta o RPC da política atual e registra o aceite em `privacy_policy_acceptances`. A Edge Function `supabase/functions/finalize-account-deletions/index.ts` exige segredo próprio do cron, reivindica solicitações vencidas e remove fotos antes da finalização. A rotina diária é agendada pelo cron do Supabase.
+
+Arquivos:
+
+- `supabase/migrations/016_privacidade_retentions.sql`
+- `supabase/functions/finalize-account-deletions/index.ts`
+- `supabase/patches/041-publicar-politica-1-3-0.sql`
+- `src/features/privacy/PrivacyPolicyPrompt.tsx`
+- `src/features/privacy/PrivacyPolicyContent.tsx`
+- `src/features/privacy/privacyPolicyStatus.ts`
+
+**Fluxo:** a política publicada é consultada por usuários autenticados; o aceite é registrado no banco para o usuário e versão. Ao solicitar exclusão, a conta recebe data final de 90 dias, vínculos ativos são desativados e a sessão é encerrada. Até o prazo, o usuário pode cancelar a solicitação e reativar seus vínculos. Depois do vencimento, o cron chama a Edge Function; ela reivindica a solicitação como `finalizando`, remove objetos de `profile-photos`, finaliza os identificadores da conta e libera solicitações que falhem no processamento.
+
+**Falhas:** sem autenticação, consulta e aceite são recusados. Contas administradoras não podem ser excluídas pelas RPCs de usuário. Proprietário precisa transferir a propriedade antes da exclusão. A reativação falha após o prazo ou quando a solicitação não está pendente. A Edge Function bloqueia chamadas sem segredo correto e devolve solicitações pendentes de nova tentativa se fotos não puderem ser listadas/removidas ou a finalização falhar.

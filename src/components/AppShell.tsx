@@ -18,7 +18,7 @@ import { NavigationIcon } from './NavigationIcon'
 import { BackToTop } from './BackToTop'
 import { PrivacyPolicyPrompt } from '../features/privacy/PrivacyPolicyPrompt'
 import { recordTechnicalError } from '../lib/diagnostics'
-import { getPrivacyPolicyLinkLabel, usePrivacyPolicyRelease } from '../features/privacy/privacyPolicyStatus'
+import { getPrivacyPolicyLinkLabel } from '../features/privacy/privacyPolicyStatus'
 import { NotificationCenter } from './NotificationCenter'
 import {
   getCompanyNotifications,
@@ -38,7 +38,6 @@ export function AppShell({ children }: AppShellProps) {
   const [tabletExpanded, setTabletExpanded] = useState(false)
   const { companies, activeCompany, selectCompany, role, isAdmin, error: companyError, clearError } = useCompanies()
   const { claimError, clearClaimError, user } = useAuth()
-  const privacyPolicyRelease = usePrivacyPolicyRelease(user?.id ?? null)
   const [online, setOnline] = useState(navigator.onLine)
   const [pendingCount, setPendingCount] = useState(0)
   const [offlineError, setOfflineError] = useState('')
@@ -246,7 +245,7 @@ export function AppShell({ children }: AppShellProps) {
         <span>{formatAppVersion()}</span>
       </div>
       <nav className="app-footer-links" aria-label="Links institucionais">
-        <NavLink className="footer-privacy-link" to="/privacidade">{getPrivacyPolicyLinkLabel(privacyPolicyRelease)}</NavLink>
+        <NavLink className="footer-privacy-link" to="/privacidade">{getPrivacyPolicyLinkLabel()}</NavLink>
         <a className="footer-portfolio-button" href="https://dev-aylton.github.io/" target="_blank" rel="noreferrer">
           <span>Desenvolvido por</span>
           <strong>Aylton Alberto</strong>

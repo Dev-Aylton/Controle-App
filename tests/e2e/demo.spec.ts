@@ -52,7 +52,7 @@ test('demo mostra central de alertas e lista de compras', async ({ page }) => {
 test('demo permite reiniciar dados', async ({ page }) => {
   await page.goto('#/demo')
   await page.getByRole('button', { name: 'Reiniciar demonstração' }).click()
-  await expect(page.getByRole('heading', { name: 'PIPA BOAT PARTY', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'AURORA EVENTOS (FICTÍCIA)', exact: true })).toBeVisible()
 })
 
 test('funcionário lança saída no layout móvel sem ver dados sensíveis', async ({ page }) => {

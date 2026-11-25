@@ -17,8 +17,8 @@ export function formatPrivacyPolicyDate(value: string) {
   }).format(date)
 }
 
-export function getPrivacyPolicyLinkLabel(release: PrivacyPolicyRelease | null) {
-  return release ? 'Aviso de Privacidade' : 'Aviso de Privacidade (minuta)'
+export function getPrivacyPolicyLinkLabel() {
+  return 'Aviso de Privacidade'
 }
 
 export function usePrivacyPolicyRelease(userId: string | null) {

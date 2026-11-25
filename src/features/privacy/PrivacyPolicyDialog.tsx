@@ -88,7 +88,7 @@ export function PrivacyPolicyDialog({
           target="_blank"
           rel="noreferrer"
         >
-          {policyPublishedAt ? 'Abrir página pública da política' : 'Abrir página pública da minuta'}
+          Abrir página pública da política
         </a>
         {acceptError && <p className="form-error" role="alert">{acceptError}</p>}
         <div className="privacy-policy-actions">

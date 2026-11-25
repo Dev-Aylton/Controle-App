@@ -16,11 +16,6 @@ export function PrivacyPolicyContent({ headingId, release = null }: Props) {
 
   return (
     <div className="privacy-policy-content">
-      {!published && (
-        <p className="privacy-policy-draft" role="status">
-          Versão 1.3.0 preparada para publicação.
-        </p>
-      )}
       <p className="eyebrow">Privacidade e proteção de dados</p>
       <h1 id={headingId}>Política de Privacidade do Controle-App</h1>
       <p className="privacy-policy-version">

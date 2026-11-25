@@ -61,9 +61,10 @@ describe('política de privacidade 1.3.0', () => {
 
   it('renderiza a versão 1.3.0 sem dado de publicação', () => {
     const markup = renderToStaticMarkup(createElement(PrivacyPolicyContent))
-    expect(markup).toContain('Versão 1.3.0 preparada para publicação.')
+    expect(markup).toContain('Versão 1.3.0')
     expect(markup).toContain('Versão 1.3.0 · Última atualização: 24 de novembro de 2026')
     expect(markup).not.toContain('Em vigor desde')
+    expect(markup).not.toContain('preparada para publicação')
   })
 
   it('renderiza o estado publicado com versão e data', () => {
@@ -103,8 +104,7 @@ describe('política de privacidade 1.3.0', () => {
       expect(markup).not.toContain('NÃO CONFIRMADO')
       expect(markup).not.toContain('TODO')
     }
-    expect(getPrivacyPolicyLinkLabel(null)).toBe('Aviso de Privacidade (minuta)')
-    expect(getPrivacyPolicyLinkLabel({ version: '1.0.0', publishedAt: '2026-11-23T12:00:00Z' })).toBe('Aviso de Privacidade')
+    expect(getPrivacyPolicyLinkLabel()).toBe('Aviso de Privacidade')
     expect(formatPrivacyPolicyDate('2026-11-23T12:00:00Z')).toBe('23/11/2026')
   })
 

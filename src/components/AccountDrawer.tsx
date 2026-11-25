@@ -19,14 +19,13 @@ import { TutorialModal } from '../features/tutorial/TutorialModal'
 import { deleteCurrentAccount } from '../features/account/deleteAccount'
 import { useSafeSignOut } from '../features/account/useSafeSignOut'
 import { getOfflineQueueStatus } from '../features/offline/sync'
-import { getPrivacyPolicyLinkLabel, usePrivacyPolicyRelease } from '../features/privacy/privacyPolicyStatus'
+import { getPrivacyPolicyLinkLabel } from '../features/privacy/privacyPolicyStatus'
 import { useProfilePhotoHidden } from '../features/account/useProfilePhotoHidden'
 
 type Props = { open: boolean; online: boolean; pendingCount: number; onClose: () => void }
 
 export function AccountDrawer({ open, online, pendingCount, onClose }: Props) {
   const { user } = useAuth()
-  const privacyPolicyRelease = usePrivacyPolicyRelease(user?.id ?? null)
   const { activeCompany, role, isAdmin } = useCompanies()
   const layout = useBreakpoint()
   const confirm = useConfirm()
@@ -200,7 +199,7 @@ export function AccountDrawer({ open, online, pendingCount, onClose }: Props) {
           <div className="account-action-list">
             <button className="account-action-button" type="button" onClick={() => setTutorialOpen(true)}>Tutorial</button>
             <NavLink className="account-action-link" to="/suporte" onClick={onClose}>Suporte com o administrador</NavLink>
-            <NavLink className="account-action-link" to="/privacidade" onClick={onClose}>{getPrivacyPolicyLinkLabel(privacyPolicyRelease)}</NavLink>
+            <NavLink className="account-action-link" to="/privacidade" onClick={onClose}>{getPrivacyPolicyLinkLabel()}</NavLink>
             <a className="account-action-link" href={`mailto:desenvolvedor.aylton@gmail.com?subject=${encodeURIComponent('Problema no Controle-App')}&body=${encodeURIComponent(reportBody)}`}>Reportar problema</a>
             <a className="account-action-link" href="mailto:desenvolvedor.aylton@gmail.com">Entrar em contato</a>
             <ActionButton className="account-action-button" busyLabel="Copiando..." onAction={copyReport}>Copiar diagnóstico completo</ActionButton>
