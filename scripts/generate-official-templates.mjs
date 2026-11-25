@@ -17,6 +17,7 @@ function styleWorksheet(worksheet, endColumn, headerRow, lastRow) {
   worksheet['!merges'] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: endColumn } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: endColumn } },
+    { s: { r: 3, c: 0 }, e: { r: 3, c: endColumn } },
   ]
   for (let column = 0; column <= endColumn; column += 1) {
     const title = XLSX.utils.encode_cell({ r: headerRow, c: column })
