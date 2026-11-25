@@ -160,12 +160,27 @@ Os guias operacionais e técnicos estão em [docs/guias/](docs/guias/README.md).
 
 ## Telas
 
-As capturas devem usar somente dados fictícios do modo demonstração. Os arquivos previstos e o estado atual estão listados em [docs/screenshots/README.md](docs/screenshots/README.md).
+As capturas usam somente dados fictícios no modo demonstração. A galeria completa está organizada em [docs/screenshots/README.md](docs/screenshots/README.md).
 
-| Aplicação | Demonstração |
+| Notebook — gerente | Celular — gerente |
 |---|---|
-| ![Início](docs/screenshots/inicio.png) | ![Modo mobile](docs/screenshots/celular-iphone-14.png) |
-| ![Movimentações](docs/screenshots/movimentacoes.png) | ![Tema escuro](docs/screenshots/tema-escuro.png) |
+| ![Início no notebook](docs/screenshots/gerente/notebook-claro/inicio.png) | ![Início no celular](docs/screenshots/gerente/celular-claro/inicio.png) |
+
+| Notebook — tema escuro | Celular — tema escuro |
+|---|---|
+| ![Tema escuro no notebook](docs/screenshots/gerente/notebook-escuro/inicio.png) | ![Tema escuro no celular](docs/screenshots/gerente/celular-escuro/inicio.png) |
+
+### Galeria por funcionalidade
+
+- [Início](docs/screenshots/gerente/notebook-claro/inicio.png)
+- [Movimentações](docs/screenshots/gerente/notebook-claro/movimentacoes.png)
+- [Produtos](docs/screenshots/gerente/notebook-claro/produtos.png)
+- [Saldo por ambiente](docs/screenshots/gerente/notebook-claro/saldo-ambientes.png)
+- [Inventário](docs/screenshots/gerente/notebook-claro/inventario.png)
+- [Compras](docs/screenshots/gerente/notebook-claro/lista-compras.png)
+- [Vendas](docs/screenshots/gerente/notebook-claro/vendas.png)
+- [Relatórios e auditoria](docs/screenshots/gerente/notebook-claro/relatorios.png)
+- [Equipe](docs/screenshots/gerente/notebook-claro/equipe.png)
 
 ## Autor
 

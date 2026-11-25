@@ -71,10 +71,23 @@ function DemoContent() {
   const scrollToDemoSection = (key: string) => {
     const sectionIds: Record<string, string> = {
       home: 'demo-home',
+      company: 'demo-company',
+      environments: 'demo-environments',
+      products: 'demo-products',
       movements: 'demo-movements',
       stock: 'demo-stock',
       inventory: 'demo-inventory',
       alerts: 'demo-alerts',
+      purchases: 'demo-purchases',
+      sales: 'demo-sales',
+      salesPrices: 'demo-sales-prices',
+      reports: 'demo-reports',
+      audit: 'demo-audit',
+      team: 'demo-team',
+      profile: 'demo-profile',
+      support: 'demo-support',
+      offline: 'demo-offline',
+      privacy: 'demo-privacy',
     }
     const id = sectionIds[key]
     if (id) document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -82,6 +95,50 @@ function DemoContent() {
 
   return (
     <main className="demo-page">
+    <aside className="demo-desktop-sidebar" aria-label="Navegação da demonstração">
+      <div className="demo-desktop-brand">
+        <img className="demo-desktop-logo light-logo" src={wordmarkLight} alt="Controle-App" />
+        <img className="demo-desktop-logo dark-logo" src={wordmarkDark} alt="Controle-App" />
+      </div>
+      <div className="demo-desktop-company">
+        <strong>PIPA BOAT PARTY</strong>
+        <span>{state.role === 'admin' ? 'Administrador' : state.role === 'owner' ? 'Proprietário' : state.role === 'manager' ? 'Gerente' : 'Funcionário'}</span>
+      </div>
+      <nav className="demo-desktop-nav" aria-label="Telas da demonstração">
+        <button type="button" onClick={() => scrollToDemoSection('home')}>Início</button>
+        {sensitive && <>
+          <button type="button" onClick={() => scrollToDemoSection('company')}>Empresa</button>
+          <button type="button" onClick={() => scrollToDemoSection('environments')}>Ambientes</button>
+          <button type="button" onClick={() => scrollToDemoSection('products')}>Produtos</button>
+        </>}
+        <button type="button" onClick={() => scrollToDemoSection('movements')}>Movimentações</button>
+        {sensitive && <button type="button" onClick={() => scrollToDemoSection('sales')}>Vendas</button>}
+        {sensitive && <button type="button" onClick={() => scrollToDemoSection('salesPrices')}>Preços de venda</button>}
+        <button type="button" onClick={() => scrollToDemoSection('stock')}>Saldo por ambiente</button>
+        <button type="button" onClick={() => scrollToDemoSection('inventory')}>Inventário</button>
+        {sensitive && <>
+          <button type="button" onClick={() => scrollToDemoSection('alerts')}>Alertas</button>
+          <button type="button" onClick={() => scrollToDemoSection('purchases')}>Lista de compras</button>
+          <button type="button" onClick={() => scrollToDemoSection('reports')}>Relatórios</button>
+          <button type="button" onClick={() => scrollToDemoSection('audit')}>Auditoria</button>
+          <button type="button" onClick={() => scrollToDemoSection('team')}>Equipe</button>
+        </>}
+        <button type="button" onClick={() => scrollToDemoSection('profile')}>Meu perfil</button>
+        <button type="button" onClick={() => scrollToDemoSection('support')}>Suporte</button>
+        <button type="button" onClick={() => scrollToDemoSection('offline')}>Offline</button>
+        <button type="button" onClick={() => scrollToDemoSection('privacy')}>Privacidade</button>
+      </nav>
+    </aside>
+    <header className="demo-desktop-header" aria-label="Cabeçalho da demonstração">
+      <select value={state.role} onChange={(event) => setRole(event.target.value as DemoRole)} aria-label="Cargo da demonstração no cabeçalho">
+        <option value="owner">Proprietário</option>
+        <option value="manager">Gerente</option>
+        <option value="employee">Funcionário</option>
+        <option value="admin">Administrador</option>
+      </select>
+      <button className="secondary-button" type="button" onClick={() => setAccountOpen(true)}>Minha conta</button>
+    </header>
+    <div className="demo-desktop-main">
     <Container>
       <section id="demo-home" data-demo-capture>
         <Card>
@@ -91,8 +148,36 @@ function DemoContent() {
             <button className="secondary-button demo-account-button" type="button" onClick={() => setAccountOpen(true)}>Minha conta</button>
           </div>
         </Card>
-        <h1>Bar Demonstração</h1>
+        <h1>PIPA BOAT PARTY</h1>
       </section>
+      {sensitive && (
+        <>
+          <section id="demo-company" data-demo-capture>
+            <Card>
+              <h2>Empresa</h2>
+              <div className="member-list">
+                <article className="member-row"><div><strong>PIPA BOAT PARTY</strong><span>Ambientes fictícios • cadastro e telefone demonstrativos</span></div></article>
+              </div>
+              <div className="form-grid">
+                <label>Nome da empresa<input value="PIPA BOAT PARTY" readOnly /></label>
+                <label>Telefone<input value="(83) 99999-0000" readOnly /></label>
+              </div>
+              <button className="primary-button" type="button">Salvar dados fictícios</button>
+            </Card>
+          </section>
+          <section id="demo-environments" data-demo-capture>
+            <Card>
+              <h2>Ambientes</h2>
+              <div className="member-list">
+                {DEMO_ENVIRONMENTS.map((environment) => (
+                  <article className="member-row" key={environment.id}><div><strong>{environment.name}</strong><span>Ambiente ativo • saldo rastreável</span></div></article>
+                ))}
+              </div>
+              <button className="primary-button" type="button">Adicionar ambiente fictício</button>
+            </Card>
+          </section>
+        </>
+      )}
       <Card>
         <label>Entrar como
           <select value={state.role} onChange={(event) => setRole(event.target.value as DemoRole)}>
@@ -175,8 +260,18 @@ function DemoContent() {
         <Card><p>Este funcionário fictício foi desativado e perdeu o acesso.</p></Card>
       )}
 
-      {sensitive && (
-        <section id="demo-stock" data-demo-capture>
+      <section id="demo-stock" data-demo-capture>
+          <Card>
+            <h2>Saldo por ambiente</h2>
+            {DEMO_ENVIRONMENTS.map((environment) => (
+              <article className="member-row" key={environment.id}>
+                <div><strong>{environment.name}</strong><span>{state.products.reduce((total, product) => total + product.balance, 0)} unidades fictícias no ambiente</span></div>
+              </article>
+            ))}
+          </Card>
+      </section>
+
+      <section id="demo-purchases" data-demo-capture>
           <Card>
             <h2>Mapa de produtos e compras</h2>
           {state.salesMap.map((row) => (
@@ -194,10 +289,8 @@ function DemoContent() {
             [['Produto','Saldo','Mínimo','Sugestão'], ...getDemoPurchaseItems(state).map((item) => [item.name,item.balance,item.minimum,item.suggestion])],
           )}>Exportar lista de compras</button>
           </Card>
-        </section>
-      )}
+      </section>
 
-      {sensitive && (
         <section id="demo-inventory" data-demo-capture>
           <Card>
             <h2>Inventário cego fictício</h2>
@@ -213,9 +306,9 @@ function DemoContent() {
           )}
           </Card>
         </section>
-      )}
 
       {sensitive && (
+        <section id="demo-sales" data-demo-capture>
         <Card>
           <h2>Importação de vendas fictícia</h2>
           <button className="primary-button" type="button" onClick={() => {
@@ -233,6 +326,22 @@ function DemoContent() {
             </article>
           ))}
         </Card>
+        </section>
+      )}
+
+      {sensitive && (
+        <section id="demo-sales-prices" data-demo-capture>
+          <Card>
+            <h2>Preços de venda e custos por ambiente</h2>
+            <div className="member-list">
+              {state.products.slice(0, 8).map((product) => (
+                <article className="member-row" key={product.id}>
+                  <div><strong>{product.name}</strong><span>Custo base R$ {product.cost.toFixed(2)} • preço por unidade fictício • preço por dose calculado</span></div>
+                </article>
+              ))}
+            </div>
+          </Card>
+        </section>
       )}
 
       {(state.role === 'owner' || state.role === 'manager') && (
@@ -250,6 +359,22 @@ function DemoContent() {
       )}
 
       {sensitive && (
+        <section id="demo-reports" data-demo-capture>
+          <Card>
+            <h2>Relatórios fictícios</h2>
+            <div className="form-grid">
+              <Card><strong>Movimentações de hoje</strong><p>{state.movements.length}</p></Card>
+              <Card><strong>Produtos ativos</strong><p>{state.products.length}</p></Card>
+              <Card><strong>Ambientes</strong><p>{DEMO_ENVIRONMENTS.length}</p></Card>
+              <Card><strong>Itens abaixo do mínimo</strong><p>{belowMinimum.length}</p></Card>
+            </div>
+            <button className="secondary-button" type="button">Exportar relatório fictício</button>
+          </Card>
+        </section>
+      )}
+
+      {sensitive && (
+        <section id="demo-team" data-demo-capture>
         <Card>
           <h2>Equipe fictícia</h2>
           <p><strong>Ana Souza</strong> • Proprietária • Ativa</p>
@@ -262,16 +387,65 @@ function DemoContent() {
             </div>
           )}
         </Card>
+        </section>
       )}
 
       {sensitive && (
+        <section id="demo-audit" data-demo-capture>
         <Card>
           <h2>Auditoria fictícia</h2>
           {state.audit.map((entry, index) => <p key={`${entry}-${index}`}>{entry}</p>)}
         </Card>
+        </section>
       )}
 
-      {sensitive && (
+      <section id="demo-profile" data-demo-capture>
+        <Card>
+          <h2>Meu perfil</h2>
+          <div className="member-identity">
+            <Avatar name="Usuário de demonstração" size={64} />
+            <span><strong>Usuário de demonstração</strong><small>{state.role === 'owner' ? 'Proprietário' : state.role === 'manager' ? 'Gerente' : state.role === 'employee' ? 'Funcionário' : 'Administrador'}</small></span>
+          </div>
+          <label>Nome<input value="Usuário de demonstração" readOnly /></label>
+          <label>Foto <input type="file" /></label>
+          <button className="primary-button" type="button">Salvar perfil fictício</button>
+        </Card>
+      </section>
+
+      <section id="demo-support" data-demo-capture>
+        <Card>
+          <h2>Suporte privado fictício</h2>
+          <div className="member-list">
+            <article className="member-row"><div><strong>Atendimento de demonstração</strong><span>Conversa privada usuário-administrador</span></div></article>
+            <article className="member-row"><div><strong>Você</strong><span>Como confirmar o estoque inicial?</span></div></article>
+            <article className="member-row"><div><strong>Administrador</strong><span>Use o inventário inicial e revise a prévia antes de finalizar.</span></div></article>
+          </div>
+          <label>Mensagem<textarea value="" readOnly placeholder="Escreva uma mensagem fictícia" /></label>
+          <button className="primary-button" type="button">Enviar mensagem fictícia</button>
+        </Card>
+      </section>
+
+      <section id="demo-offline" data-demo-capture>
+        <Card>
+          <h2>Modo offline</h2>
+          <p><strong>Fila local fictícia:</strong> 2 lançamentos aguardando conexão.</p>
+          <div className="member-list">
+            <article className="member-row"><div><strong>Entrada • Vodka Premium</strong><span>Pendente • 10 unidades</span></div></article>
+            <article className="member-row"><div><strong>Transferência • Estoque → Bar Embarque</strong><span>Pendente • 5 unidades</span></div></article>
+          </div>
+          <button className="secondary-button" type="button">Sincronizar ao reconectar</button>
+        </Card>
+      </section>
+
+      <section id="demo-privacy" data-demo-capture>
+        <Card>
+          <h2>Privacidade e conta</h2>
+          <p>Política versão 1.3.0 • Exportação de dados • Solicitação reversível de exclusão em até 90 dias.</p>
+          <button className="secondary-button" type="button">Exportar dados fictícios</button>
+          <button className="danger-button" type="button">Solicitar exclusão fictícia</button>
+        </Card>
+      </section>
+
         <section id="demo-movements" data-demo-capture>
           <Card>
             <h2>Movimentações fictícias recentes</h2>
@@ -292,8 +466,8 @@ function DemoContent() {
             ))}
           </Card>
         </section>
-      )}
     </Container>
+    </div>
     <nav className="bottom-nav demo-bottom-nav" aria-label="Navegação da demonstração">
       {demoMobileItems.map((item) => item.key === 'more'
         ? (
