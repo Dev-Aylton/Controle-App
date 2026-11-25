@@ -76,6 +76,9 @@ describe('importação de produtos', () => {
 
   it('formata número e moeda', () => {
     expect(parseNumber('1.234,50')).toBe(1234.5)
+    expect(parseNumber('1,234.50')).toBe(1234.5)
+    expect(parseNumber('12.5')).toBe(12.5)
+    expect(parseNumber('12,5')).toBe(12.5)
     expect(formatBRL(1234.5)).toContain('1.234')
   })
 

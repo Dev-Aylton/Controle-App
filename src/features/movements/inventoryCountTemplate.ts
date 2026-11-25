@@ -1,5 +1,6 @@
 import Papa from 'papaparse'
-import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx-js-style'
+import { parseLocalizedNumber } from '../../lib/parseLocalizedNumber'
 import { downloadCsv } from '../management/csv'
 
 export type CountTemplateProduct = {
@@ -134,7 +135,7 @@ export function buildInventoryCountRows(environmentName: string, products: Count
   ]
 }
 
-export function downloadInventoryCountTemplate(environmentName: string, products: CountTemplateProduct[]) {
+export function buildInventoryCountWorksheet(environmentName: string, products: CountTemplateProduct[]) {
   const now = new Date()
   const dateText = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' }).format(now)
   const timeText = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(now)
@@ -143,7 +144,7 @@ export function downloadInventoryCountTemplate(environmentName: string, products
     ['Controle-App', '', '', '', '', '', '', '', ''],
     ['Modelo oficial de contagem', '', '', '', '', '', '', '', ''],
     ['Versão', '1.0', 'Tipo', 'Contagem', 'Ambiente', environmentName, '', '', ''],
-    ['Data', dateText, 'Hora', timeText, 'Preencha apenas Quantidade contada.', '', '', '', ''],
+    ['Data', dateText, 'Hora', timeText, 'Complete os campos em branco para identificar o produto, mantenha os dados preenchidos e informe Quantidade contada. Observações é opcional.', '', '', '', ''],
     ['', '', '', '', '', '', '', '', ''],
     ...rows,
   ])
@@ -175,8 +176,8 @@ export function downloadInventoryCountTemplate(environmentName: string, products
   worksheet['C3'].s = { font: { bold: true, color: { rgb: '173A35' } }, fill: { fgColor: { rgb: 'E7F3EF' } } }
   worksheet['E3'].s = { font: { bold: true, color: { rgb: '173A35' } }, fill: { fgColor: { rgb: 'E7F3EF' } } }
   for (let column = 0; column < 9; column += 1) {
-    const cell = XLSX.utils.encode_cell({ r: 4, c: column })
-    if (!worksheet[cell]) continue
+    const cell = XLSX.utils.encode_cell({ r: 5, c: column })
+    if (!worksheet[cell]) worksheet[cell] = { t: 's', v: '' }
     worksheet[cell].s = {
       font: { bold: true, color: { rgb: '173A35' } },
       fill: { fgColor: { rgb: 'E7F3EF' } },
@@ -189,11 +190,12 @@ export function downloadInventoryCountTemplate(environmentName: string, products
       alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
     }
   }
-  for (let row = 5; row < 5 + products.length; row += 1) {
+  for (let row = 6; row < 6 + products.length; row += 1) {
     for (let column = 0; column < 9; column += 1) {
       const cell = XLSX.utils.encode_cell({ r: row, c: column })
-      if (!worksheet[cell]) continue
+      if (!worksheet[cell]) worksheet[cell] = { t: 's', v: '' }
       worksheet[cell].s = {
+        fill: { fgColor: { rgb: row % 2 === 0 ? 'F5F9F7' : 'FFFFFF' } },
         border: {
           top: { style: 'thin', color: { rgb: 'C8D8D2' } },
           bottom: { style: 'thin', color: { rgb: 'C8D8D2' } },
@@ -204,9 +206,14 @@ export function downloadInventoryCountTemplate(environmentName: string, products
       }
     }
   }
-  worksheet['!autofilter'] = { ref: `A5:I${Math.max(5, 4 + products.length)}` }
-  worksheet['!freeze'] = { xSplit: 0, ySplit: 5, topLeftCell: 'A6', state: 'frozen' }
-  worksheet['!rows'] = [{ hpt: 30 }, { hpt: 22 }, { hpt: 20 }, { hpt: 8 }, { hpt: 34 }, ...Array(Math.max(0, products.length)).fill({ hpt: 24 })]
+  worksheet['!autofilter'] = { ref: `A6:I${6 + products.length}` }
+  worksheet['!freeze'] = { xSplit: 0, ySplit: 6, topLeftCell: 'A7', state: 'frozen' }
+  worksheet['!rows'] = [{ hpt: 30 }, { hpt: 22 }, { hpt: 20 }, { hpt: 36 }, { hpt: 8 }, { hpt: 34 }, ...Array(Math.max(0, products.length)).fill({ hpt: 24 })]
+  return worksheet
+}
+
+export function downloadInventoryCountTemplate(environmentName: string, products: CountTemplateProduct[]) {
+  const worksheet = buildInventoryCountWorksheet(environmentName, products)
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Contagem')
   XLSX.writeFile(workbook, `modelo-contagem-${environmentName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.xlsx`)
@@ -220,10 +227,11 @@ export function downloadInventoryCountCsvTemplate(environmentName: string, produ
       ['Versão', '1.0'],
       ['Tipo', 'Contagem'],
       ['Ambiente', environmentName],
-      ['Preencha somente a coluna Quantidade contada.', ''],
+      ['Complete os campos em branco para identificar o produto, mantenha os dados preenchidos e informe Quantidade contada. Observações é opcional.', ''],
       [],
       ...buildInventoryCountRows(environmentName, products),
     ],
+    true,
   )
 }
 
@@ -248,8 +256,8 @@ export async function parseInventoryCountFile(file: File): Promise<InventoryCoun
           throw new Error('Use somente o modelo XLSX oficial gerado pelo Controle-App.')
         }
         const headerIndex = matrix.findIndex((row) =>
-          row.some((cell) => String(cell ?? '').toLowerCase().includes('quantidade contada'))
-          && row.some((cell) => String(cell ?? '').toLowerCase().includes('produto')),
+          row.some((cell) => normalizeHeader(cell) === 'quantidadecontada')
+          && row.some((cell) => normalizeHeader(cell) === 'produto'),
         )
         if (headerIndex < 0) throw new Error('A tabela de contagem não foi encontrada na planilha.')
         const header = matrix[headerIndex].map((cell) => String(cell ?? '').trim())
@@ -265,12 +273,19 @@ export async function parseInventoryCountFile(file: File): Promise<InventoryCoun
       throw new Error('Use somente o modelo CSV oficial gerado pelo Controle-App.')
     }
     const lines = text.split(/\r?\n/)
-    const headerIndex = lines.findIndex((line) =>
-      normalizeHeader(line).includes('quantidadecontada') && normalizeHeader(line).includes('produto'),
-    )
+    const headerIndex = lines.findIndex((line) => {
+      const cells = line.split(/[;,]/).map((cell) => normalizeHeader(cell.replace(/^"|"$/g, '')))
+      return cells.includes('quantidadecontada') && cells.includes('produto')
+    })
     if (headerIndex < 0) throw new Error('O cabeçalho oficial de contagem não foi encontrado.')
     const tableText = lines.slice(headerIndex).join('\n')
-    return Papa.parse<Record<string, unknown>>(tableText, { header: true, skipEmptyLines: true, delimiter: tableText.includes(';') ? ';' : ',' }).data
+    const parsed = Papa.parse<Record<string, unknown>>(tableText, {
+      header: true,
+      skipEmptyLines: 'greedy',
+      delimiter: lines[headerIndex].match(/;/g)?.length ? ';' : ',',
+    })
+    if (parsed.errors.length > 0) throw new Error('Não foi possível interpretar o modelo CSV de contagem.')
+    return parsed.data
       })()
   return rawRows.map((row, index) => {
     const get = (...keys: string[]) => {
@@ -288,7 +303,8 @@ export async function parseInventoryCountFile(file: File): Promise<InventoryCoun
     const measure = String(get('volume/peso', 'volume/peso', 'volume', 'peso', 'measure')).trim()
     const dose = String(get('dose (ml)', 'dose ml', 'dose_ml', 'dose')).trim()
     const environment = String(get('ambiente', 'environment')).trim()
-    const quantityText = String(get('quantidade contada', 'contagem', 'quantidade', 'count')).replace(',', '.').trim()
+    const quantityText = String(get('quantidade contada', 'contagem', 'quantidade', 'count')).trim()
+    const quantity = parseLocalizedNumber(quantityText)
     return {
       code,
       category,
@@ -297,7 +313,7 @@ export async function parseInventoryCountFile(file: File): Promise<InventoryCoun
       measure,
       dose,
       environment,
-      quantity: quantityText === '' ? Number.NaN : Number(quantityText),
+      quantity: quantityText === '' || quantity === null ? Number.NaN : quantity,
       line: index + 2,
     }
   })

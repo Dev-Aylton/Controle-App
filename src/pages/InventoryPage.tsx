@@ -529,7 +529,7 @@ export function InventoryPage() {
       {message && <p className="form-success" role="status">{message}</p>}
       <Card>
         <h2>Modelo de contagem</h2>
-        <p className="field-help">Baixe a planilha do ambiente selecionado, preencha a coluna “Quantidade contada” e importe o arquivo para revisar antes de finalizar.</p>
+        <p className="field-help">Nos modelos personalizados, os dados dos produtos já vêm preenchidos: mantenha-os e informe a “Quantidade contada”. No modelo padrão em branco, preencha também dados que identifiquem cada produto. “Observações” é opcional. XLSX tem filtros e formatação; CSV é texto simples, sem filtros ou bordas.</p>
         <div className="inventory-template-actions">
           <button className="secondary-button" type="button" onClick={() => setTemplatePreviewOpen(true)}>Visualizar modelo</button>
           <a className="secondary-button" href={`${import.meta.env.BASE_URL}modelo-contagem.xlsx`} download="modelo-contagem.xlsx">Baixar modelo padrão XLSX</a>

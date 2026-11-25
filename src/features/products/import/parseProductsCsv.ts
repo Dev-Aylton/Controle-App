@@ -1,4 +1,5 @@
 import Papa from 'papaparse'
+import { parseLocalizedNumber } from '../../../lib/parseLocalizedNumber'
 
 export type ParsedProductRow = {
   line: number
@@ -29,10 +30,7 @@ const units = new Set([
 ])
 
 export function parseNumber(value: unknown) {
-  const text = String(value ?? '').trim().replace(/\./g, '').replace(',', '.')
-  if (!text) return null
-  const number = Number(text)
-  return Number.isFinite(number) ? number : null
+  return parseLocalizedNumber(value)
 }
 
 export function normalizeProductUnit(value: unknown): string {
@@ -156,10 +154,16 @@ export function parseProductsCsv(
   const lines = normalized.split(/\r?\n/)
   const hasOfficialMarker = normalized.includes('Modelo oficial de produtos')
   const headerIndex = lines.findIndex((line) => {
-    const normalizedLine = line.toLowerCase()
-    return normalizedLine.includes('nome')
-      && normalizedLine.includes('codigo')
-      && normalizedLine.includes('unidade')
+    const cells = line.split(/[;,]/).map((cell) => cell
+      .trim()
+      .replace(/^"|"$/g, '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ''))
+    return cells.includes('nome')
+      && cells.includes('codigo')
+      && cells.includes('unidade')
   })
   if (hasOfficialMarker && headerIndex < 0) throw new Error('O cabeçalho oficial de produtos não foi encontrado.')
   const effectiveHeaderIndex = headerIndex >= 0 ? headerIndex : 0
@@ -169,7 +173,7 @@ export function parseProductsCsv(
   const parsed = Papa.parse<Record<string, string>>(tableText, {
     header: true,
     delimiter: separator,
-    skipEmptyLines: true,
+    skipEmptyLines: 'greedy',
   })
   if (hasOfficialMarker && parsed.errors.length > 0) throw new Error('Não foi possível interpretar o modelo CSV de produtos.')
   return parseProductRows(parsed.data as Record<string, unknown>[], existingNames, existingSkus, existingVariants)

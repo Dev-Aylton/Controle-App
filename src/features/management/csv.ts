@@ -16,12 +16,20 @@ function formatCell(value: CsvCell): string {
   return /[;"\r\n]/u.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
 }
 
-export function generateCsv(rows: readonly (readonly CsvCell[])[]): string {
-  return `\uFEFF${rows.map((row) => row.map(formatCell).join(';')).join('\r\n')}`
+export function generateCsv(
+  rows: readonly (readonly CsvCell[])[],
+  includeExcelSeparatorHint = false,
+): string {
+  const separatorHint = includeExcelSeparatorHint ? 'sep=;\r\n' : ''
+  return `\uFEFF${separatorHint}${rows.map((row) => row.map(formatCell).join(';')).join('\r\n')}`
 }
 
-export function downloadCsv(filename: string, rows: readonly (readonly CsvCell[])[]): void {
-  const blob = new Blob([generateCsv(rows)], { type: 'text/csv;charset=utf-8' })
+export function downloadCsv(
+  filename: string,
+  rows: readonly (readonly CsvCell[])[],
+  includeExcelSeparatorHint = false,
+): void {
+  const blob = new Blob([generateCsv(rows, includeExcelSeparatorHint)], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url

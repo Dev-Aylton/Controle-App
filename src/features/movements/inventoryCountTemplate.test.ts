@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as XLSX from 'xlsx'
-import { buildInventoryCountRows, findInventoryCountProduct, parseInventoryCountFile, suggestInventoryCountProducts } from './inventoryCountTemplate'
+import { buildInventoryCountRows, buildInventoryCountWorksheet, findInventoryCountProduct, parseInventoryCountFile, suggestInventoryCountProducts } from './inventoryCountTemplate'
 
 describe('modelo de contagem', () => {
   it('gera cabeçalho e linhas por produto', () => {
@@ -28,6 +28,17 @@ describe('modelo de contagem', () => {
       { id: 'p1', name: 'Vodka Premium', sku: 'P001', categoryName: 'Vodka', unit: 'Garrafa', volumeMl: 998, doseMl: 50 },
     ])
     expect(rows.at(-1)?.[6]).toBe('Bar VIP')
+  })
+
+  it('formata o cabeçalho e a grade do XLSX personalizado no intervalo correto', () => {
+    const sheet = buildInventoryCountWorksheet('Bar VIP', [
+      { id: 'p1', name: 'Vodka', sku: 'P001', categoryName: 'Vodka', unit: 'Garrafa' },
+    ])
+    expect(sheet['!autofilter']?.ref).toBe('A6:I7')
+    expect(sheet['!freeze']).toMatchObject({ ySplit: 6, topLeftCell: 'A7' })
+    expect(sheet.F6.s.fill.fgColor.rgb).toBe('E7F3EF')
+    expect(sheet.A7.s.fill.fgColor.rgb).toBe('F5F9F7')
+    expect(sheet.I7.s.border.right.style).toBe('thin')
   })
 
   it('identifica a variante correta pelo SKU', () => {

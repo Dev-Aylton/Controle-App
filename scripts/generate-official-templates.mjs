@@ -1,8 +1,17 @@
-import * as XLSX from 'xlsx'
+import XLSX from 'xlsx-js-style'
 import { writeFileSync } from 'node:fs'
 
 const thin = { style: 'thin', color: { rgb: 'C8D8D2' } }
 const border = { top: thin, bottom: thin, left: thin, right: thin }
+
+function formatCsv(rows) {
+  return `\uFEFFsep=;\r\n${rows
+    .map((row) => row.map((value) => {
+      const text = String(value ?? '')
+      return /[;"\r\n]/u.test(text) ? `"${text.replace(/"/g, '""')}"` : text
+    }).join(';'))
+    .join('\r\n')}`
+}
 
 function styleWorksheet(worksheet, endColumn, headerRow, lastRow) {
   worksheet['!merges'] = [
@@ -11,13 +20,12 @@ function styleWorksheet(worksheet, endColumn, headerRow, lastRow) {
   ]
   for (let column = 0; column <= endColumn; column += 1) {
     const title = XLSX.utils.encode_cell({ r: headerRow, c: column })
-    if (worksheet[title]) {
-      worksheet[title].s = {
-        font: { bold: true, color: { rgb: '173A35' } },
-        fill: { fgColor: { rgb: 'E7F3EF' } },
-        border,
-        alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-      }
+    if (!worksheet[title]) worksheet[title] = { t: 's', v: '' }
+    worksheet[title].s = {
+      font: { bold: true, color: { rgb: '173A35' } },
+      fill: { fgColor: { rgb: 'E7F3EF' } },
+      border,
+      alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
     }
   }
   worksheet['A1'].s = {
@@ -32,8 +40,12 @@ function styleWorksheet(worksheet, endColumn, headerRow, lastRow) {
   for (let row = headerRow + 1; row <= lastRow; row += 1) {
     for (let column = 0; column <= endColumn; column += 1) {
       const cell = XLSX.utils.encode_cell({ r: row, c: column })
-      if (!worksheet[cell]) continue
-      worksheet[cell].s = { border, alignment: { vertical: 'top', wrapText: true } }
+      if (!worksheet[cell]) worksheet[cell] = { t: 's', v: '' }
+      worksheet[cell].s = {
+        border,
+        fill: { fgColor: { rgb: row % 2 === 0 ? 'F5F9F7' : 'FFFFFF' } },
+        alignment: { vertical: 'top', wrapText: true },
+      }
     }
   }
   worksheet['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: headerRow, c: 0 }, e: { r: lastRow, c: endColumn } }) }
@@ -87,7 +99,7 @@ const countRows = [
   ['Controle-App', '', '', '', '', '', '', '', ''],
   ['Modelo oficial de contagem', '', '', '', '', '', '', '', ''],
   ['Versão', '1.0', 'Tipo', 'Contagem', '', '', '', '', ''],
-  ['Preencha somente a coluna Quantidade contada.', '', '', '', '', '', '', '', ''],
+  ['Complete os campos em branco para identificar o produto, mantenha os dados preenchidos e informe Quantidade contada. Observações é opcional.', '', '', '', '', '', '', '', ''],
   ['', '', '', '', '', '', '', '', ''],
   countColumns,
   ...Array.from({ length: 100 }, () => Array(countColumns.length).fill('')),
@@ -102,7 +114,7 @@ styleWorksheet(countSheet, countColumns.length - 1, 5, countRows.length - 1)
 XLSX.utils.book_append_sheet(countWorkbook, countSheet, 'Contagem')
 XLSX.writeFile(countWorkbook, 'public/modelo-contagem.xlsx')
 
-const productCsv = [
+const productCsv = formatCsv([
   ['Controle-App', 'Modelo oficial de produtos'],
   ['Versão', '1.0'],
   ['Tipo', 'Produtos'],
@@ -110,16 +122,16 @@ const productCsv = [
   [],
   productColumns,
   ...Array.from({ length: 30 }, () => Array(productColumns.length).fill('')),
-].map((row) => row.join(';')).join('\r\n')
-writeFileSync('public/modelo-produtos.csv', `\uFEFF${productCsv}`, 'utf8')
+])
+writeFileSync('public/modelo-produtos.csv', productCsv, 'utf8')
 
-const countCsv = [
+const countCsv = formatCsv([
   ['Controle-App', 'Modelo oficial de contagem'],
   ['Versão', '1.0'],
   ['Tipo', 'Contagem'],
-  ['Preencha somente a coluna Quantidade contada.', ''],
+  ['Complete os campos em branco para identificar o produto, mantenha os dados preenchidos e informe Quantidade contada. Observações é opcional.', ''],
   [],
   countColumns,
   ...Array.from({ length: 100 }, () => Array(countColumns.length).fill('')),
-].map((row) => row.join(';')).join('\r\n')
-writeFileSync('public/modelo-contagem.csv', `\uFEFF${countCsv}`, 'utf8')
+])
+writeFileSync('public/modelo-contagem.csv', countCsv, 'utf8')

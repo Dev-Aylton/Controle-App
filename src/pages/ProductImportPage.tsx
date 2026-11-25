@@ -2,8 +2,7 @@ import { useState, type ChangeEvent } from 'react'
 import { useCompanies } from '../features/company/company-context'
 import { canManageCompany } from '../lib/uiPermissions'
 import { tryGetSupabaseClient } from '../lib/supabase'
-import { parseProductRows, type ParsedProductRow } from '../features/products/import/parseProductsCsv'
-import Papa from 'papaparse'
+import { parseProductRows, parseProductsCsv, type ParsedProductRow } from '../features/products/import/parseProductsCsv'
 import * as XLSX from 'xlsx'
 import { Container, Card, ActionButton, ContextHelp, PageGuide } from '../components'
 import { traduzirErro } from '../lib/errors'
@@ -112,19 +111,6 @@ export function ProductImportPage() {
         if (!text.includes('Modelo oficial de produtos')) {
           throw new Error('Use somente o modelo CSV oficial gerado pelo Controle-App.')
         }
-        const lines = text.split(/\r?\n/)
-        const headerIndex = lines.findIndex((line) => {
-          const normalized = line.toLowerCase()
-          return normalized.includes('nome') && normalized.includes('codigo') && normalized.includes('unidade')
-        })
-        if (headerIndex < 0) throw new Error('O cabeçalho oficial de produtos não foi encontrado.')
-        const tableText = lines.slice(headerIndex).join('\n')
-        const table = Papa.parse<Record<string, unknown>>(tableText, {
-          header: true,
-          skipEmptyLines: true,
-          delimiter: tableText.includes(';') ? ';' : ',',
-        })
-        if (table.errors.length > 0) throw new Error('Não foi possível interpretar o modelo CSV de produtos.')
         const supabase = tryGetSupabaseClient()
         if (!supabase) throw new Error('Supabase não configurado.')
         const existingResult = await supabase
@@ -150,7 +136,7 @@ export function ProductImportPage() {
           doseMl: item.dose_ml,
           weightG: item.weight_g ?? null,
         }))
-        const parsed = parseProductRows(table.data, existingNames, existingSkus, existingVariants)
+        const parsed = parseProductsCsv(text, existingNames, existingSkus, existingVariants)
         setRows(parsed)
         setResolvedRows(prepareProductImportResolutions(parsed, existingProducts))
       } else {
@@ -303,6 +289,7 @@ export function ProductImportPage() {
           <a className="secondary-button" href={`${import.meta.env.BASE_URL}modelo-produtos.xlsx`} download="modelo-produtos.xlsx">Baixar modelo XLSX</a>
           <a className="secondary-button" href={`${import.meta.env.BASE_URL}modelo-produtos.csv`} download="modelo-produtos.csv">Baixar modelo CSV</a>
         </div>
+        <p className="field-help">O XLSX tem cabeçalho formatado, bordas e filtros. CSV é texto simples e não suporta formatação nem filtros.</p>
         <label className="file-upload-label">Modelo XLSX ou CSV oficial
           <input type="file" accept=".xlsx,.xls,.csv,text/csv" onChange={loadFile} />
         </label>

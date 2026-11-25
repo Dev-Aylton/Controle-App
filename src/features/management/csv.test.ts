@@ -7,6 +7,11 @@ describe('exportação CSV', () => {
       .toBe('\uFEFFProduto;Quantidade\r\nÁgua;1.234,5\r\nAjuste;-1,25')
   })
 
+  it('inclui a dica de separador quando o CSV precisa abrir em colunas no Excel', () => {
+    expect(generateCsv([['Produto', 'Quantidade']], true))
+      .toBe('\uFEFFsep=;\r\nProduto;Quantidade')
+  })
+
   it('protege fórmulas em textos, inclusive após espaço em branco', () => {
     expect(generateCsv([['=1+1', '+1', '-1', '@cmd', ' =1']]))
       .toBe("\uFEFF'=1+1;'+1;'-1;'@cmd;' =1")

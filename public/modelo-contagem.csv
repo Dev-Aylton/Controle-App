@@ -1,7 +1,8 @@
-﻿Controle-App;Modelo oficial de contagem
+﻿sep=;
+Controle-App;Modelo oficial de contagem
 Versão;1.0
 Tipo;Contagem
-Preencha somente a coluna Quantidade contada.;
+Complete os campos em branco para identificar o produto, mantenha os dados preenchidos e informe Quantidade contada. Observações é opcional.;
 
 Código;Tipo/Categoria;Produto;Unidade;Volume/Peso;Dose (ml);Ambiente;Quantidade contada;Observações
 ;;;;;;;;
