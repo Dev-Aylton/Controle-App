@@ -24,7 +24,7 @@ test('demo permite trocar cargos e respeitar menus', async ({ page }) => {
   await page.getByLabel('Entrar como').selectOption('employee')
   await expect(page.getByText(/Visão restrita do funcionário/)).toBeVisible()
   await page.getByLabel('Entrar como').selectOption('manager')
-  await expect(page.getByText('Abaixo do mínimo')).toBeVisible()
+  await expect(page.getByText('Abaixo do mínimo', { exact: true })).toBeVisible()
 })
 
 test('papéis do aplicativo não causam rolagem horizontal em celular e desktop', async ({ page }) => {
@@ -52,7 +52,7 @@ test('demo mostra central de alertas e lista de compras', async ({ page }) => {
 test('demo permite reiniciar dados', async ({ page }) => {
   await page.goto('#/demo')
   await page.getByRole('button', { name: 'Reiniciar demonstração' }).click()
-  await expect(page.getByText('Bar Demonstração')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'PIPA BOAT PARTY', exact: true })).toBeVisible()
 })
 
 test('funcionário lança saída no layout móvel sem ver dados sensíveis', async ({ page }) => {
