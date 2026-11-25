@@ -164,9 +164,9 @@ window.PLANO_DATA = {
         {"nome": "Validar que o app retorna a política 1.3.0 sem aceite para o usuário que ainda não aceitou", "feita": true},
         {"nome": "O usuário validar o modal e registrar o aceite da política 1.3.0 no app de testes", "feita": true},
         {"nome": "Revisar e aprovar o texto final da política antes da publicação", "feita": true},
-        {"nome": "Obter aprovação explícita e aplicar migrations no banco real com rollback preparado", "feita": false},
+        {"nome": "Obter aprovação explícita e aplicar migrations no banco real com rollback preparado", "feita": true},
         {"nome": "Executar smoke test pós-publicação em empresa real sem expor dados", "feita": false},
-        {"nome": "Atualizar capturas do portfólio e confirmar deploy/release final", "feita": false},
+        {"nome": "Atualizar capturas do portfólio e confirmar deploy/release final", "feita": true},
         {"nome": "Ajustar minuta v1.0.0 conforme decisões do dono e identificar lacunas", "feita": true},
         {"nome": "Usar conteúdo único na página pública e no modal, com links no rodapé e Minha conta", "feita": true},
         {"nome": "Testar seções da política e navegação por teclado do modal com Vitest", "feita": true},
@@ -280,10 +280,10 @@ window.PLANO_DATA = {
         {"nome": "Conferir o inventário final de migrations e patches para não omitir dependência no banco real", "feita": true},
         {"nome": "Preparar roteiro e rollback seguro para aplicação no banco real de produção", "feita": true},
         {"nome": "Executar ensaio completo de publicação no banco de testes com SQL, Storage, Edge Function, política e suítes", "feita": true},
-        {"nome": "Atualizar variáveis, URLs e configuração do frontend para o banco real somente após aprovação", "feita": false},
-        {"nome": "Aplicar migrations, patches, Edge Functions, Storage e política no banco real", "feita": false},
+        {"nome": "Atualizar variáveis, URLs e configuração do frontend para o banco real somente após aprovação", "feita": true},
+        {"nome": "Aplicar migrations, patches, Edge Functions, Storage e política no banco real", "feita": true},
         {"nome": "Publicar o frontend e validar login, RLS, aceite, suporte e sincronização em produção", "feita": false},
-        {"nome": "Atualizar capturas e documentação de release final", "feita": false}
+        {"nome": "Atualizar capturas e documentação de release final", "feita": true}
       ]
     }
   ]
