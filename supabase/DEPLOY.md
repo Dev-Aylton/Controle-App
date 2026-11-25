@@ -11,6 +11,22 @@ Use este repositório como fonte única de verdade. Não execute arquivos antigo
 5. Configurar os buckets de fotos, empresa, perfil e suporte.
 6. Aplicar `041-publicar-politica-1-3-0.sql` e `042-permissao-avatar-key.sql` somente quando a versão correspondente do frontend estiver pronta.
 
+## Criação da empresa no banco real
+
+Não existe seed automático da Pipa Boat Party no código ou nas migrations.
+
+Depois da implantação da estrutura:
+
+1. Entre no Supabase real com uma conta definida como administrador da plataforma.
+2. Crie ou selecione a empresa Pipa Boat Party pela interface ou pelo fluxo autorizado.
+3. Configure pelo menos um ambiente real.
+4. Importe produtos e ambientes com as planilhas oficiais disponíveis no app.
+5. Revise nomes, unidades, volumes, doses, mínimos e custos antes de confirmar.
+6. Faça o primeiro login com proprietário, gerente e funcionário em contas sintéticas ou reais aprovadas.
+7. Execute o smoke test manual somente após o cadastro inicial.
+
+Não insira clientes, funcionários, movimentos ou saldos históricos como seed de código. Eles devem ser criados pela interface e pelas importações oficiais.
+
 ## Verificação antes da aplicação
 
 ```powershell

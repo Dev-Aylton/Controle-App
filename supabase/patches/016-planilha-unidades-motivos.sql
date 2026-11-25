@@ -1,4 +1,4 @@
--- Suporte às unidades da planilha PIPA e importação completa de produtos.
+-- Suporte às unidades de planilha e importação completa de produtos.
 
 alter table public.products drop constraint if exists products_unit_check;
 alter table public.products add constraint products_unit_check

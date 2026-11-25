@@ -45,13 +45,18 @@ if (testUserIds.length) {
   await admin.from('app_admins').delete().in('user_id', testUserIds)
 }
 
-const { data: namedCompanies, error: companyError } = await admin
+const { data: allCompanies, error: companyError } = await admin
   .from('companies')
   .select('id,name')
-  .or('name.ilike.rls-test-%')
 if (companyError) throw new Error(`Falha ao listar empresas RLS: ${companyError.message}${companyError.code ? ` [${companyError.code}]` : ''}`)
 
-for (const company of namedCompanies ?? []) {
+const syntheticCompanyPattern = /^rls-test-|^Nova empresa \d{2}\/\d{2}\/\d{4}$/i
+const namedCompanies = (allCompanies ?? []).filter((company) =>
+  syntheticCompanyPattern.test(company.name ?? '')
+  || /delete-account/i.test(company.name ?? ''),
+)
+
+for (const company of namedCompanies) {
   await admin.from('stock_movements').delete().eq('company_id', company.id)
   await admin.from('inventory_counts').delete().in('session_id', (
     (await admin.from('inventory_sessions').select('id').eq('company_id', company.id)).data ?? []

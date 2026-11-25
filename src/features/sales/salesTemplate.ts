@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import { downloadCsv } from '../management/csv'
+import { downloadCsv, protectSpreadsheetText } from '../management/csv'
 
 export type SalesTemplateProduct = {
   id: string
@@ -60,7 +60,7 @@ export function downloadSalesTemplate(
     ['Controle-App', '', '', ''],
     ['Modelo oficial de vendas', '', '', ''],
     ['Versão', '1.0', 'Tipo', 'Vendas'],
-    ['Empresa', companyName, 'Ambiente', environmentName],
+    ['Empresa', protectSpreadsheetText(companyName), 'Ambiente', protectSpreadsheetText(environmentName)],
     ['Gerado em', dateText, 'Hora', timeText],
     ['Preencha uma linha por venda ou grupo de vendas.', '', '', ''],
     ['', '', '', ''],
@@ -112,9 +112,9 @@ export function downloadSalesTemplate(
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Vendas')
   const catalogWorksheet = XLSX.utils.json_to_sheet(
     products.map((product) => ({
-      'Código/SKU': product.sku ?? '',
-      Produto: product.name,
-      Unidade: product.unit,
+      'Código/SKU': protectSpreadsheetText(product.sku ?? ''),
+      Produto: protectSpreadsheetText(product.name),
+      Unidade: protectSpreadsheetText(product.unit),
       'Volume (ml)': product.volumeMl ?? '',
       'Dose (ml)': product.doseMl ?? '',
     })),

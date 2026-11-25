@@ -17,13 +17,23 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 20.19.5
           cache: npm
       - run: npm ci
+      - name: Validar lint e regras
+        run: |
+          npm run lint
+          npm test
+          npm run sql:validar
+      - name: Instalar navegador Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Validar demonstração ponta a ponta
+        run: npm run test:e2e
       - name: Validar configuração e gerar build
         run: |
           test -n "$VITE_SUPABASE_URL" || { echo "Configure VITE_SUPABASE_URL nas variáveis do repositório."; exit 1; }

@@ -1,5 +1,9 @@
 export type CsvCell = string | number | null
 
+export function protectSpreadsheetText(value: string): string {
+  return /^[\s]*[=+\-@]/u.test(value) ? `'${value}` : value
+}
+
 const numberFormat = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 20 })
 
 function formatCell(value: CsvCell): string {
@@ -8,7 +12,7 @@ function formatCell(value: CsvCell): string {
     if (!Number.isFinite(value)) throw new Error('Não é possível exportar um número inválido.')
     return numberFormat.format(value).replace(/[^0-9,.-]/g, '')
   }
-  const safe = /^[\s]*[=+\-@]/u.test(value) ? `'${value}` : value
+  const safe = protectSpreadsheetText(value)
   return /[;"\r\n]/u.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
 }
 

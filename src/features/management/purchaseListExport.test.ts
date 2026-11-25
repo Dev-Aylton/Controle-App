@@ -31,4 +31,20 @@ describe('exportação da lista de compras', () => {
     ]))
     expect(rows.some((row) => row[0] === 'Fora')).toBe(false)
   })
+
+  it('neutraliza textos que poderiam iniciar fórmulas', () => {
+    const rows = buildPurchaseListExportRows([
+      {
+        key: 'formula',
+        productName: '=1+1',
+        environmentName: '@Bar',
+        quantity: 1,
+        supplierName: '+Fornecedor',
+        unitCost: 10,
+        draftAction: 'comprar',
+        manual: true,
+      },
+    ])
+    expect(rows[1]).toEqual(expect.arrayContaining(["'=1+1", "'@Bar", "'+Fornecedor"]))
+  })
 })

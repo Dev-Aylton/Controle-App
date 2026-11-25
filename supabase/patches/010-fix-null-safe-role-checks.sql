@@ -112,8 +112,20 @@ begin
 end;
 $$;
 
+drop function if exists public.list_sales_imports(uuid);
 create or replace function public.list_sales_imports(p_company_id uuid)
-returns table(batch_id uuid,label text,status text,total_items integer,total_quantity numeric,imported_at timestamptz,imported_by_name text)
+returns table(
+  batch_id uuid,
+  label text,
+  status text,
+  total_items integer,
+  total_quantity numeric,
+  total_revenue numeric,
+  total_cogs numeric,
+  total_gross_profit numeric,
+  imported_at timestamptz,
+  imported_by_name text
+)
 language plpgsql stable security definer set search_path=public,pg_temp
 as $$
 begin
@@ -122,7 +134,8 @@ begin
     or coalesce(public.is_manager_or_owner(p_company_id),false)
   ) then raise exception 'Somente gestores podem listar importações de vendas'; end if;
   return query
-    select b.id,b.label,b.status,b.total_items,b.total_quantity,b.imported_at,
+    select b.id,b.label,b.status,b.total_items,b.total_quantity,
+      b.total_revenue,b.total_cogs,b.total_gross_profit,b.imported_at,
       coalesce(p.name,u.email,'Usuário sem nome')::text
     from public.sales_import_batches b
     left join public.profiles p on p.id=b.imported_by

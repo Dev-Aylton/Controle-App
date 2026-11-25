@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx'
 import type { PurchaseDraftItem } from './purchaseListDraft'
 import { calculatePurchaseDraftEstimated, calculatePurchaseDraftTotal } from './purchaseListDraft'
+import { protectSpreadsheetText } from './csv'
 
 export function buildPurchaseListExportRows(items: PurchaseDraftItem[]) {
   const visibleItems = items.filter((item) => item.quantity > 0 && item.draftAction !== 'fora')
@@ -8,11 +9,11 @@ export function buildPurchaseListExportRows(items: PurchaseDraftItem[]) {
   return [
     ['Produto', 'Ambiente', 'Quantidade', 'Unidade', 'Fornecedor', 'Custo unitário', 'Custo estimado', 'Ação'],
     ...visibleItems.map((item) => [
-      item.productName,
-      item.environmentName,
+      protectSpreadsheetText(item.productName),
+      protectSpreadsheetText(item.environmentName),
       item.quantity,
-      item.purchaseUnit ?? 'un',
-      item.supplierName ?? '',
+      protectSpreadsheetText(item.purchaseUnit ?? 'un'),
+      protectSpreadsheetText(item.supplierName ?? ''),
       item.unitCost,
       calculatePurchaseDraftEstimated(item),
       item.draftAction === 'transferir' ? 'Transferir' : 'Comprar',

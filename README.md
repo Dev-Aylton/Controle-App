@@ -79,6 +79,23 @@ Funcionários novos entram pela RPC `join_company_with_code`: o vínculo como fu
 - **Performance:** telas carregadas por rota; listas extensas usam paginação; XLSX e PDF são carregados sob demanda.
 - **Privacidade:** sessão e fila permanecem locais durante uso autorizado; a saída limpa dados locais da conta sem apagar histórico empresarial.
 
+## Arquitetura
+
+```text
+React + PWA
+  ├── Dexie / IndexedDB
+  │     └── catálogo local e fila idempotente de movimentações
+  ├── Supabase Auth
+  ├── PostgreSQL + RLS
+  │     ├── RPCs SECURITY DEFINER
+  │     ├── auditabilidade e estornos
+  │     └── isolamento entre empresas
+  └── Supabase Storage / Edge Functions
+        └── fotos, anexos e finalização de exclusão de conta
+```
+
+O frontend protege a experiência por cargo, mas as regras críticas de estoque, segurança e multi-tenancy são validadas no PostgreSQL por RLS e funções protegidas.
+
 ## Stack
 
 React 19, TypeScript, Vite 8, React Router, Supabase/PostgreSQL, Dexie/IndexedDB, Papaparse, XLSX, Vitest e Playwright.
@@ -114,8 +131,7 @@ npm run test:rls
 - **Vitest:** suíte unitária do domínio e regras da interface.
 - **RLS:** testes em `tests/rls/`, executados contra o projeto Supabase de testes.
 - **Playwright:** suíte da demonstração em `tests/e2e/` e fluxo da empresa com Supabase simulado em `tests/company-e2e/`.
-- **Playwright:** suíte da demonstração em `tests/e2e/` e fluxo da empresa com Supabase simulado em `tests/company-e2e/`.
-- **SQL:** 16 migrations e 40 patches validados; ordem e rollback documentados em `supabase/DEPLOY.md`.
+- **SQL:** 16 migrations e 42 patches validados; ordem e rollback documentados em `supabase/DEPLOY.md`.
 
 
 ## Estrutura principal
@@ -134,15 +150,22 @@ tests/
   e2e/               testes Playwright da demonstração
 docs/
   acompanhamento/    plano e acompanhamento de testes
+  guias/             guias operacionais por cargo e engenharia
 ```
 
 ## Roadmap e status
 
 O status detalhado está na [página de acompanhamento](https://dev-aylton.github.io/Controle-App/docs/acompanhamento/plano/). O release foi ensaiado no banco de testes antes da aplicação no banco real.
+Os guias operacionais e técnicos estão em [docs/guias/](docs/guias/README.md).
 
 ## Telas
 
 As capturas devem usar somente dados fictícios do modo demonstração. Os arquivos previstos e o estado atual estão listados em [docs/screenshots/README.md](docs/screenshots/README.md).
+
+| Aplicação | Demonstração |
+|---|---|
+| ![Início](docs/screenshots/inicio.png) | ![Modo mobile](docs/screenshots/celular-iphone-14.png) |
+| ![Movimentações](docs/screenshots/movimentacoes.png) | ![Tema escuro](docs/screenshots/tema-escuro.png) |
 
 ## Autor
 

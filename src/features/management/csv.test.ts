@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { generateCsv } from './csv'
+import { generateCsv, protectSpreadsheetText } from './csv'
 
 describe('exportação CSV', () => {
   it('inclui BOM, separador e números no formato brasileiro', () => {
@@ -10,6 +10,12 @@ describe('exportação CSV', () => {
   it('protege fórmulas em textos, inclusive após espaço em branco', () => {
     expect(generateCsv([['=1+1', '+1', '-1', '@cmd', ' =1']]))
       .toBe("\uFEFF'=1+1;'+1;'-1;'@cmd;' =1")
+  })
+
+  it('fornece proteção equivalente para células XLSX', () => {
+    expect(protectSpreadsheetText('=SUM(A1:A2)')).toBe("'=SUM(A1:A2)")
+    expect(protectSpreadsheetText('  @cmd')).toBe("'  @cmd")
+    expect(protectSpreadsheetText('Vodka')).toBe('Vodka')
   })
 
   it('escapa delimitadores, aspas e quebras de linha', () => {
